@@ -26,4 +26,5 @@ jobs:
       - name: Build
         run: npm run build
       - name: Deploy
-        run: npm run deploy
+        run: aws lambda update-function-code --function-name "RoamJS_deploy" --publish --zip-file "fileb://deploy.zip"
+        working-directory: out
