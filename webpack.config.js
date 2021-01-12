@@ -2,10 +2,9 @@ const Dotenv = require("dotenv-webpack");
 const path = require("path");
 
 module.exports = {
-  devtool: "inline-source-map",
   entry: "./src/index.ts",
   target: "node",
-  mode: "production",
+  mode: "development",
   module: {
     rules: [
       {
@@ -33,7 +32,7 @@ module.exports = {
     ],
   },
   output: {
-    libraryTarget: "commonjs",
+    libraryTarget: "commonjs2",
     path: path.join(__dirname, "out"),
     filename: "deploy.js",
   },
@@ -42,8 +41,8 @@ module.exports = {
   },
   plugins: [
     new Dotenv({
-      path: ".env",
-      systemvars: true,
+      path: ".env.local",
+      silent: true
     }),
   ],
 };

@@ -22,16 +22,15 @@
   "homepage": "https://github.com/dvargas92495/generate-roam-site-lambda#readme",
   "dependencies": {
     "@vercel/client": "^9.0.4",
-    "esprima": "^4.0.1",
     "generate-roam-site": "^2.1.1"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.70",
-    "dotenv-webpack": "^6.0.0",
+    "dotenv-webpack": "^2.0.0",
     "file-loader": "^6.2.0",
     "ts-loader": "^8.0.3",
     "typescript": "^4.1.2",
-    "webpack": "^4.44.1",
+    "webpack": "^5.2.0",
     "webpack-cli": "^4.3.1"
   }
 }
