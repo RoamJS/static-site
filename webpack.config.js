@@ -17,6 +17,7 @@ module.exports = {
             },
           },
         ],
+        exclude: /node_modules/,
       },
       {
         test: /\.br$/,
@@ -30,6 +31,10 @@ module.exports = {
         ],
       },
     ],
+  },
+  node: {
+    // Make sure that __dirname works in node env
+    __dirname: true,
   },
   output: {
     libraryTarget: "commonjs2",
