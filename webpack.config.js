@@ -1,6 +1,8 @@
 const Dotenv = require("dotenv-webpack");
+const path = require("path");
 
 module.exports = {
+  devtool: "inline-source-map",
   entry: "./src/index.ts",
   target: "node",
   mode: "production",
@@ -12,13 +14,10 @@ module.exports = {
           {
             loader: "ts-loader",
             options: {
-              compilerOptions: {
-                noEmit: false,
-              },
+              transpileOnly: true,
             },
           },
         ],
-        exclude: /node_modules/,
       },
       {
         test: /\.br$/,
@@ -35,7 +34,7 @@ module.exports = {
   },
   output: {
     libraryTarget: "commonjs",
-    path: __dirname + "/out",
+    path: path.join(__dirname, "out"),
     filename: "deploy.js",
   },
   resolve: {

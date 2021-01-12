@@ -1,13 +1,14 @@
 {
   "compilerOptions": {
-    "outDir": "./out/",
+    "outDir": "./build/",
     "noImplicitAny": true,
     "allowSyntheticDefaultImports": true,
     "moduleResolution": "node",
     "module": "esnext",
-    "target": "es6",
+    "target": "es2019",
     "esModuleInterop": true,
     "allowJs": true,
+    "jsx": "preserve",
     "lib": ["dom", "dom.iterable", "esnext"],
     "skipLibCheck": true,
     "strict": false,
@@ -16,5 +17,6 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["node_modules"]
 }

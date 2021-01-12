@@ -22,7 +22,7 @@ export const handler = async (event: {
       ].forEach((key) => console.log(key, process.env[key]));
       for await (const e of createDeployment({
         token: process.env.VERCEL_TOKEN,
-        path: path.join(process.cwd(), "out"),
+        path: path.join("/tmp", "out"),
       })) {
         if (e.type === "ready") {
           console.log("Deployment ready!");
