@@ -13,20 +13,16 @@ export const handler = async (event: {
   build({ ...event, pathRoot: "/tmp" })
     .then(async () => {
       console.log("Finished building! Starting deploy...");
-      [
-        "IS_LOCAL",
-        "AWS_LAMBDA_FUNCTION_NAME",
-        "FUNCTION_NAME",
-        "FUNCTION_TARGET",
-        "FUNCTIONS_EMULATOR",
-      ].forEach((key) => console.log(key, process.env[key]));
       for await (const e of createDeployment({
         token: process.env.VERCEL_TOKEN,
         path: path.join("/tmp", "out"),
       })) {
         if (e.type === "ready") {
-          console.log("Deployment ready!");
+          console.log("Deployment ready!", "-", new Date().toJSON());
           return e.payload;
+        } else if (e.type === 'error') {
+          console.error("Deployment failed :(", new Date().toJSON());
+          throw new Error(e.payload);
         } else {
           console.log("Deployment", e.type, "-", new Date().toJSON());
         }
