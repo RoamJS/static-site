@@ -44,6 +44,9 @@ module.exports = {
   resolve: {
     extensions: [".ts", ".js"],
   },
+  node: {
+    __dirname: true,
+  },
   externals: ['aws-sdk'],
   plugins: [
     new Dotenv({
