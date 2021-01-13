@@ -22,8 +22,11 @@ export const handler = async (event: { roamGraph: string }) => {
           uuid: {
             S: v4(),
           },
-          action_graph_date: {
-            S: `launch_${event.roamGraph}_${new Date().toJSON()}`,
+          action_graph: {
+            S: `launch_${event.roamGraph}`,
+          },
+          date: {
+            S: new Date().toJSON(),
           },
           status: {
             S,

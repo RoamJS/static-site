@@ -87,7 +87,7 @@ resource "aws_dynamodb_table" "website-statuses" {
   name           = "RoamJSWebsiteStatuses"
   billing_mode   = "PAY_PER_REQUEST"
   hash_key       = "uuid"
-  range_key      = "action_graph_date"
+  range_key      = "date"
 
   attribute {
     name = "uuid"
@@ -95,27 +95,17 @@ resource "aws_dynamodb_table" "website-statuses" {
   }
 
   attribute {
-    name = "action_graph_date"
+    name = "action_graph"
     type = "S"
   }
 
   attribute {
-    name = "status"
+    name = "date"
     type = "S"
   }
 
   global_secondary_index {
-    hash_key           = "status"
-    name               = "status-index"
-    non_key_attributes = []
-    projection_type    = "ALL"
-    range_key          = "action_graph_date"
-    read_capacity      = 0
-    write_capacity     = 0
-  }
-
-  global_secondary_index {
-    hash_key           = "action_graph_date"
+    hash_key           = "action_graph"
     name               = "primary-index"
     non_key_attributes = []
     projection_type    = "ALL"

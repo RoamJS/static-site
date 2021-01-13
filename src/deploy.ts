@@ -67,19 +67,22 @@ export const handler = async (event: { roamGraph: string }): Promise<void> =>
       await s3.upload({ Bucket, Key, Body, ContentType }).promise();
     }
     console.log("Finished deploying!");
-    
+
     const statuses = await dynamo
       .query({
         TableName: "RoamJSWebsiteStatuses",
-        KeyConditionExpression: "action_graph_date >= :s",
+        KeyConditionExpression: "action_graph = :a and date >= :d",
         ExpressionAttributeValues: {
-          ":s": {
+          ":a": {
             S: `launch_${event.roamGraph}`,
+          },
+          ":d": {
+            S: "0000-00-00T00:00:00.000Z",
           },
         },
         Limit: 1,
         ScanIndexForward: false,
-        IndexName: 'primary-index',
+        IndexName: "primary-index",
       })
       .promise();
     if (statuses.Items && statuses.Items[0].status.S === "FIRST DEPLOY") {
@@ -90,8 +93,11 @@ export const handler = async (event: { roamGraph: string }): Promise<void> =>
             uuid: {
               S: v4(),
             },
-            action_graph_date: {
-              S: `launch_${event.roamGraph}_${new Date().toJSON()}`,
+            action_graph: {
+              S: `launch_${event.roamGraph}`,
+            },
+            date: {
+              S: new Date().toJSON(),
             },
             status: {
               S: "LIVE",
