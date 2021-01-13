@@ -10,13 +10,10 @@ const s3 = new AWS.S3({
 
 export const handler = async (event: { roamGraph: string }) => {
   const Bucket = `roamjs-${event.roamGraph}`;
-  
+
   await s3
     .createBucket({
       Bucket,
-      CreateBucketConfiguration: {
-        LocationConstraint: "us-east-1",
-      },
     })
     .promise();
 
