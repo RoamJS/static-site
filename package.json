@@ -8,7 +8,10 @@
     "prebuild": "rm -Rf out",
     "build": "webpack --config webpack.config.js",
     "postbuild": "cd out && zip -rq deploy.zip ./deploy.js ./node_modules/* && zip -rq launch.zip ./launch.js && zip -rq shutdown.zip ./shutdown.js",
-    "deploy": "cd out && aws lambda update-function-code --function-name \"RoamJS_deploy\" --publish --zip-file \"fileb://deploy.zip\""
+    "deploy": "npm run deploy:deploy && npm run deploy:launch && npm run deploy:shutdown",
+    "deploy:deploy": "aws lambda update-function-code --function-name \"RoamJS_deploy\" --publish --zip-file \"fileb://deploy.zip\"",
+    "deploy:launch": "aws lambda update-function-code --function-name \"RoamJS_launch\" --publish --zip-file \"fileb://launch.zip\"",
+    "deploy:shutdown": "aws lambda update-function-code --function-name \"RoamJS_shutdown\" --publish --zip-file \"fileb://shutdown.zip\""
   },
   "repository": {
     "type": "git",
@@ -21,8 +24,6 @@
   },
   "homepage": "https://github.com/dvargas92495/generate-roam-site-lambda#readme",
   "dependencies": {
-    "@dvargas92495/vercel-client": "^9.0.5",
-    "@vercel/client": "^9.0.4",
     "aws-sdk": "^2.826.0",
     "generate-roam-site": "^2.1.1"
   },

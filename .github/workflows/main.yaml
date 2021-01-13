@@ -3,7 +3,7 @@ on:
   push:
     branches: main
     paths:
-      - "src/index.ts"
+      - "src/*"
       - "webpack.config.js"
       - ".github/workflows/main.yaml"
 
@@ -31,5 +31,5 @@ jobs:
       - name: Build
         run: npm run build
       - name: Deploy
-        run: aws lambda update-function-code --function-name "RoamJS_deploy" --publish --zip-file "fileb://deploy.zip"
+        run: npm run deploy
         working-directory: out
