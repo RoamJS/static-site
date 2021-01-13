@@ -1,12 +1,16 @@
 import AWS from "aws-sdk";
 
+const credentials = {
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+};
+
 const s3 = new AWS.S3({
   apiVersion: "2006-03-01",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
+  credentials,
 });
+
+const lambda = new AWS.Lambda({ apiVersion: "2015-03-31", credentials });
 
 export const handler = async (event: { roamGraph: string }) => {
   const Bucket = `roamjs-${event.roamGraph}`;
@@ -53,6 +57,15 @@ export const handler = async (event: { roamGraph: string }) => {
           { Key: "Application", Value: "Roam JS Extensions" },
           { Key: "Service", Value: "Public Garden" },
         ],
+      },
+    })
+    .promise();
+
+  await lambda
+    .invokeAsync({
+      FunctionName: "RoamJS_deploy",
+      InvokeArgs: {
+        roamGraph: event.roamGraph,
       },
     })
     .promise();
