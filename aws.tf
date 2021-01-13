@@ -114,6 +114,15 @@ resource "aws_dynamodb_table" "website-statuses" {
     write_capacity     = 0
   }
 
+  global_secondary_index {
+    hash_key           = "action_graph_date"
+    name               = "primary-index"
+    non_key_attributes = []
+    projection_type    = "ALL"
+    read_capacity      = 0
+    write_capacity     = 0
+  }
+
   tags = {
     Application = "Roam JS Extensions"
   }

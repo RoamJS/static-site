@@ -79,6 +79,7 @@ export const handler = async (event: { roamGraph: string }): Promise<void> =>
         },
         Limit: 1,
         ScanIndexForward: false,
+        IndexName: 'primary-index',
       })
       .promise();
     if (statuses.Items && statuses.Items[0].status.S === "FIRST DEPLOY") {
