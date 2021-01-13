@@ -2,7 +2,11 @@ const Dotenv = require("dotenv-webpack");
 const path = require("path");
 
 module.exports = {
-  entry: "./src/index.ts",
+  entry: {
+    deploy: "./src/deploy.ts",
+    launch: "./src/launch.ts",
+    shutdown: "./src/shutdown.ts",
+  },
   target: "node",
   mode: "production",
   module: {
@@ -32,18 +36,15 @@ module.exports = {
       },
     ],
   },
-  node: {
-    // Make sure that __dirname works in node env
-    __dirname: true,
-  },
   output: {
     libraryTarget: "commonjs2",
     path: path.join(__dirname, "out"),
-    filename: "deploy.js",
+    filename: "[name].js",
   },
   resolve: {
     extensions: [".ts", ".js"],
   },
+  externals: ['aws-sdk'],
   plugins: [
     new Dotenv({
       path: ".env.local",

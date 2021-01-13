@@ -41,7 +41,7 @@ data "archive_file" "dummy" {
   }
 }
 
-resource "aws_lambda_function" "lambda_function" {
+resource "aws_lambda_function" "deploy_function" {
   function_name    = "RoamJS_deploy"
   role             = data.aws_iam_role.cron_role.arn
   handler          = "deploy.handler"
@@ -55,23 +55,32 @@ resource "aws_lambda_function" "lambda_function" {
   memory_size      = 1600
 }
 
-data "aws_iam_policy_document" "deploy_policy" {
-  statement {
-    actions = [
-      "lambda:UpdateFunctionCode"
-    ]
-
-    resources = [aws_lambda_function.lambda_function.arn]
+resource "aws_lambda_function" "launch_function" {
+  function_name    = "RoamJS_launch"
+  role             = data.aws_iam_role.cron_role.arn
+  handler          = "launch.handler"
+  runtime          = "nodejs12.x"
+  filename         = "dummy.zip"
+  publish          = false
+  tags             = {
+    Application = "Roam JS Extensions"
   }
+  timeout          = 300
+  memory_size      = 1600
 }
 
-data "aws_iam_user" "deploy_lambda" {
-  user_name  = "RoamJS-cron"
-}
-
-resource "aws_iam_user_policy" "deploy_lambda" {
-  user   = data.aws_iam_user.deploy_lambda.user_name
-  policy = data.aws_iam_policy_document.deploy_policy.json
+resource "aws_lambda_function" "shutdown_function" {
+  function_name    = "RoamJS_shutdown"
+  role             = data.aws_iam_role.cron_role.arn
+  handler          = "shutdown.handler"
+  runtime          = "nodejs12.x"
+  filename         = "dummy.zip"
+  publish          = false
+  tags             = {
+    Application = "Roam JS Extensions"
+  }
+  timeout          = 300
+  memory_size      = 1600
 }
 
 provider "github" {
