@@ -8,7 +8,7 @@ terraform {
     }
 }
 
-variable "vercel_token" {
+variable "support_roam_password" {
     type = string
 }
 
@@ -99,8 +99,8 @@ resource "github_actions_secret" "deploy_aws_access_secret" {
   plaintext_value  = var.aws_secret_token
 }
 
-resource "github_actions_secret" "vercel_token" {
+resource "github_actions_secret" "support_roam_password" {
   repository       = "generate-roam-site-lambda"
-  secret_name      = "VERCEL_TOKEN"
-  plaintext_value  = var.vercel_token
+  secret_name      = "SUPPORT_ROAM_PASSWORD"
+  plaintext_value  = var.support_roam_password
 }
