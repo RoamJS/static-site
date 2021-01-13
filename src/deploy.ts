@@ -2,7 +2,7 @@ import build from "generate-roam-site";
 import path from "path";
 import fs from "fs";
 import AWS from "aws-sdk";
-import uuid from "uuid";
+import { v4 } from "uuid";
 import "generate-roam-site/dist/aws.tar.br";
 import "generate-roam-site/dist/chromium.br";
 import "generate-roam-site/dist/swiftshader.tar.br";
@@ -87,7 +87,7 @@ export const handler = async (event: { roamGraph: string }): Promise<void> =>
           TableName: "RoamJSWebsiteStatuses",
           Item: {
             uuid: {
-              S: uuid.v4(),
+              S: v4(),
             },
             action_graph_date: {
               S: `launch_${event.roamGraph}_${new Date().toJSON()}`,

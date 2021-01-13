@@ -1,5 +1,5 @@
 import AWS from "aws-sdk";
-import uuid from "uuid";
+import { v4 } from "uuid";
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -20,7 +20,7 @@ export const handler = async (event: { roamGraph: string }) => {
         TableName: "RoamJSWebsiteStatuses",
         Item: {
           uuid: {
-            S: uuid.v4(),
+            S: v4(),
           },
           action_graph_date: {
             S: `launch_${event.roamGraph}_${new Date().toJSON()}`,
