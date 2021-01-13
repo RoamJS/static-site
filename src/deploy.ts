@@ -2,17 +2,21 @@ import build from "generate-roam-site";
 import path from "path";
 import fs from "fs";
 import AWS from "aws-sdk";
+import uuid from "uuid";
 import "generate-roam-site/dist/aws.tar.br";
 import "generate-roam-site/dist/chromium.br";
 import "generate-roam-site/dist/swiftshader.tar.br";
 
+const credentials = {
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+};
+
 const s3 = new AWS.S3({
   apiVersion: "2006-03-01",
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  },
+  credentials,
 });
+const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
 
 export const handler = async (event: { roamGraph: string }): Promise<void> =>
   build({
@@ -63,4 +67,36 @@ export const handler = async (event: { roamGraph: string }): Promise<void> =>
       await s3.upload({ Bucket, Key, Body, ContentType }).promise();
     }
     console.log("Finished deploying!");
+    
+    const statuses = await dynamo
+      .query({
+        TableName: "RoamJSWebsiteStatuses",
+        KeyConditionExpression: "action_graph_date >= :s",
+        ExpressionAttributeValues: {
+          ":s": {
+            S: `launch_${event.roamGraph}`,
+          },
+        },
+        Limit: 1,
+        ScanIndexForward: false,
+      })
+      .promise();
+    if (statuses.Items && statuses.Items[0].status.S === "FIRST DEPLOY") {
+      await dynamo
+        .putItem({
+          TableName: "RoamJSWebsiteStatuses",
+          Item: {
+            uuid: {
+              S: uuid.v4(),
+            },
+            action_graph_date: {
+              S: `launch_${event.roamGraph}_${new Date().toJSON()}`,
+            },
+            status: {
+              S: "LIVE",
+            },
+          },
+        })
+        .promise();
+    }
   });

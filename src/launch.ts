@@ -1,4 +1,5 @@
 import AWS from "aws-sdk";
+import uuid from "uuid";
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -9,18 +10,37 @@ const s3 = new AWS.S3({
   apiVersion: "2006-03-01",
   credentials,
 });
-
+const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
 const lambda = new AWS.Lambda({ apiVersion: "2015-03-31", credentials });
 
 export const handler = async (event: { roamGraph: string }) => {
-  const Bucket = `roamjs-${event.roamGraph}`;
+  const logStatus = async (S: string) =>
+    await dynamo
+      .putItem({
+        TableName: "RoamJSWebsiteStatuses",
+        Item: {
+          uuid: {
+            S: uuid.v4(),
+          },
+          action_graph_date: {
+            S: `launch_${event.roamGraph}_${new Date().toJSON()}`,
+          },
+          status: {
+            S,
+          },
+        },
+      })
+      .promise();
 
+  await logStatus("CREATING HOST");
+  const Bucket = `roamjs-${event.roamGraph}`;
   await s3
     .createBucket({
       Bucket,
     })
     .promise();
 
+  await logStatus("CREATING WEBSITE");
   await s3
     .putBucketWebsite({
       Bucket,
@@ -31,6 +51,7 @@ export const handler = async (event: { roamGraph: string }) => {
     })
     .promise();
 
+  await logStatus("CREATING POLICY");
   await s3
     .putBucketPolicy({
       Bucket,
@@ -49,6 +70,7 @@ export const handler = async (event: { roamGraph: string }) => {
     })
     .promise();
 
+  await logStatus("CREATING TAGS");
   await s3
     .putBucketTagging({
       Bucket,
@@ -61,6 +83,7 @@ export const handler = async (event: { roamGraph: string }) => {
     })
     .promise();
 
+  await logStatus("FIRST DEPLOY");
   await lambda
     .invokeAsync({
       FunctionName: "RoamJS_deploy",

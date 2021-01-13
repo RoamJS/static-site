@@ -83,6 +83,37 @@ resource "aws_lambda_function" "shutdown_function" {
   memory_size      = 1600
 }
 
+resource "aws_dynamodb_table" "website-statuses" {
+  name           = "RoamJSWebsiteStatuses"
+  billing_mode   = "PAY_PER_REQUEST"
+  hash_key       = "uuid"
+  range_key      = "action_graph_date"
+
+  attribute {
+    name = "uuid"
+    type = "S"
+  }
+
+  attribute {
+    name = "action_graph_date"
+    type = "S"
+  }
+
+  global_secondary_index {
+    hash_key           = "status"
+    name               = "status-index"
+    non_key_attributes = []
+    projection_type    = "ALL"
+    range_key          = "action_graph_date"
+    read_capacity      = 0
+    write_capacity     = 0
+  }
+
+  tags = {
+    Application = "Roam JS Extensions"
+  }
+}
+
 provider "github" {
     owner = "dvargas92495"
 }
