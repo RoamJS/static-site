@@ -80,6 +80,9 @@ export const handler = async (event: { roamGraph: string }): Promise<void> =>
             S: "0000-00-00T00:00:00.000Z",
           },
         },
+        ExpressionAttributeNames: {
+          "#d": "date",
+        },
         Limit: 1,
         ScanIndexForward: false,
         IndexName: "primary-index",
