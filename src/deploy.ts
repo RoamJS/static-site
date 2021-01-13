@@ -14,19 +14,20 @@ const s3 = new AWS.S3({
   },
 });
 
-export const handler = async (event: {
-  roamGraph: string;
-  roamUsername: string;
-  roamPassword: string;
-}): Promise<void> =>
-  build({ ...event, pathRoot: "/tmp" }).then(async () => {
+export const handler = async (event: { roamGraph: string }): Promise<void> =>
+  build({
+    ...event,
+    pathRoot: "/tmp",
+    roamUsername: "support@roamjs.com",
+    roamPassword: process.env.SUPPORT_ROAM_PASSWORD,
+  }).then(async () => {
     console.log("Finished building! Starting deploy...");
     const Bucket = `roamjs-${event.roamGraph}`;
+    const ContentType = "text/html";
     const filesToUpload = fs.readdirSync(path.join("/tmp", "out"));
     for (const Key of filesToUpload) {
       const Body = fs.createReadStream(path.join("/tmp", "out", Key));
-      await s3.upload({ Bucket, Key, Body }).promise();
-      console.log("Uploaded", Key, "To", Bucket);
+      await s3.upload({ Bucket, Key, Body, ContentType }).promise();
     }
     console.log("Finished deploying!");
   });
