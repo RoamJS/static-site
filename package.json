@@ -9,9 +9,9 @@
     "build": "webpack --config webpack.config.js",
     "postbuild": "cd out && zip -rq deploy.zip ./deploy.js ./node_modules/* && zip -rq launch.zip ./launch.js && zip -rq shutdown.zip ./shutdown.js",
     "deploy": "npm run deploy:deploy && npm run deploy:launch && npm run deploy:shutdown",
-    "deploy:deploy": "aws lambda update-function-code --function-name \"RoamJS_deploy\" --publish --zip-file \"fileb://deploy.zip\"",
-    "deploy:launch": "aws lambda update-function-code --function-name \"RoamJS_launch\" --publish --zip-file \"fileb://launch.zip\"",
-    "deploy:shutdown": "aws lambda update-function-code --function-name \"RoamJS_shutdown\" --publish --zip-file \"fileb://shutdown.zip\""
+    "deploy:deploy": "aws lambda update-function-code --function-name \"RoamJS_deploy\" --publish --zip-file \"fileb://out/deploy.zip\"",
+    "deploy:launch": "aws lambda update-function-code --function-name \"RoamJS_launch\" --publish --zip-file \"fileb://out/launch.zip\"",
+    "deploy:shutdown": "aws lambda update-function-code --function-name \"RoamJS_shutdown\" --publish --zip-file \"fileb://out/shutdown.zip\""
   },
   "repository": {
     "type": "git",
