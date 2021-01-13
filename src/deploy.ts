@@ -25,7 +25,7 @@ export const handler = async (event: {
     const filesToUpload = fs.readdirSync(path.join("/tmp", "out"));
     for (const Key of filesToUpload) {
       const Body = fs.createReadStream(path.join("/tmp", "out", Key));
-      await s3.upload({ Bucket, Key, Body });
+      await s3.upload({ Bucket, Key, Body }).promise();
       console.log("Uploaded", Key, "To", Bucket);
     }
     console.log("Finished deploying!");
