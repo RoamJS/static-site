@@ -99,6 +99,11 @@ resource "aws_dynamodb_table" "website-statuses" {
     type = "S"
   }
 
+  attribute {
+    name = "status"
+    type = "S"
+  }
+
   global_secondary_index {
     hash_key           = "status"
     name               = "status-index"
