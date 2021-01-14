@@ -88,9 +88,10 @@ export const handler = async (event: { roamGraph: string }) => {
 
   await logStatus("FIRST DEPLOY");
   await lambda
-    .invokeAsync({
+    .invoke({
       FunctionName: "RoamJS_deploy",
-      InvokeArgs: JSON.stringify({
+      InvocationType: "Event",
+      Payload: JSON.stringify({
         roamGraph: event.roamGraph,
       }),
     })
