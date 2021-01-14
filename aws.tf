@@ -108,6 +108,7 @@ resource "aws_dynamodb_table" "website-statuses" {
     hash_key           = "action_graph"
     name               = "primary-index"
     non_key_attributes = []
+    range_key          = "date"
     projection_type    = "ALL"
     read_capacity      = 0
     write_capacity     = 0
