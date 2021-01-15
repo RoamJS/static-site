@@ -18,19 +18,40 @@ const s3 = new AWS.S3({
 });
 const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
 
-export const handler = async (event: { roamGraph: string }): Promise<void> =>
-  build({
+export const handler = async (event: { roamGraph: string }): Promise<void> => {
+  const logStatus = (S: string) =>
+    dynamo
+      .putItem({
+        TableName: "RoamJSWebsiteStatuses",
+        Item: {
+          uuid: {
+            S: v4(),
+          },
+          action_graph: {
+            S: `deploy_${event.roamGraph}`,
+          },
+          date: {
+            S: new Date().toJSON(),
+          },
+          status: {
+            S,
+          },
+        },
+      })
+      .promise();
+  
+  await logStatus('BUILDING SITE');
+  return build({
     ...event,
     pathRoot: "/tmp",
     roamUsername: "support@roamjs.com",
     roamPassword: process.env.SUPPORT_ROAM_PASSWORD,
   }).then(async () => {
-    console.log("Finished building! Starting deploy...");
+    await logStatus('DELETING STALE FILES');
     const Bucket = `roamjs-${event.roamGraph}`;
     const ContentType = "text/html";
     const filesToUpload = fs.readdirSync(path.join("/tmp", "out"));
 
-    console.log("Delete existing keys that are no longer in graph");
     const fileSet = new Set(filesToUpload);
     const keysToDelete = new Set<string>();
     let finished = false;
@@ -57,16 +78,14 @@ export const handler = async (event: { roamGraph: string }): Promise<void> =>
           })
           .promise();
       }
-      console.log("Deleted", DeleteObjects.length, "objects!");
-    } else {
-      console.log("No keys to delete, on to uploading.");
     }
+    await logStatus('UPLOADING');
 
     for (const Key of filesToUpload) {
       const Body = fs.createReadStream(path.join("/tmp", "out", Key));
       await s3.upload({ Bucket, Key, Body, ContentType }).promise();
     }
-    console.log("Finished deploying!");
+    await logStatus('SUCCESS');
 
     const statuses = await dynamo
       .query({
@@ -104,3 +123,4 @@ export const handler = async (event: { roamGraph: string }): Promise<void> =>
         .promise();
     }
   });
+};
