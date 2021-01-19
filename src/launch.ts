@@ -67,10 +67,12 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
               DomainName: event.domain,
               Tags,
               ValidationMethod: "DNS",
-              DomainValidationOptions: {
-                DomainName: event.domain,
-                HostedZoneId,
-              },
+              DomainValidationOptions: [
+                {
+                  DomainName: event.domain,
+                  HostedZoneId,
+                },
+              ],
             },
           },
           CloudfrontDistribution: {
