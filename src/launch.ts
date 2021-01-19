@@ -20,7 +20,7 @@ const getHostedZoneIdByName = async (domain: string) => {
     } = await route53.listHostedZones({ Marker }).promise();
     const zone = HostedZones.find((i) => i.Name === `${domain}.`);
     if (zone) {
-      return zone.Id;
+      return zone.Id.replace(/\/hostedzone\//, '');
     }
     finished = !IsTruncated;
     Marker = NextMarker;
