@@ -11,6 +11,24 @@ const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
 const lambda = new AWS.Lambda({ apiVersion: "2015-03-31", credentials });
 const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
 
+const getHostedZoneIdByName = async (domain: string) => {
+  let finished = false;
+  let Marker: string = undefined;
+  while (!finished) {
+    const {
+      HostedZones, IsTruncated, NextMarker, 
+    } = await route53.listHostedZones({ Marker }).promise();
+    const zone = HostedZones.find((i) => i.Name === `${domain}.`);
+    if (zone) {
+      return zone.Id;
+    }
+    finished = !IsTruncated;
+    Marker = NextMarker;
+  }
+
+  throw new Error(`Could not find zone for ${domain}`);
+};
+
 export const handler = async (event: { roamGraph: string; domain: string }) => {
   const logStatus = async (S: string) =>
     await dynamo
@@ -35,12 +53,7 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
 
   const domainParts = event.domain.split(".");
   const HostedZoneName = domainParts.slice(domainParts.length - 2).join(".");
-  const HostedZoneId = await route53
-    .listHostedZonesByName({
-      DNSName: `${HostedZoneName.split(".").reverse()}.`,
-    })
-    .promise()
-    .then((zones) => zones.HostedZoneId);
+  const HostedZoneId = await getHostedZoneIdByName(HostedZoneName);
 
   await logStatus("CREATING WEBSITE");
   const Tags = [
@@ -71,7 +84,6 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
                 {
                   DomainName: event.domain,
                   HostedZoneId,
-                  ValidationDomain: HostedZoneName,
                 },
               ],
             },
