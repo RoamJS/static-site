@@ -48,8 +48,9 @@ export const handler = async (event: { roamGraph: string }): Promise<void> => {
     roamPassword: process.env.SUPPORT_ROAM_PASSWORD,
   }).then(async () => {
     await logStatus('DELETING STALE FILES');
-    const Bucket = `roamjs-${event.roamGraph}`;
+    const Bucket = `roamjs-static-sites`;
     const ContentType = "text/html";
+    const Prefix = `${event.roamGraph}/`;
     const filesToUpload = fs.readdirSync(path.join("/tmp", "out"));
 
     const fileSet = new Set(filesToUpload);
@@ -61,9 +62,9 @@ export const handler = async (event: { roamGraph: string }): Promise<void> => {
         Contents,
         IsTruncated,
         NextContinuationToken,
-      } = await s3.listObjectsV2({ Bucket, ContinuationToken }).promise();
+      } = await s3.listObjectsV2({ Bucket, ContinuationToken, Prefix }).promise();
       Contents.map(({ Key }) => Key)
-        .filter((k) => !fileSet.has(k))
+        .filter((k) => !fileSet.has(k.substring(Prefix.length)))
         .forEach((k) => keysToDelete.add(k));
       finished = !IsTruncated;
       ContinuationToken = NextContinuationToken;
@@ -81,8 +82,9 @@ export const handler = async (event: { roamGraph: string }): Promise<void> => {
     }
     await logStatus('UPLOADING');
 
-    for (const Key of filesToUpload) {
+    for (const key of filesToUpload) {
       const Body = fs.createReadStream(path.join("/tmp", "out", Key));
+      const Key = `${Prefix}${key}`;
       await s3.upload({ Bucket, Key, Body, ContentType }).promise();
     }
     await logStatus('SUCCESS');

@@ -20,6 +20,10 @@ variable "aws_secret_token" {
   type = string
 }
 
+variable "cloudfront_secret" {
+  type = string
+}
+
 provider "aws" {
     region = "us-east-1"
     access_key = var.aws_access_token
@@ -119,6 +123,84 @@ resource "aws_dynamodb_table" "website-statuses" {
   }
 }
 
+data "aws_iam_policy_document" "bucket_policy" {
+  statement {
+    actions = [
+      "s3:GetObject",
+    ]
+
+    resources = [
+      "arn:aws:s3:::roamjs-static-sites/*",
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "aws:UserAgent"
+
+      values = [var.cloudfront_secret]
+    }
+
+    principals {
+      type        = "AWS"
+      identifiers = ["*"]
+    }
+  }
+}
+
+resource "aws_s3_bucket" "main" {
+  bucket = "roamjs-static-sites"
+  policy = data.aws_iam_policy_document.bucket_policy.json
+
+  website {
+    index_document = "index.html"
+    error_document = "404.html"
+  }
+  force_destroy = true 
+
+  tags = {
+    Application = "Roam JS Extensions"
+  }
+}
+
+resource "aws_iam_role" "cf_role" {
+  name = "roamjs_cloudformation"
+
+  assume_role_policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": "sts:AssumeRole",
+      "Principal": {
+        "Service": "cloudformation.amazonaws.com"
+      },
+      "Effect": "Allow",
+      "Sid": ""
+    }
+  ]
+}
+EOF
+
+  tags = {
+    Application = "Roam JS Extensions"
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "acm_roam" {
+  role       = aws_iam_role.cf_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AWSCertificateManagerFullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "cloudfront_roam" {
+  role       = aws_iam_role.cf_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudFrontFullAccess"
+}
+
+resource "aws_iam_role_policy_attachment" "route53_roam" {
+  role       = aws_iam_role.cf_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonRoute53FullAccess"
+}
+
 provider "github" {
     owner = "dvargas92495"
 }
@@ -139,4 +221,10 @@ resource "github_actions_secret" "support_roam_password" {
   repository       = "generate-roam-site-lambda"
   secret_name      = "SUPPORT_ROAM_PASSWORD"
   plaintext_value  = var.support_roam_password
+}
+
+resource "github_actions_secret" "cloudfront_secret" {
+  repository       = "generate-roam-site-lambda"
+  secret_name      = "CLOUDFRONT_SECRET"
+  plaintext_value  = var.cloudfront_secret
 }
