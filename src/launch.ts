@@ -32,14 +32,6 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
       })
       .promise();
 
-  /*  await logStatus("CREATING HOST");
-  const Bucket = `roamjs-${event.roamGraph}`;
-  await s3
-    .createBucket({
-      Bucket,
-    })
-    .promise();
-*/
   await logStatus("CREATING WEBSITE");
   const Tags = [
     {
@@ -165,49 +157,8 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
         },
       },
     }),
-  });
-  /*  await s3
-    .putBucketWebsite({
-      Bucket,
-      WebsiteConfiguration: {
-        IndexDocument: { Suffix: "index.html" },
-        ErrorDocument: { Key: "404.html" },
-      },
-    })
-    .promise();
+  }).promise();
 
-  await logStatus("CREATING POLICY");
-  await s3
-    .putBucketPolicy({
-      Bucket,
-      Policy: JSON.stringify({
-        Version: "2012-10-17",
-        Statement: [
-          {
-            Sid: "GetObject",
-            Effect: "Allow",
-            Principal: { AWS: "*" },
-            Action: ["s3:GetObject"],
-            Resource: [`arn:aws:s3:::${Bucket}/*`],
-          },
-        ],
-      }),
-    })
-    .promise();
-
-  await logStatus("CREATING TAGS");
-  await s3
-    .putBucketTagging({
-      Bucket,
-      Tagging: {
-        TagSet: [
-          { Key: "Application", Value: "Roam JS Extensions" },
-          { Key: "Service", Value: "Public Garden" },
-        ],
-      },
-    })
-    .promise();
-*/
   await logStatus("FIRST DEPLOY");
   await lambda
     .invoke({
