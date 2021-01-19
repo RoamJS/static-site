@@ -71,6 +71,7 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
                 {
                   DomainName: event.domain,
                   HostedZoneId,
+                  ValidationDomain: HostedZoneName,
                 },
               ],
             },
