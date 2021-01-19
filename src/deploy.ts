@@ -83,8 +83,8 @@ export const handler = async (event: { roamGraph: string }): Promise<void> => {
     await logStatus('UPLOADING');
 
     for (const key of filesToUpload) {
-      const Body = fs.createReadStream(path.join("/tmp", "out", Key));
       const Key = `${Prefix}${key}`;
+      const Body = fs.createReadStream(path.join("/tmp", "out", Key));
       await s3.upload({ Bucket, Key, Body, ContentType }).promise();
     }
     await logStatus('SUCCESS');
@@ -124,5 +124,8 @@ export const handler = async (event: { roamGraph: string }): Promise<void> => {
         })
         .promise();
     }
+  }).catch(async (e) => {
+    await logStatus('FAILURE');
+    console.error(e);
   });
 };
