@@ -16,11 +16,13 @@ const getHostedZoneIdByName = async (domain: string) => {
   let Marker: string = undefined;
   while (!finished) {
     const {
-      HostedZones, IsTruncated, NextMarker, 
+      HostedZones,
+      IsTruncated,
+      NextMarker,
     } = await route53.listHostedZones({ Marker }).promise();
     const zone = HostedZones.find((i) => i.Name === `${domain}.`);
     if (zone) {
-      return zone.Id.replace(/\/hostedzone\//, '');
+      return zone.Id.replace(/\/hostedzone\//, "");
     }
     finished = !IsTruncated;
     Marker = NextMarker;
@@ -111,14 +113,12 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
                   CachedMethods: ["GET", "HEAD", "OPTIONS"],
                   Compress: true,
                   DefaultTTL: 86400,
-                  ForwardedValues: [
-                    {
-                      Cookies: {
-                        Forwrd: "none",
-                      },
-                      QueryString: false,
+                  ForwardedValues: {
+                    Cookies: {
+                      Forwrd: "none",
                     },
-                  ],
+                    QueryString: false,
+                  },
                   MaxTTL: 31536000,
                   MinTTL: 0,
                   TargetOriginId: `S3-${event.domain}`,
