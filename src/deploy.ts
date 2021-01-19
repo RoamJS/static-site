@@ -113,20 +113,6 @@ export const handler = async (event: {
         await s3.upload({ Bucket, Key, Body, ContentType }).promise();
       }
 
-      await logStatus("INVALIDATING CACHE");
-      const DistributionId = await getDistributionIdByDomain(event.domain);
-      await cloudfront.createInvalidation({
-        DistributionId,
-        InvalidationBatch: {
-          CallerReference: new Date().toJSON(),
-          Paths: {
-            Quantity: 1,
-            Items: ["/*"],
-          },
-        },
-      }).promise();
-
-      await logStatus("SUCCESS");
       const statuses = await dynamo
         .query({
           TableName: "RoamJSWebsiteStatuses",
@@ -161,7 +147,21 @@ export const handler = async (event: {
             },
           })
           .promise();
+      } else {
+        await logStatus("INVALIDATING CACHE");
+        const DistributionId = await getDistributionIdByDomain(event.domain);
+        await cloudfront.createInvalidation({
+          DistributionId,
+          InvalidationBatch: {
+            CallerReference: new Date().toJSON(),
+            Paths: {
+              Quantity: 1,
+              Items: ["/*"],
+            },
+          },
+        }).promise();
       }
+      await logStatus("SUCCESS");
     })
     .catch(async (e) => {
       await logStatus("FAILURE");
