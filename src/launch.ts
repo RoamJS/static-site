@@ -156,7 +156,7 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
                   DefaultTTL: 86400,
                   ForwardedValues: {
                     Cookies: {
-                      Forwrd: "none",
+                      Forward: "none",
                     },
                     QueryString: false,
                   },
