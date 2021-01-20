@@ -24,6 +24,10 @@ variable "cloudfront_secret" {
   type = string
 }
 
+variable "contact_detail" {
+  type = string
+}
+
 provider "aws" {
     region = "us-east-1"
     access_key = var.aws_access_token
@@ -227,4 +231,10 @@ resource "github_actions_secret" "cloudfront_secret" {
   repository       = "generate-roam-site-lambda"
   secret_name      = "CLOUDFRONT_SECRET"
   plaintext_value  = var.cloudfront_secret
+}
+
+resource "github_actions_secret" "contact_detail" {
+  repository       = "generate-roam-site-lambda"
+  secret_name      = "CONTACT_DETAIL"
+  plaintext_value  = var.contact_detail
 }
