@@ -191,8 +191,8 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
                   AcmCertificateArn: {
                     Ref: "AcmCertificate",
                   },
-                  MinimumProtocolVersion: "sni-only",
-                  SslSupportMethod: "TLSv1_2016",
+                  MinimumProtocolVersion: "TLSv1_2016",
+                  SslSupportMethod: "sni-only",
                 },
               },
               Tags,
