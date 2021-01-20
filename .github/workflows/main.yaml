@@ -29,6 +29,7 @@ jobs:
           echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> .env.local
           echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> .env.local
           echo "CLOUDFRONT_SECRET=${{ secrets.CLOUDFRONT_SECRET }}" >> .env.local
+          echo "CONTACT_DETAIL=${{ secrets.CONTACT_DETAIL }}" >> .env.local
       - name: Build
         run: npm run build
       - name: Deploy

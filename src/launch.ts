@@ -10,6 +10,10 @@ const cf = new AWS.CloudFormation({ apiVersion: "2010-05-15", credentials });
 const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
 const lambda = new AWS.Lambda({ apiVersion: "2015-03-31", credentials });
 const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
+const domains = new AWS.Route53Domains({
+  apiVersion: "2014-05-15",
+  credentials,
+});
 
 const getHostedZoneIdByName = async (domain: string) => {
   let finished = false;
@@ -55,6 +59,43 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
 
   const domainParts = event.domain.split(".");
   const HostedZoneName = domainParts.slice(domainParts.length - 2).join(".");
+  const available = await domains
+    .checkDomainAvailability({ DomainName: HostedZoneName })
+    .promise()
+    .then((r) => r.Availability === "AVAILABLE");
+  if (available) {
+    await logStatus("BUYING DOMAIN");
+
+    const Contact = {
+      ContactType: "PERSON",
+      CountryCode: "US",
+      Email: "dvargas92495@gmail.com",
+      FirstName: "David",
+      LastName: "Vargas",
+      ...JSON.parse(process.env.CONTACT_DETAIL),
+    };
+    const OperationId = await domains
+      .registerDomain({
+        TechContact: Contact,
+        RegistrantContact: Contact,
+        AdminContact: Contact,
+        DomainName: HostedZoneName,
+        DurationInYears: 1,
+      })
+      .promise()
+      .then((r) => r.OperationId);
+
+    let status = "SUBMITTED";
+    while (status !== "SUCCESSFUL") {
+      const { Status, Message } = await domains
+        .getOperationDetail({ OperationId })
+        .promise();
+      if (Status === "ERROR" || Status === "FAILED") {
+        throw new Error(`Domain Registration ${Status} - ${Message}`);
+      }
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    }
+  }
   const HostedZoneId = await getHostedZoneIdByName(HostedZoneName);
 
   await logStatus("CREATING WEBSITE");
