@@ -339,7 +339,7 @@ resource "aws_cloudfront_distribution" "roamjs_network" {
   lifecycle {
     ignore_changes = [
       aliases,
-      viewer_certificate.acm_certificate_arn
+      viewer_certificate[0].acm_certificate_arn
     ]
   }
 }
