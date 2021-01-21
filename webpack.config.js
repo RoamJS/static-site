@@ -6,6 +6,7 @@ module.exports = {
     deploy: "./src/deploy.ts",
     launch: "./src/launch.ts",
     shutdown: "./src/shutdown.ts",
+    "origin-request": "./src/origin-request.ts",
   },
   target: "node",
   mode: "production",
@@ -47,11 +48,11 @@ module.exports = {
   node: {
     __dirname: true,
   },
-  externals: ['aws-sdk'],
+  externals: ["aws-sdk"],
   plugins: [
     new Dotenv({
       path: ".env.local",
-      silent: true
+      silent: true,
     }),
   ],
 };

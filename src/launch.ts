@@ -107,14 +107,9 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
   ];
   await cf
     .createStack({
-      RoleARN: "arn:aws:iam::643537615676:role/roamjs_cloudformation",
+      RoleARN: process.env.CLOUDFORMATION_ROLE_ARN,
       StackName: `roamjs-${event.roamGraph}`,
-      Tags: [
-        {
-          Key: "Application",
-          Value: "Roam JS Extensions",
-        },
-      ],
+      Tags,
       TemplateBody: JSON.stringify({
         Resources: {
           AcmCertificate: {
@@ -160,6 +155,13 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
                     },
                     QueryString: false,
                   },
+                  LambdaFunctionAssociations: [
+                    {
+                      EventType: "origin-request",
+                      IncludeBody: false,
+                      LambdaFunctionARN: process.env.ORIGIN_LAMBDA_ARN,
+                    },
+                  ],
                   MaxTTL: 31536000,
                   MinTTL: 0,
                   TargetOriginId: `S3-${event.domain}`,
@@ -182,6 +184,10 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
                       {
                         HeaderName: "User-Agent",
                         HeaderValue: process.env.CLOUDFRONT_SECRET,
+                      },
+                      {
+                        HeaderName: "X-Roam-Graph",
+                        HeaderValue: event.roamGraph,
                       },
                     ],
                   },

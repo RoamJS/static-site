@@ -7,11 +7,12 @@
     "test": "echo \"No Tests\"",
     "prebuild": "rm -Rf out",
     "build": "webpack --config webpack.config.js",
-    "postbuild": "cd out && zip -rq deploy.zip ./deploy.js ./node_modules/* && zip -rq launch.zip ./launch.js && zip -rq shutdown.zip ./shutdown.js",
-    "deploy": "npm run deploy:deploy && npm run deploy:launch && npm run deploy:shutdown",
+    "postbuild": "cd out && zip -rq deploy.zip ./deploy.js ./node_modules/* && zip -rq launch.zip ./launch.js && zip -rq shutdown.zip ./shutdown.js && zip -rq origin-request.zip ./origin-request.js",
+    "deploy": "npm run deploy:deploy && npm run deploy:launch && npm run deploy:shutdown && npm run deploy:origin",
     "deploy:deploy": "aws lambda update-function-code --function-name \"RoamJS_deploy\" --publish --zip-file \"fileb://out/deploy.zip\"",
     "deploy:launch": "aws lambda update-function-code --function-name \"RoamJS_launch\" --publish --zip-file \"fileb://out/launch.zip\"",
-    "deploy:shutdown": "aws lambda update-function-code --function-name \"RoamJS_shutdown\" --publish --zip-file \"fileb://out/shutdown.zip\""
+    "deploy:shutdown": "aws lambda update-function-code --function-name \"RoamJS_shutdown\" --publish --zip-file \"fileb://out/shutdown.zip\"",
+    "deploy:origin": "aws lambda update-function-code --function-name \"RoamJS_origin-request\" --publish --zip-file \"fileb://out/origin-request.zip\""
   },
   "repository": {
     "type": "git",

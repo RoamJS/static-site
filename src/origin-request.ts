@@ -1,0 +1,9 @@
+import { CloudFrontRequestHandler } from "aws-lambda";
+
+export const handler: CloudFrontRequestHandler = (event, _, callback) => {
+  const request = event.Records[0].cf.request;
+  const olduri = request.uri;
+  const newuri = `/${request.origin.custom.customHeaders["x-roam-graph"][0].value}${olduri}`;
+  request.uri = newuri;
+  return callback(null, request);
+};
