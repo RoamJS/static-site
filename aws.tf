@@ -284,7 +284,7 @@ resource "aws_cloudfront_distribution" "roamjs_network" {
 
     custom_header {
       name  = "User-Agent"
-      value = var.secret
+      value = var.cloudfront_secret
     }
   }
 
@@ -379,12 +379,6 @@ resource "github_actions_secret" "support_roam_password" {
   repository       = "generate-roam-site-lambda"
   secret_name      = "SUPPORT_ROAM_PASSWORD"
   plaintext_value  = var.support_roam_password
-}
-
-resource "github_actions_secret" "cloudfront_secret" {
-  repository       = "generate-roam-site-lambda"
-  secret_name      = "CLOUDFRONT_SECRET"
-  plaintext_value  = var.cloudfront_secret
 }
 
 resource "github_actions_secret" "contact_detail" {
