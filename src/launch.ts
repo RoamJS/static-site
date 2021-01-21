@@ -230,6 +230,7 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
           },
         },
       }),
+//      NotificationARNs - Upload to dynamo and send email!
     })
     .promise();
 
