@@ -105,6 +105,12 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
       Value: "Roam JS Extensions",
     },
   ];
+  const AliasTarget = {
+    HostedZoneId: "Z2FDTNDATAQYW2",
+    DNSName: {
+      "Fn::GetAtt": ["CloudfrontDistribution", "DomainName"],
+    },
+  };
   await cf
     .createStack({
       RoleARN: process.env.CLOUDFORMATION_ROLE_ARN,
@@ -207,12 +213,7 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
           Route53ARecord: {
             Type: "AWS::Route53::RecordSet",
             Properties: {
-              AliasTarget: {
-                HostedZoneId: "Z2FDTNDATAQYW2",
-                DNSName: {
-                  "Fn::GetAtt": ["CloudfrontDistribution", "DomainName"],
-                },
-              },
+              AliasTarget,
               HostedZoneId,
               Name: event.domain,
               Type: "A",
@@ -221,12 +222,7 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
           Route53AAAARecord: {
             Type: "AWS::Route53::RecordSet",
             Properties: {
-              AliasTarget: {
-                HostedZoneId: "Z2FDTNDATAQYW2",
-                DNSName: {
-                  "Fn::GetAtt": ["CloudfrontDistribution", "DomainName"],
-                },
-              },
+              AliasTarget,
               HostedZoneId,
               Name: event.domain,
               Type: "AAAA",
