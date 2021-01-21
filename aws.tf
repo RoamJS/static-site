@@ -132,7 +132,7 @@ resource "aws_lambda_function" "shutdown_function" {
 
 resource "aws_lambda_function" "viewer_request" {
   function_name    = "RoamJS_viewer-request"
-  role             = data.aws_iam_role.cloudfront_lambda.arn
+  role             = aws_iam_role.cloudfront_lambda.arn
   handler          = "viewer-request.handler"
   runtime          = "nodejs12.x"
   publish          = false
@@ -148,7 +148,7 @@ resource "aws_lambda_function" "viewer_request" {
 
 resource "aws_lambda_function" "origin_request" {
   function_name    = "RoamJS_origin-request"
-  role             = data.aws_iam_role.cloudfront_lambda.arn
+  role             = aws_iam_role.cloudfront_lambda.arn
   handler          = "origin-request.handler"
   runtime          = "nodejs12.x"
   publish          = false
