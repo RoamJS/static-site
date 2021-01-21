@@ -135,7 +135,7 @@ resource "aws_lambda_function" "origin_request" {
   role             = aws_iam_role.cloudfront_lambda.arn
   handler          = "origin-request.handler"
   runtime          = "nodejs12.x"
-  publish          = false
+  publish          = true
   tags             = {
     Application = "Roam JS Extensions"
   }
@@ -288,4 +288,16 @@ resource "github_actions_secret" "cloudfront_secret" {
   repository       = "generate-roam-site-lambda"
   secret_name      = "CLOUDFRONT_SECRET"
   plaintext_value  = var.cloudfront_secret
+}
+
+resource "github_actions_secret" "cloudformation_role_arn_secret" {
+  repository       = "generate-roam-site-lambda"
+  secret_name      = "CLOUDFORMATION_ROLE_ARN"
+  plaintext_value  = aws_iam_role.cf_role.arn
+}
+
+resource "github_actions_secret" "origin_lambda_arn_secret" {
+  repository       = "generate-roam-site-lambda"
+  secret_name      = "ORIGIN_LAMBDA_ARN"
+  plaintext_value  = aws_lambda_function.origin_request.qualified_arn
 }
