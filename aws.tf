@@ -289,8 +289,9 @@ resource "aws_cloudfront_distribution" "roamjs_network" {
   }
 
   viewer_certificate {
-    ssl_support_method       = "sni-only"
-    minimum_protocol_version = "TLSv1_2016"
+    cloudfront_default_certificate = true
+    ssl_support_method             = "sni-only"
+    minimum_protocol_version       = "TLSv1_2016"
   }
 
   default_cache_behavior {
@@ -339,7 +340,8 @@ resource "aws_cloudfront_distribution" "roamjs_network" {
   lifecycle {
     ignore_changes = [
       aliases,
-      viewer_certificate[0].acm_certificate_arn
+      viewer_certificate[0].acm_certificate_arn,
+      viewer_certificate[0].cloudfront_default_certificate
     ]
   }
 }
