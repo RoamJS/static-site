@@ -1,4 +1,5 @@
 import AWS from "aws-sdk";
+import { Handler } from "aws-lambda";
 import { v4 } from "uuid";
 
 const credentials = {
@@ -35,7 +36,10 @@ const getHostedZoneIdByName = async (domain: string) => {
   throw new Error(`Could not find zone for ${domain}`);
 };
 
-export const handler = async (event: { roamGraph: string; domain: string }) => {
+export const handler: Handler<{ roamGraph: string; domain: string }> = async ({
+  roamGraph,
+  domain,
+}) => {
   const logStatus = async (S: string) =>
     await dynamo
       .putItem({
@@ -45,7 +49,7 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
             S: v4(),
           },
           action_graph: {
-            S: `launch_${event.roamGraph}`,
+            S: `launch_${roamGraph}`,
           },
           date: {
             S: new Date().toJSON(),
@@ -57,7 +61,7 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
       })
       .promise();
 
-  const domainParts = event.domain.split(".");
+  const domainParts = domain.split(".");
   const HostedZoneName = domainParts.slice(domainParts.length - 2).join(".");
   const available = await domains
     .checkDomainAvailability({ DomainName: HostedZoneName })
@@ -114,19 +118,19 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
   await cf
     .createStack({
       RoleARN: process.env.CLOUDFORMATION_ROLE_ARN,
-      StackName: `roamjs-${event.roamGraph}`,
+      StackName: `roamjs-${roamGraph}`,
       Tags,
       TemplateBody: JSON.stringify({
         Resources: {
           AcmCertificate: {
             Type: "AWS::CertificateManager::Certificate",
             Properties: {
-              DomainName: event.domain,
+              DomainName: domain,
               Tags,
               ValidationMethod: "DNS",
               DomainValidationOptions: [
                 {
-                  DomainName: event.domain,
+                  DomainName: domain,
                   HostedZoneId,
                 },
               ],
@@ -136,8 +140,8 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
             Type: "AWS::CloudFront::Distribution",
             Properties: {
               DistributionConfig: {
-                Aliases: [event.domain],
-                Comment: `CloudFront CDN for ${event.domain}`,
+                Aliases: [domain],
+                Comment: `CloudFront CDN for ${domain}`,
                 CustomErrorResponses: [
                   {
                     ErrorCode: 404,
@@ -170,10 +174,10 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
                   ],
                   MaxTTL: 31536000,
                   MinTTL: 0,
-                  TargetOriginId: `S3-${event.domain}`,
+                  TargetOriginId: `S3-${domain}`,
                   ViewerProtocolPolicy: "redirect-to-https",
                 },
-                DefaultRootObject: `${event.roamGraph}/index.html`,
+                DefaultRootObject: `${roamGraph}/index.html`,
                 Enabled: true,
                 IPV6Enabled: true,
                 Origins: [
@@ -184,8 +188,8 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
                       OriginProtocolPolicy: "http-only",
                       OriginSSLProtocols: ["TLSv1", "TLSv1.2"],
                     },
-                    DomainName: event.domain,
-                    Id: `S3-${event.domain}`,
+                    DomainName: domain,
+                    Id: `S3-${domain}`,
                     OriginCustomHeaders: [
                       {
                         HeaderName: "User-Agent",
@@ -193,7 +197,7 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
                       },
                       {
                         HeaderName: "X-Roam-Graph",
-                        HeaderValue: event.roamGraph,
+                        HeaderValue: roamGraph,
                       },
                     ],
                   },
@@ -215,7 +219,7 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
             Properties: {
               AliasTarget,
               HostedZoneId,
-              Name: event.domain,
+              Name: domain,
               Type: "A",
             },
           },
@@ -224,13 +228,13 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
             Properties: {
               AliasTarget,
               HostedZoneId,
-              Name: event.domain,
+              Name: domain,
               Type: "AAAA",
             },
           },
         },
       }),
-//      NotificationARNs - Upload to dynamo and send email!
+      //      NotificationARNs - Upload to dynamo and send email!
     })
     .promise();
 
@@ -240,8 +244,8 @@ export const handler = async (event: { roamGraph: string; domain: string }) => {
       FunctionName: "RoamJS_deploy",
       InvocationType: "Event",
       Payload: JSON.stringify({
-        roamGraph: event.roamGraph,
-        domain: event.domain,
+        roamGraph,
+        domain,
       }),
     })
     .promise();
