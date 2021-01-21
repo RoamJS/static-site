@@ -261,98 +261,6 @@ EOF
   }
 }
 
-resource "aws_cloudfront_distribution" "roamjs_network" {
-  count           = 1
-  comment         = "CloudFront CDN for RoamJS Network ${count.index}"
-  enabled         = true
-  is_ipv6_enabled = true
-  price_class     = "PriceClass_All"
-  tags            = {
-    Application = "Roam JS Extensions"
-  }
-
-  origin {
-    domain_name = aws_s3_bucket.main.website_endpoint
-    origin_id   = format("S3-%s", aws_s3_bucket.main.bucket)
-
-    custom_origin_config {
-      origin_protocol_policy = "http-only"
-      http_port              = "80"
-      https_port             = "443"
-      origin_ssl_protocols = ["TLSv1", "TLSv1.2"]
-    }
-
-    custom_header {
-      name  = "User-Agent"
-      value = var.cloudfront_secret
-    }
-  }
-
-  viewer_certificate {
-    cloudfront_default_certificate = true
-    ssl_support_method             = "sni-only"
-    minimum_protocol_version       = "TLSv1_2016"
-  }
-
-  default_cache_behavior {
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD", "OPTIONS"]
-    target_origin_id       = format("S3-%s", aws_s3_bucket.main.bucket)
-    compress               = "true"
-    viewer_protocol_policy = "redirect-to-https"
-    min_ttl                = "0"
-    default_ttl            = "86400"
-    max_ttl                = "31536000"
-
-    forwarded_values {
-      query_string = false
-
-      cookies {
-        forward = "none"
-      }
-    }
-
-    lambda_function_association {
-      event_type   = "viewer-request"
-      lambda_arn   = aws_lambda_function.viewer_request.qualified_arn
-      include_body = false
-    }
-
-    lambda_function_association {
-      event_type   = "origin-request"
-      lambda_arn   = aws_lambda_function.origin_request.qualified_arn
-      include_body = false
-    }
-  }
-
-  restrictions {
-    geo_restriction {
-      restriction_type = "none"
-      locations        = []
-    }
-  }
-
-  custom_error_response {
-    error_code = 404
-    response_code = 200
-    response_page_path = "/404.html"
-  }
-
-  custom_error_response {
-    error_code = 403
-    response_code = 200
-    response_page_path = "/index.html"
-  }
-
-  lifecycle {
-    ignore_changes = [
-      aliases,
-      viewer_certificate[0].acm_certificate_arn,
-      viewer_certificate[0].cloudfront_default_certificate
-    ]
-  }
-}
-
 resource "aws_iam_role_policy_attachment" "acm_roam" {
   role       = aws_iam_role.cf_role.name
   policy_arn = "arn:aws:iam::aws:policy/AWSCertificateManagerFullAccess"
@@ -394,4 +302,10 @@ resource "github_actions_secret" "contact_detail" {
   repository       = "generate-roam-site-lambda"
   secret_name      = "CONTACT_DETAIL"
   plaintext_value  = var.contact_detail
+}
+
+resource "github_actions_secret" "cloudfront_secret" {
+  repository       = "generate-roam-site-lambda"
+  secret_name      = "CLOUDFRONT_SECRET"
+  plaintext_value  = var.cloudfront_secret
 }
