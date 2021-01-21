@@ -130,22 +130,6 @@ resource "aws_lambda_function" "shutdown_function" {
   memory_size      = 1600
 }
 
-resource "aws_lambda_function" "viewer_request" {
-  function_name    = "RoamJS_viewer-request"
-  role             = aws_iam_role.cloudfront_lambda.arn
-  handler          = "viewer-request.handler"
-  runtime          = "nodejs12.x"
-  publish          = false
-  tags             = {
-    Application = "Roam JS Extensions"
-  }
-  lifecycle {
-    ignore_changes = [
-      filename
-    ]
-  }
-}
-
 resource "aws_lambda_function" "origin_request" {
   function_name    = "RoamJS_origin-request"
   role             = aws_iam_role.cloudfront_lambda.arn
@@ -155,11 +139,7 @@ resource "aws_lambda_function" "origin_request" {
   tags             = {
     Application = "Roam JS Extensions"
   }
-  lifecycle {
-    ignore_changes = [
-      filename
-    ]
-  }
+  filename         = "dummy.zip"
 }
 
 resource "aws_dynamodb_table" "website-statuses" {
