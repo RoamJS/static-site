@@ -21,6 +21,8 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: 12.16.1
+      - id: files
+        uses: jitterbit/get-changed-files@v1
       - name: install
         run: npm install
       - name: Setup env
@@ -35,4 +37,4 @@ jobs:
       - name: Build
         run: npm run build
       - name: Deploy
-        run: npm run deploy
+        run: npm run deploy -- ${{ steps.files.outputs.all }}

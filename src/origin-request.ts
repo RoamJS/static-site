@@ -5,5 +5,6 @@ export const handler: CloudFrontRequestHandler = (event, _, callback) => {
   const olduri = request.uri;
   const newuri = `/${request.origin.custom.customHeaders["x-roam-graph"][0].value}${olduri}`;
   request.uri = newuri;
+  console.log("Mapped", olduri, "to", newuri);
   return callback(null, request);
 };
