@@ -325,6 +325,13 @@ resource "aws_cloudfront_distribution" "roamjs_network" {
     }
   }
 
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+      locations        = []
+    }
+  }
+
   custom_error_response {
     error_code = 404
     response_code = 200
