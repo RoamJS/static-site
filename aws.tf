@@ -38,6 +38,45 @@ data "aws_iam_role" "cron_role" {
   name = "RoamJS-lambda-cron"
 }
 
+data "aws_iam_policy_document" "assume_lambda_edge_policy" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type = "Service"
+      identifiers = [
+        "lambda.amazonaws.com", 
+        "edgelambda.amazonaws.com"
+      ]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "lambda_logs_policy_doc" {
+  statement {
+    effect    = "Allow"
+    resources = ["*"]
+    actions = [
+      "logs:CreateLogStream",
+      "logs:PutLogEvents",
+      "logs:CreateLogGroup"
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "logs_role_policy" {
+  name   = "RoamJS-lambda-cloudfront"
+  role   = aws_iam_role.cloudfront_lambda.id
+  policy = data.aws_iam_policy_document.lambda_logs_policy_doc.json
+}
+
+resource "aws_iam_role" "cloudfront_lambda" {
+  name = "RoamJS-lambda-cloudfront"
+  tags = {
+    Application = "Roam JS Extensions"
+  }
+  assume_role_policy = data.aws_iam_policy_document.assume_lambda_edge_policy.json
+}
+
 # lambda resource requires either filename or s3... wow
 data "archive_file" "dummy" {
   type        = "zip"
@@ -89,6 +128,38 @@ resource "aws_lambda_function" "shutdown_function" {
   }
   timeout          = 300
   memory_size      = 1600
+}
+
+resource "aws_lambda_function" "viewer_request" {
+  function_name    = "RoamJS_viewer-request"
+  role             = data.aws_iam_role.cloudfront_lambda.arn
+  handler          = "viewer-request.handler"
+  runtime          = "nodejs12.x"
+  publish          = false
+  tags             = {
+    Application = "Roam JS Extensions"
+  }
+  lifecycle {
+    ignore_changes = [
+      filename
+    ]
+  }
+}
+
+resource "aws_lambda_function" "origin_request" {
+  function_name    = "RoamJS_origin-request"
+  role             = data.aws_iam_role.cloudfront_lambda.arn
+  handler          = "origin-request.handler"
+  runtime          = "nodejs12.x"
+  publish          = false
+  tags             = {
+    Application = "Roam JS Extensions"
+  }
+  lifecycle {
+    ignore_changes = [
+      filename
+    ]
+  }
 }
 
 resource "aws_dynamodb_table" "website-statuses" {
@@ -187,6 +258,89 @@ EOF
 
   tags = {
     Application = "Roam JS Extensions"
+  }
+}
+
+resource "aws_cloudfront_distribution" "roamjs_network" {
+  count           = 1
+  comment         = "CloudFront CDN for RoamJS Network ${count.index}"
+  enabled         = true
+  is_ipv6_enabled = true
+  price_class     = "PriceClass_All"
+  tags            = {
+    Application = "Roam JS Extensions"
+  }
+
+  origin {
+    domain_name = aws_s3_bucket.main.website_endpoint
+    origin_id   = format("S3-%s", aws_s3_bucket.main.bucket)
+
+    custom_origin_config {
+      origin_protocol_policy = "http-only"
+      http_port              = "80"
+      https_port             = "443"
+      origin_ssl_protocols = ["TLSv1", "TLSv1.2"]
+    }
+
+    custom_header {
+      name  = "User-Agent"
+      value = var.secret
+    }
+  }
+
+  viewer_certificate {
+    ssl_support_method       = "sni-only"
+    minimum_protocol_version = "TLSv1_2016"
+  }
+
+  default_cache_behavior {
+    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
+    cached_methods         = ["GET", "HEAD", "OPTIONS"]
+    target_origin_id       = format("S3-%s", aws_s3_bucket.main.bucket)
+    compress               = "true"
+    viewer_protocol_policy = "redirect-to-https"
+    min_ttl                = "0"
+    default_ttl            = "86400"
+    max_ttl                = "31536000"
+
+    forwarded_values {
+      query_string = false
+
+      cookies {
+        forward = "none"
+      }
+    }
+
+    lambda_function_association {
+      event_type   = "viewer-request"
+      lambda_arn   = aws_lambda_function.viewer_request.qualified_arn
+      include_body = false
+    }
+
+    lambda_function_association {
+      event_type   = "origin-request"
+      lambda_arn   = aws_lambda_function.origin_request.qualified_arn
+      include_body = false
+    }
+  }
+
+  custom_error_response {
+    error_code = 404
+    response_code = 200
+    response_page_path = "/404.html"
+  }
+
+  custom_error_response {
+    error_code = 403
+    response_code = 200
+    response_page_path = "/index.html"
+  }
+
+  lifecycle {
+    ignore_changes = [
+      aliases,
+      viewer_certificate.acm_certificate_arn
+    ]
   }
 }
 
