@@ -9,7 +9,7 @@ const changedFiles = process.argv
   .map((f) => f.replace("src/", "").replace(".ts", ""));
 
 console.log("Files that were changed", changedFiles);
-Promise.all([
+Promise.all(
   changedFiles.map((id) =>
     lambda
       .updateFunctionCode({
@@ -18,8 +18,8 @@ Promise.all([
         ZipFile: `fileb://out/${id}.zip`,
       })
       .promise()
-  ),
-])
+  )
+)
   .then((r) => console.log("Successfully deployed", r.length, "functions!"))
   .catch((e) => {
     console.error(e.message);
