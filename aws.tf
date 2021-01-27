@@ -1,11 +1,17 @@
 terraform {
-    backend "remote" {
-        hostname = "app.terraform.io"
-        organization = "VargasArts"
-        workspaces {
-            prefix = "generate-roam-site-lambda"
-        }
+  backend "remote" {
+    hostname = "app.terraform.io"
+    organization = "VargasArts"
+    workspaces {
+      prefix = "generate-roam-site-lambda"
     }
+  }
+  required_providers {
+    github = {
+      source = "integrations/github"
+      version = "4.2.0"
+    }
+  }
 }
 
 variable "support_roam_password" {
