@@ -10,20 +10,21 @@ const s3 = new AWS.S3({
   credentials,
 });
 const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
+const cf = new AWS.CloudFormation({ apiVersion: "2010-05-15", credentials });
 
-const emptyBucket = async (Bucket: string) => {
-  const { Contents, IsTruncated } = await s3.listObjects({ Bucket }).promise();
+const emptyBucket = async (props: {Bucket: string, Prefix: string}) => {
+  const { Contents, IsTruncated } = await s3.listObjects(props).promise();
   if (Contents.length > 0) {
     await s3
       .deleteObjects({
-        Bucket,
+        Bucket: props.Bucket,
         Delete: {
           Objects: Contents.map(({ Key }) => ({ Key })),
         },
       })
       .promise();
     if (IsTruncated) {
-      await emptyBucket(Bucket);
+      await emptyBucket(props);
     }
   }
 };
@@ -50,16 +51,14 @@ export const handler = async (event: { roamGraph: string }) => {
       })
       .promise();
 
-  const Bucket = `roamjs-${event.roamGraph}`;
+  const Bucket = `roamjs-static-sites`;
   await logStatus("EMPTYING HOST");
-  await emptyBucket(Bucket);
+  await emptyBucket({Bucket, Prefix: event.roamGraph});
 
-  await logStatus("DELETING HOST");
-  await s3
-    .deleteBucket({
-      Bucket,
-    })
-    .promise();
+  await logStatus("DELETING WEBSITE");
+  await cf.deleteStack({
+    StackName: `roamjs-${event.roamGraph}`,
+  }).promise()
     
   await logStatus("INACTIVE");
   return { success: true };

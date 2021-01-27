@@ -156,7 +156,7 @@ export const handler = async (event: {
             CallerReference: new Date().toJSON(),
             Paths: {
               Quantity: 1,
-              Items: ["/*"],
+              Items: ['/*'],
             },
           },
         }).promise();
