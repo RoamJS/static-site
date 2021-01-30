@@ -115,6 +115,10 @@ export const handler: Handler<{ roamGraph: string; domain: string }> = async ({
       "Fn::GetAtt": ["CloudfrontDistribution", "DomainName"],
     },
   };
+  const Payload = JSON.stringify({
+    roamGraph,
+    domain,
+  });
   await cf
     .createStack({
       RoleARN: process.env.CLOUDFORMATION_ROLE_ARN,
@@ -232,6 +236,22 @@ export const handler: Handler<{ roamGraph: string; domain: string }> = async ({
               Type: "AAAA",
             },
           },
+          CloudwatchRule: {
+            Type: "AWS::Events::Rule",
+            Properties: {
+              Description: `RoamJS Static Site Deploy for ${roamGraph}`,
+              ScheduleExpression: "0 4 ? * * *",
+              Name: `RoamJS-${roamGraph}`,
+              RoleArn: process.env.CLOUDWATCH_ROLE_ARN,
+              State: "Enabled",
+              Targets: [
+                {
+                  Input: Payload,
+                  Arn: process.env.DEPLOY_LAMBDA_ARN,
+                },
+              ],
+            },
+          },
         },
       }),
       //      NotificationARNs - Upload to dynamo and send email!
@@ -243,10 +263,7 @@ export const handler: Handler<{ roamGraph: string; domain: string }> = async ({
     .invoke({
       FunctionName: "RoamJS_deploy",
       InvocationType: "Event",
-      Payload: JSON.stringify({
-        roamGraph,
-        domain,
-      }),
+      Payload,
     })
     .promise();
 
