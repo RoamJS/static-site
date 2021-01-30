@@ -262,6 +262,55 @@ resource "aws_iam_role_policy_attachment" "route53_roam" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonRoute53FullAccess"
 }
 
+resource "aws_iam_role_policy_attachment" "cloudwatch_roam" {
+  role       = aws_iam_role.cf_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchFullAccess"
+}
+
+data "aws_iam_policy_document" "assume_cloudwatch_policy" {
+  statement {
+    actions = ["sts:AssumeRole"]
+    principals {
+      type = "Service"
+      identifiers = [
+        "events.amazonaws.com"
+      ]
+    }
+  }
+}
+
+data "aws_iam_policy_document" "invoke_cloudwatch_policy" {
+  statement {
+    effect    = "Allow"
+    resources = ["*"]
+    actions = [
+      "batch:SubmitJob"
+    ]
+  }
+
+  statement {
+    effect    = "Allow"
+    resources = [aws_lambda_function.deploy_function.arn]
+    actions = [
+      "lambda:InvokeFunction"
+    ]
+  }
+}
+
+resource "aws_iam_role" "cloudwatch" {
+  name = "RoamJS-deploys-cloudwatch"
+  tags = {
+    Application = "Roam JS Extensions"
+  }
+  assume_role_policy = data.aws_iam_policy_document.assume_cloudwatch_policy.json
+}
+
+resource "aws_iam_role_policy" "cloudwatch_policy" {
+  name   = "RoamJS-deploys-cloudwatch"
+  role   = aws_iam_role.cloudwatch.id
+  policy = data.aws_iam_policy_document.invoke_cloudwatch_policy.json
+}
+
 provider "github" {
     owner = "dvargas92495"
 }
@@ -306,4 +355,16 @@ resource "github_actions_secret" "origin_lambda_arn_secret" {
   repository       = "generate-roam-site-lambda"
   secret_name      = "ORIGIN_LAMBDA_ARN"
   plaintext_value  = aws_lambda_function.origin_request.qualified_arn
+}
+
+resource "github_actions_secret" "cloudwatch_role_arn" {
+  repository       = "generate-roam-site-lambda"
+  secret_name      = "CLOUDWATCH_ROLE_ARN"
+  plaintext_value  = aws_iam_role.cloudwatch.arn
+}
+
+resource "github_actions_secret" "deploy_lambda_arn_secret" {
+  repository       = "generate-roam-site-lambda"
+  secret_name      = "DEPLOY_LAMBDA_ARN"
+  plaintext_value  = aws_lambda_function.deploy_function.arn
 }
