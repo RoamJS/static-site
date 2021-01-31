@@ -311,6 +311,37 @@ resource "aws_iam_role_policy" "cloudwatch_policy" {
   policy = data.aws_iam_policy_document.invoke_cloudwatch_policy.json
 }
 
+resource "aws_lambda_function" "complete_function" {
+  function_name    = "RoamJS_complete"
+  role             = data.aws_iam_role.cron_role.arn
+  handler          = "complete.handler"
+  runtime          = "nodejs12.x"
+  filename         = "dummy.zip"
+  publish          = false
+  tags             = {
+    Application = "Roam JS Extensions"
+  }
+  timeout          = 30
+}
+
+resource "aws_sns_topic" "cloudformation_topic" {
+  name = "roamjs-deploy-topic"
+}
+
+resource "aws_sns_topic_subscription" "cloudformation_subscription" {
+  topic_arn = aws_sns_topic.cloudformation_topic.arn
+  protocol  = "lambda"
+  endpoint  = aws_lambda_function.complete_function.arn
+}
+
+resource "aws_lambda_permission" "sns_lambda" {
+  statement_id  = "AllowExecutionFromSNS"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.complete_function.function_name
+  principal     = "sns.amazonaws.com"
+  source_arn    = aws_sns_topic.cloudformation_topic.arn
+}
+
 provider "github" {
     owner = "dvargas92495"
 }
@@ -367,4 +398,10 @@ resource "github_actions_secret" "deploy_lambda_arn_secret" {
   repository       = "generate-roam-site-lambda"
   secret_name      = "DEPLOY_LAMBDA_ARN"
   plaintext_value  = aws_lambda_function.deploy_function.arn
+}
+
+resource "github_actions_secret" "sns_topic_arn_secret" {
+  repository       = "generate-roam-site-lambda"
+  secret_name      = "SNS_TOPIC_ARN"
+  plaintext_value  = aws_sns_topic.cloudformation_topic.arn
 }
