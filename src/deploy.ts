@@ -34,7 +34,7 @@ const getDistributionIdByDomain = async (domain: string) => {
     Marker = NextMarker;
   }
 
-  throw new Error(`Could not find distribution for ${domain}`);
+  return null;
 };
 
 export const handler = async (event: {
@@ -113,54 +113,23 @@ export const handler = async (event: {
         await s3.upload({ Bucket, Key, Body, ContentType }).promise();
       }
 
-      const statuses = await dynamo
-        .query({
-          TableName: "RoamJSWebsiteStatuses",
-          KeyConditionExpression: "action_graph = :a",
-          ExpressionAttributeValues: {
-            ":a": {
-              S: `launch_${event.roamGraph}`,
-            },
-          },
-          Limit: 1,
-          ScanIndexForward: false,
-          IndexName: "primary-index",
-        })
-        .promise();
-      if (statuses.Items && statuses.Items[0].status.S === "FIRST DEPLOY") {
-        await dynamo
-          .putItem({
-            TableName: "RoamJSWebsiteStatuses",
-            Item: {
-              uuid: {
-                S: v4(),
-              },
-              action_graph: {
-                S: `launch_${event.roamGraph}`,
-              },
-              date: {
-                S: new Date().toJSON(),
-              },
-              status: {
-                S: "LIVE",
+      await logStatus("INVALIDATING CACHE");
+      const DistributionId = await getDistributionIdByDomain(event.domain);
+      if (DistributionId) {
+        await cloudfront
+          .createInvalidation({
+            DistributionId,
+            InvalidationBatch: {
+              CallerReference: new Date().toJSON(),
+              Paths: {
+                Quantity: 1,
+                Items: ["/*"],
               },
             },
           })
           .promise();
-      } else {
-        await logStatus("INVALIDATING CACHE");
-        const DistributionId = await getDistributionIdByDomain(event.domain);
-        await cloudfront.createInvalidation({
-          DistributionId,
-          InvalidationBatch: {
-            CallerReference: new Date().toJSON(),
-            Paths: {
-              Quantity: 1,
-              Items: ['/*'],
-            },
-          },
-        }).promise();
       }
+
       await logStatus("SUCCESS");
     })
     .catch(async (e) => {

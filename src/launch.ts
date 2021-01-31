@@ -89,16 +89,7 @@ export const handler: Handler<{ roamGraph: string; domain: string }> = async ({
       .promise()
       .then((r) => r.OperationId);
 
-    let status = "SUBMITTED";
-    while (status !== "SUCCESSFUL") {
-      const { Status, Message } = await domains
-        .getOperationDetail({ OperationId })
-        .promise();
-      if (Status === "ERROR" || Status === "FAILED") {
-        throw new Error(`Domain Registration ${Status} - ${Message}`);
-      }
-      await new Promise((resolve) => setTimeout(resolve, 500));
-    }
+      await logStatus(`REGISTERED ${OperationId}`);
   }
   const HostedZoneId = await getHostedZoneIdByName(HostedZoneName);
 
@@ -121,6 +112,7 @@ export const handler: Handler<{ roamGraph: string; domain: string }> = async ({
   });
   await cf
     .createStack({
+      NotificationARNs: [process.env.SNS_TOPIC_ARN],
       RoleARN: process.env.CLOUDFORMATION_ROLE_ARN,
       StackName: `roamjs-${roamGraph}`,
       Tags,
@@ -246,6 +238,7 @@ export const handler: Handler<{ roamGraph: string; domain: string }> = async ({
               State: "Enabled",
               Targets: [
                 {
+                  Id: "DeployLambda",
                   Input: Payload,
                   Arn: process.env.DEPLOY_LAMBDA_ARN,
                 },
@@ -254,7 +247,6 @@ export const handler: Handler<{ roamGraph: string; domain: string }> = async ({
           },
         },
       }),
-      //      NotificationARNs - Upload to dynamo and send email!
     })
     .promise();
 

@@ -7,6 +7,7 @@ module.exports = {
     launch: "./src/launch.ts",
     shutdown: "./src/shutdown.ts",
     "origin-request": "./src/origin-request.ts",
+    complete: "./src/complete.ts",
   },
   target: "node",
   mode: "production",
