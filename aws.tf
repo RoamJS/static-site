@@ -267,6 +267,11 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_roam" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchFullAccess"
 }
 
+resource "aws_iam_role_policy_attachment" "cloudwatch_events_roam" {
+  role       = aws_iam_role.cf_role.name
+  policy_arn = "arn:aws:iam::aws:policy/CloudWatchEventsFullAccess"
+}
+
 data "aws_iam_policy_document" "assume_cloudwatch_policy" {
   statement {
     actions = ["sts:AssumeRole"]
