@@ -267,11 +267,6 @@ resource "aws_iam_role_policy_attachment" "cloudwatch_roam" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchFullAccess"
 }
 
-resource "aws_iam_role_policy_attachment" "cloudwatch_events_roam" {
-  role       = aws_iam_role.cf_role.name
-  policy_arn = "arn:aws:iam::aws:policy/CloudWatchEventsFullAccess"
-}
-
 data "aws_iam_policy_document" "assume_cloudwatch_policy" {
   statement {
     actions = ["sts:AssumeRole"]
@@ -314,6 +309,36 @@ resource "aws_iam_role_policy" "cloudwatch_policy" {
   name   = "RoamJS-deploys-cloudwatch"
   role   = aws_iam_role.cloudwatch.id
   policy = data.aws_iam_policy_document.invoke_cloudwatch_policy.json
+}
+
+data "aws_iam_policy_document" "cloudwatch_events" {
+  statement {
+    sid = "CloudWatchEvents"
+    actions = [
+      "events:*",
+    ]
+
+    resources = [
+      "*",
+    ]
+  }
+
+  statement {
+    sid = "IamPassRole"
+    actions = [
+      "iam:PassRole",
+    ]
+
+    resources = [
+      aws_iam_role.cloudwatch.arn,
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "cloudwatch_events_policy" {
+  name = "cloudwatch_events_policy"
+  role = aws_iam_role.cf_role.id
+  policy = data.aws_iam_policy_document.cloudwatch_events.json
 }
 
 resource "aws_lambda_function" "complete_function" {
