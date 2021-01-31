@@ -235,7 +235,7 @@ export const handler: Handler<{ roamGraph: string; domain: string }> = async ({
               ScheduleExpression: "0 4 ? * * *",
               Name: `RoamJS-${roamGraph}`,
               RoleArn: process.env.CLOUDWATCH_ROLE_ARN,
-              State: "Enabled",
+              State: "ENABLED",
               Targets: [
                 {
                   Id: "DeployLambda",
