@@ -232,7 +232,7 @@ export const handler: Handler<{ roamGraph: string; domain: string }> = async ({
             Type: "AWS::Events::Rule",
             Properties: {
               Description: `RoamJS Static Site Deploy for ${roamGraph}`,
-              ScheduleExpression: "0 4 ? * * *",
+              ScheduleExpression: "cron(0 4 ? * * *)",
               Name: `RoamJS-${roamGraph}`,
               RoleArn: process.env.CLOUDWATCH_ROLE_ARN,
               State: "ENABLED",
