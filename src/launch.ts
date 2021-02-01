@@ -250,7 +250,6 @@ export const handler: Handler<{ roamGraph: string; domain: string }> = async ({
     })
     .promise();
 
-  await logStatus("FIRST DEPLOY");
   await lambda
     .invoke({
       FunctionName: "RoamJS_deploy",

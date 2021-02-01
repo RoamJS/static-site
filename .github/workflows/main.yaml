@@ -35,6 +35,7 @@ jobs:
           echo "ORIGIN_LAMBDA_ARN=${{ secrets.ORIGIN_LAMBDA_ARN }}" >> .env.local
           echo "CLOUDWATCH_ROLE_ARN=${{ secrets.CLOUDWATCH_ROLE_ARN }}" >> .env.local
           echo "DEPLOY_LAMBDA_ARN=${{ secrets.DEPLOY_LAMBDA_ARN }}" >> .env.local
+          echo "SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }}" >> .env.local
       - name: Build
         run: npm run build
       - name: Deploy
