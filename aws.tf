@@ -311,7 +311,7 @@ resource "aws_iam_role_policy" "cloudwatch_policy" {
   policy = data.aws_iam_policy_document.invoke_cloudwatch_policy.json
 }
 
-data "aws_iam_policy_document" "cloudwatch_events" {
+data "aws_iam_policy_document" "cloudformation_extra" {
   statement {
     sid = "CloudWatchEvents"
     actions = [
@@ -333,12 +333,34 @@ data "aws_iam_policy_document" "cloudwatch_events" {
       aws_iam_role.cloudwatch.arn,
     ]
   }
+
+  statement {
+    sid = "LambdaGet"
+    actions = [
+      "lambda:GetFunction",
+    ]
+
+    resources = [
+      aws_lambda_function.origin_request.qualified_arn,
+    ]
+  }
+
+  statement {
+    sid = "LambdaEnable"
+    actions = [
+      "lambda:EnableReplication*",
+    ]
+
+    resources = [
+      aws_lambda_function.origin_request.arn,
+    ]
+  }
 }
 
-resource "aws_iam_role_policy" "cloudwatch_events_policy" {
-  name = "cloudwatch_events_policy"
+resource "aws_iam_role_policy" "cloudformation_extra" {
+  name = "cloudformation_extra_policy"
   role = aws_iam_role.cf_role.id
-  policy = data.aws_iam_policy_document.cloudwatch_events.json
+  policy = data.aws_iam_policy_document.cloudformation_extra.json
 }
 
 resource "aws_lambda_function" "complete_function" {
