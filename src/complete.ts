@@ -16,6 +16,21 @@ export const handler = async (event: SNSEvent) => {
   const messageObject = Object.fromEntries(
     message.split("\n").map((l) => l.split("="))
   );
+
+  console.log("message", message);
+  console.log(
+    "message attrs",
+    JSON.stringify(event.Records[0].Sns.MessageAttributes)
+  );
+  console.log(
+    "LogicalResourceId",
+    messageObject["LogicalResourceId"],
+    "StackName",
+    messageObject["StackName"],
+    "ResourceStatus",
+    messageObject["ResourceStatus"]
+  );
+
   if (
     messageObject["LogicalResourceId"] === messageObject["StackName"] &&
     messageObject["ResourceStatus"] === "CREATE_COMPLETE"
@@ -69,7 +84,7 @@ export const handler = async (event: SNSEvent) => {
           lastStatus.domain.S,
           "is ready."
         );
-        
+
         await lambda
           .invoke({
             FunctionName: "RoamJS_deploy",
