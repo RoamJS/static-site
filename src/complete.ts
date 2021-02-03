@@ -14,21 +14,10 @@ const ses = new AWS.SES({ apiVersion: "2010-12-01" });
 export const handler = async (event: SNSEvent) => {
   const message = event.Records[0].Sns.Message;
   const messageObject = Object.fromEntries(
-    message.split("\n").map((l) => l.split("="))
-  );
-
-  console.log("message", message);
-  console.log(
-    "message attrs",
-    JSON.stringify(event.Records[0].Sns.MessageAttributes)
-  );
-  console.log(
-    "LogicalResourceId",
-    messageObject["LogicalResourceId"],
-    "StackName",
-    messageObject["StackName"],
-    "ResourceStatus",
-    messageObject["ResourceStatus"]
+    message
+      .split("\n")
+      .map((l) => l.split("="))
+      .map(([key, value]) => [key, value.substring(1, value.length - 1)])
   );
 
   if (
