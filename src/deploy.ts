@@ -129,7 +129,6 @@ export const handler = async (event: {
           })
           .promise();
       }
-
       await logStatus("SUCCESS");
     })
     .catch(async (e) => {

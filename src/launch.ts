@@ -9,7 +9,6 @@ const credentials = {
 
 const cf = new AWS.CloudFormation({ apiVersion: "2010-05-15", credentials });
 const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
-const lambda = new AWS.Lambda({ apiVersion: "2015-03-31", credentials });
 const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
 const domains = new AWS.Route53Domains({
   apiVersion: "2014-05-15",
@@ -36,11 +35,12 @@ const getHostedZoneIdByName = async (domain: string) => {
   throw new Error(`Could not find zone for ${domain}`);
 };
 
-export const handler: Handler<{ roamGraph: string; domain: string }> = async ({
-  roamGraph,
-  domain,
-}) => {
-  const logStatus = async (S: string) =>
+export const handler: Handler<{
+  roamGraph: string;
+  domain: string;
+  email: string;
+}> = async ({ roamGraph, domain, email }) => {
+  const logStatus = async (S: string, props?: { [key: string]: string }) =>
     await dynamo
       .putItem({
         TableName: "RoamJSWebsiteStatuses",
@@ -57,6 +57,11 @@ export const handler: Handler<{ roamGraph: string; domain: string }> = async ({
           status: {
             S,
           },
+          ...(props
+            ? Object.fromEntries(
+                Object.keys(props).map((prop) => [prop, { S: props[prop] }])
+              )
+            : {}),
         },
       })
       .promise();
@@ -89,11 +94,11 @@ export const handler: Handler<{ roamGraph: string; domain: string }> = async ({
       .promise()
       .then((r) => r.OperationId);
 
-      await logStatus(`REGISTERED ${OperationId}`);
+    await logStatus(`REGISTERED`, { OperationId });
   }
   const HostedZoneId = await getHostedZoneIdByName(HostedZoneName);
 
-  await logStatus("CREATING WEBSITE");
+  await logStatus("CREATING WEBSITE", { domain, email });
   const Tags = [
     {
       Key: "Application",
@@ -106,7 +111,7 @@ export const handler: Handler<{ roamGraph: string; domain: string }> = async ({
       "Fn::GetAtt": ["CloudfrontDistribution", "DomainName"],
     },
   };
-  const Payload = JSON.stringify({
+  const Input = JSON.stringify({
     roamGraph,
     domain,
   });
@@ -239,7 +244,7 @@ export const handler: Handler<{ roamGraph: string; domain: string }> = async ({
               Targets: [
                 {
                   Id: "DeployLambda",
-                  Input: Payload,
+                  Input,
                   Arn: process.env.DEPLOY_LAMBDA_ARN,
                 },
               ],
@@ -247,14 +252,6 @@ export const handler: Handler<{ roamGraph: string; domain: string }> = async ({
           },
         },
       }),
-    })
-    .promise();
-
-  await lambda
-    .invoke({
-      FunctionName: "RoamJS_deploy",
-      InvocationType: "Event",
-      Payload,
     })
     .promise();
 
