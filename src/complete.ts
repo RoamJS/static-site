@@ -17,7 +17,7 @@ export const handler = async (event: SNSEvent) => {
     message
       .split("\n")
       .map((l) => l.split("="))
-      .map(([key, value]) => [key, value.substring(1, value.length - 1)])
+      .map(([key, value]) => [key, value && value.substring(1, value.length - 1)])
   );
 
   if (
