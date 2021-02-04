@@ -77,6 +77,7 @@ export const handler = async (event: {
       const filesToUpload = fs.readdirSync(path.join("/tmp", "out"));
 
       const fileSet = new Set(filesToUpload);
+      const eTags: { [key: string]: string } = {};
       const keysToDelete = new Set<string>();
       let finished = false;
       let ContinuationToken: string = undefined;
@@ -88,13 +89,17 @@ export const handler = async (event: {
         } = await s3
           .listObjectsV2({ Bucket, ContinuationToken, Prefix })
           .promise();
-        Contents.map(({ Key }) => Key)
+        Contents.map(({ Key, ETag }) => {
+          eTags[Key.substring(Prefix.length)] = ETag;
+          return Key;
+        })
           .filter((k) => !fileSet.has(k.substring(Prefix.length)))
           .forEach((k) => keysToDelete.add(k));
         finished = !IsTruncated;
         ContinuationToken = NextContinuationToken;
       }
       if (keysToDelete.size) {
+        console.log("Files to Delete", keysToDelete.size);
         const DeleteObjects = Array.from(keysToDelete).map((Key) => ({ Key }));
         for (let i = 0; i < DeleteObjects.length; i += 1000) {
           await s3
@@ -107,11 +112,19 @@ export const handler = async (event: {
       }
 
       await logStatus("UPLOADING");
+      const filesToInvalidate = new Set<string>();
+      console.log("Files to Upload", filesToUpload.length);
       for (const key of filesToUpload) {
         const Body = fs.createReadStream(path.join("/tmp", "out", key));
         const Key = `${Prefix}${key}`;
-        await s3.upload({ Bucket, Key, Body, ContentType }).promise();
+        const { ETag } = await s3
+          .upload({ Bucket, Key, Body, ContentType })
+          .promise();
+        if (eTags[key] && ETag === eTags[key]) {
+          filesToInvalidate.add(key);
+        }
       }
+      console.log("Files to Invalidate", filesToInvalidate.size);
 
       await logStatus("INVALIDATING CACHE");
       const DistributionId = await getDistributionIdByDomain(event.domain);

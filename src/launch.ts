@@ -189,7 +189,7 @@ export const handler: Handler<{
                       OriginProtocolPolicy: "http-only",
                       OriginSSLProtocols: ["TLSv1", "TLSv1.2"],
                     },
-                    DomainName: domain,
+                    DomainName: process.env.S3_WEBSITE_ENDPOINT,
                     Id: `S3-${domain}`,
                     OriginCustomHeaders: [
                       {
