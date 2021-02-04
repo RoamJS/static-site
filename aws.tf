@@ -457,3 +457,9 @@ resource "github_actions_secret" "sns_topic_arn_secret" {
   secret_name      = "SNS_TOPIC_ARN"
   plaintext_value  = aws_sns_topic.cloudformation_topic.arn
 }
+
+resource "github_actions_secret" "s3_website_endpoint_secret" {
+  repository       = "generate-roam-site-lambda"
+  secret_name      = "S3_WEBSITE_ENDPOINT"
+  plaintext_value  = aws_s3_bucket.main.website_endpoint
+}
