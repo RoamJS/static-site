@@ -7,6 +7,9 @@ import "generate-roam-site/dist/aws.tar.br";
 import "generate-roam-site/dist/chromium.br";
 import "generate-roam-site/dist/swiftshader.tar.br";
 
+// https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html#invalidation-specifying-objects
+const INVALIDATION_MAX = 2999;
+
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -129,18 +132,29 @@ export const handler = async (event: {
       await logStatus("INVALIDATING CACHE");
       const DistributionId = await getDistributionIdByDomain(event.domain);
       if (DistributionId) {
-        await cloudfront
-          .createInvalidation({
-            DistributionId,
-            InvalidationBatch: {
-              CallerReference: new Date().toJSON(),
-              Paths: {
-                Quantity: 1,
-                Items: ["/*"],
+        const invalidatingItems =
+          filesToInvalidate.size === filesToUpload.length
+            ? ["/*"]
+            : Array.from(filesToInvalidate);
+        for (let i = 0; i < invalidatingItems.length; i += INVALIDATION_MAX) {
+          const Items = invalidatingItems
+            .slice(i, i + INVALIDATION_MAX)
+            .flatMap((k) =>
+              k === "index.html" ? ["/", "/index.html"] : [`/${k}`]
+            );
+          await cloudfront
+            .createInvalidation({
+              DistributionId,
+              InvalidationBatch: {
+                CallerReference: new Date().toJSON(),
+                Paths: {
+                  Quantity: Items.length,
+                  Items,
+                },
               },
-            },
-          })
-          .promise();
+            })
+            .promise();
+        }
       }
       await logStatus("SUCCESS");
     })

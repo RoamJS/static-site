@@ -22,7 +22,7 @@
   "homepage": "https://github.com/dvargas92495/generate-roam-site-lambda#readme",
   "dependencies": {
     "aws-sdk": "^2.826.0",
-    "generate-roam-site": "^2.3.1",
+    "generate-roam-site": "^2.3.2",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
