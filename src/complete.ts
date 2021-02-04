@@ -17,7 +17,10 @@ export const handler = async (event: SNSEvent) => {
     message
       .split("\n")
       .map((l) => l.split("="))
-      .map(([key, value]) => [key, value && value.substring(1, value.length - 1)])
+      .map(([key, value]) => [
+        key,
+        value && value.substring(1, value.length - 1),
+      ])
   );
 
   if (
@@ -41,47 +44,39 @@ export const handler = async (event: SNSEvent) => {
       })
       .promise();
 
-    const logStatus = (S: string) =>
-      dynamo
-        .putItem({
-          TableName: "RoamJSWebsiteStatuses",
-          Item: {
-            uuid: {
-              S: v4(),
-            },
-            action_graph: {
-              S: `launch_${roamGraph}`,
-            },
-            date: {
-              S: new Date().toJSON(),
-            },
-            status: {
-              S,
-            },
-          },
-        })
-        .promise();
-    await logStatus("LIVE");
-
     if (statuses.Items) {
       const lastStatus = statuses.Items[0];
       if (lastStatus.status.S === "CREATING WEBSITE") {
-        console.log(
-          "Sending to email",
-          lastStatus.email.S,
-          "that domain",
-          lastStatus.domain.S,
-          "is ready."
-        );
-
+        const logStatus = (S: string) =>
+          dynamo
+            .putItem({
+              TableName: "RoamJSWebsiteStatuses",
+              Item: {
+                uuid: {
+                  S: v4(),
+                },
+                action_graph: {
+                  S: `launch_${roamGraph}`,
+                },
+                date: {
+                  S: new Date().toJSON(),
+                },
+                status: {
+                  S,
+                },
+              },
+            })
+            .promise();
+        await logStatus("LIVE");
+        
         await lambda
           .invoke({
             FunctionName: "RoamJS_deploy",
             InvocationType: "Event",
-            Payload: {
+            Payload: JSON.stringify({
               roamGraph,
               domain: lastStatus.domain.S,
-            },
+            }),
           })
           .promise();
 
