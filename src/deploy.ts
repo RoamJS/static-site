@@ -140,7 +140,7 @@ export const handler = async (event: {
           const Items = invalidatingItems
             .slice(i, i + INVALIDATION_MAX)
             .flatMap((k) =>
-              k === "index.html" ? ["/", "/index.html"] : [`/${k}`]
+              k === "index.html" ? ["/", "/index.html"] : [`/${k.replace(/\.html$/, "*")}`]
             );
           await cloudfront
             .createInvalidation({
@@ -156,7 +156,7 @@ export const handler = async (event: {
             .promise()
             .catch(() => {
               console.error(
-                "Failed to invalidate these paths:\n[\n    ",
+                "Failed to invalidate these paths:\n[\n   ",
                 Items.join(",\n    "),
                 "\n]"
               );
