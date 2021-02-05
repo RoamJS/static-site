@@ -108,6 +108,14 @@ resource "aws_lambda_function" "deploy_function" {
   memory_size      = 1600
 }
 
+resource "aws_lambda_permission" "deploy_permission" {
+  statement_id  = "CloudwatchEventInvoke"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.deploy_function.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = "arn:aws:events:us-east-1:643537615676:rule/RoamJS-*"
+}
+
 resource "aws_lambda_function" "launch_function" {
   function_name    = "RoamJS_launch"
   role             = data.aws_iam_role.cron_role.arn

@@ -123,7 +123,7 @@ export const handler = async (event: {
         const { ETag } = await s3
           .upload({ Bucket, Key, Body, ContentType })
           .promise();
-        if (eTags[key] && ETag === eTags[key]) {
+        if (eTags[key] && ETag !== eTags[key]) {
           filesToInvalidate.add(key);
         }
       }
