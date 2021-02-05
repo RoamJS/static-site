@@ -115,6 +115,7 @@ export const handler: Handler<{
     roamGraph,
     domain,
   });
+
   await cf
     .createStack({
       NotificationARNs: [process.env.SNS_TOPIC_ARN],
