@@ -1,6 +1,7 @@
 import AWS from "aws-sdk";
 import { Handler } from "aws-lambda";
 import { v4 } from "uuid";
+import namor from "namor";
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -10,10 +11,6 @@ const credentials = {
 const cf = new AWS.CloudFormation({ apiVersion: "2010-05-15", credentials });
 const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
 const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
-const domains = new AWS.Route53Domains({
-  apiVersion: "2014-05-15",
-  credentials,
-});
 
 const getHostedZoneIdByName = async (domain: string) => {
   let finished = false;
@@ -32,7 +29,17 @@ const getHostedZoneIdByName = async (domain: string) => {
     Marker = NextMarker;
   }
 
-  throw new Error(`Could not find zone for ${domain}`);
+  const zone = await route53
+    .createHostedZone({
+      Name: domain,
+      CallerReference: new Date().toJSON(),
+      HostedZoneConfig: {
+        Comment: "RoamJS Static Site Hosted Zone",
+        PrivateZone: false,
+      },
+    })
+    .promise();
+  return zone.HostedZone.Id;
 };
 
 export const handler: Handler<{
@@ -66,37 +73,12 @@ export const handler: Handler<{
       })
       .promise();
 
+  await logStatus("ALLOCATING HOST");
   const domainParts = domain.split(".");
   const HostedZoneName = domainParts.slice(domainParts.length - 2).join(".");
-  const available = await domains
-    .checkDomainAvailability({ DomainName: HostedZoneName })
-    .promise()
-    .then((r) => r.Availability === "AVAILABLE");
-  if (available) {
-    await logStatus("BUYING DOMAIN");
-
-    const Contact = {
-      ContactType: "PERSON",
-      CountryCode: "US",
-      Email: "dvargas92495@gmail.com",
-      FirstName: "David",
-      LastName: "Vargas",
-      ...JSON.parse(process.env.CONTACT_DETAIL),
-    };
-    const OperationId = await domains
-      .registerDomain({
-        TechContact: Contact,
-        RegistrantContact: Contact,
-        AdminContact: Contact,
-        DomainName: HostedZoneName,
-        DurationInYears: 1,
-      })
-      .promise()
-      .then((r) => r.OperationId);
-
-    await logStatus(`REGISTERED`, { OperationId });
-  }
   const HostedZoneId = await getHostedZoneIdByName(HostedZoneName);
+  const roamjsSubdomain = namor.generate({ words: 3, saltLength: 0 });
+  const roamjsDomain = `${roamjsSubdomain}.roamjs.com`;
 
   await logStatus("CREATING WEBSITE", { domain, email });
   const Tags = [
@@ -128,12 +110,17 @@ export const handler: Handler<{
             Type: "AWS::CertificateManager::Certificate",
             Properties: {
               DomainName: domain,
+              SubjectAlternativeNames: [roamjsDomain],
               Tags,
               ValidationMethod: "DNS",
               DomainValidationOptions: [
                 {
                   DomainName: domain,
                   HostedZoneId,
+                },
+                {
+                  DomainName: roamjsDomain,
+                  HostedZoneId: process.env.ROAMJS_ZONE_ID,
                 },
               ],
             },
@@ -142,7 +129,7 @@ export const handler: Handler<{
             Type: "AWS::CloudFront::Distribution",
             Properties: {
               DistributionConfig: {
-                Aliases: [domain],
+                Aliases: [domain, roamjsDomain],
                 Comment: `CloudFront CDN for ${domain}`,
                 CustomErrorResponses: [
                   {
@@ -231,6 +218,24 @@ export const handler: Handler<{
               AliasTarget,
               HostedZoneId,
               Name: domain,
+              Type: "AAAA",
+            },
+          },
+          Route53ARecordRoamJS: {
+            Type: "AWS::Route53::RecordSet",
+            Properties: {
+              AliasTarget,
+              HostedZoneId: process.env.ROAMJS_ZONE_ID,
+              Name: roamjsDomain,
+              Type: "A",
+            },
+          },
+          Route53AAAARecordRoamJS: {
+            Type: "AWS::Route53::RecordSet",
+            Properties: {
+              AliasTarget,
+              HostedZoneId: process.env.ROAMJS_ZONE_ID,
+              Name: roamjsDomain,
               Type: "AAAA",
             },
           },

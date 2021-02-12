@@ -23,6 +23,7 @@
   "dependencies": {
     "aws-sdk": "^2.826.0",
     "generate-roam-site": "^2.3.3",
+    "namor": "^2.0.2",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
