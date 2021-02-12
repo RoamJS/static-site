@@ -10,38 +10,7 @@ const credentials = {
 
 const cf = new AWS.CloudFormation({ apiVersion: "2010-05-15", credentials });
 const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
-const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
 const lambda = new AWS.Lambda({ apiVersion: "2015-03-31", credentials });
-
-const getHostedZoneIdByName = async (domain: string) => {
-  let finished = false;
-  let Marker: string = undefined;
-  while (!finished) {
-    const {
-      HostedZones,
-      IsTruncated,
-      NextMarker,
-    } = await route53.listHostedZones({ Marker }).promise();
-    const zone = HostedZones.find((i) => i.Name === `${domain}.`);
-    if (zone) {
-      return zone.Id.replace(/\/hostedzone\//, "");
-    }
-    finished = !IsTruncated;
-    Marker = NextMarker;
-  }
-
-  const zone = await route53
-    .createHostedZone({
-      Name: domain,
-      CallerReference: new Date().toJSON(),
-      HostedZoneConfig: {
-        Comment: "RoamJS Static Site Hosted Zone",
-        PrivateZone: false,
-      },
-    })
-    .promise();
-  return zone.HostedZone.Id;
-};
 
 export const handler: Handler<{
   roamGraph: string;
@@ -77,7 +46,7 @@ export const handler: Handler<{
   await logStatus("ALLOCATING HOST");
   const domainParts = domain.split(".");
   const HostedZoneName = domainParts.slice(domainParts.length - 2).join(".");
-  const HostedZoneId = await getHostedZoneIdByName(HostedZoneName);
+  const HostedZoneId = { "Fn::GetAtt": ["HostedZone", "Id"] };
   const roamjsSubdomain = namor.generate({ words: 3, saltLength: 0 });
   const roamjsDomain = `${roamjsSubdomain}.roamjs.com`;
 
@@ -202,6 +171,15 @@ export const handler: Handler<{
                 },
               },
               Tags,
+            },
+          },
+          HostedZone: {
+            Type: "AWS::Route53::HostedZone",
+            Properties: {
+              HostedZoneConfig: {
+                Comment: "RoamJS Static Site Hosted Zone",
+              },
+              Name: HostedZoneName,
             },
           },
           Route53ARecord: {
