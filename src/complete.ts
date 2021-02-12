@@ -22,18 +22,20 @@ export const handler = async (event: SNSEvent) => {
         value && value.substring(1, value.length - 1),
       ])
   );
+  const { StackName, LogicalResourceId, ResourceStatus } = messageObject;
+  const roamGraph = StackName.match("roamjs-(.*)")[1];
 
-  if (
-    messageObject["LogicalResourceId"] === messageObject["StackName"] &&
-    messageObject["ResourceStatus"] === "CREATE_COMPLETE"
-  ) {
-    const { StackName } = messageObject; 
-    const roamGraph = StackName.match("roamjs-(.*)")[1];
-    const summaries = await cf.listStackResources({ StackName })
+  if (LogicalResourceId === StackName && ResourceStatus === "CREATE_COMPLETE") {
+    const summaries = await cf
+      .listStackResources({ StackName })
       .promise()
       .then((r) => r.StackResourceSummaries);
-    const roamjsDomain = summaries.find(s => s.LogicalResourceId === 'Route53ARecordRoamJS').PhysicalResourceId
-    const domain = summaries.find(s => s.LogicalResourceId === 'Route53ARecord').PhysicalResourceId
+    const roamjsDomain = summaries.find(
+      (s) => s.LogicalResourceId === "Route53ARecordRoamJS"
+    ).PhysicalResourceId;
+    const domain = summaries.find(
+      (s) => s.LogicalResourceId === "Route53ARecord"
+    ).PhysicalResourceId;
 
     const statuses = await dynamo
       .query({
@@ -96,7 +98,17 @@ export const handler = async (event: SNSEvent) => {
             Source: "support@roamjs.com",
           })
           .promise();
+      } else {
+        console.log(
+          "Last status wasnt creating website?",
+          JSON.stringify(messageObject, null, 4)
+        );
       }
     }
+  } else {
+    console.log(
+      "I would like to log some of these",
+      JSON.stringify(messageObject, null, 4)
+    );
   }
 };
