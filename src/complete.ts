@@ -9,7 +9,6 @@ const credentials = {
 
 const lambda = new AWS.Lambda({ apiVersion: "2015-03-31", credentials });
 const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
-const ses = new AWS.SES({ apiVersion: "2010-12-01" });
 
 export const handler = async (event: SNSEvent) => {
   const message = event.Records[0].Sns.Message;
@@ -67,8 +66,8 @@ export const handler = async (event: SNSEvent) => {
               },
             })
             .promise();
-        await logStatus("LIVE");
-        
+        await logStatus("BUILDING WEBSITE");
+
         await lambda
           .invoke({
             FunctionName: "RoamJS_deploy",
@@ -76,29 +75,8 @@ export const handler = async (event: SNSEvent) => {
             Payload: JSON.stringify({
               roamGraph,
               domain: lastStatus.domain.S,
+              email: lastStatus.email.S,
             }),
-          })
-          .promise();
-
-        await ses
-          .sendEmail({
-            Destination: {
-              ToAddresses: [lastStatus.email.S],
-            },
-            Message: {
-              Body: {
-                Text: {
-                  Charset: "UTF-8",
-                  Data:
-                    "Your site on RoamJS is now live and have started its first deploy.",
-                },
-              },
-              Subject: {
-                Charset: "UTF-8",
-                Data: `${lastStatus.domain.S} is now live!`,
-              },
-            },
-            Source: "support@roamjs.com",
           })
           .promise();
       }

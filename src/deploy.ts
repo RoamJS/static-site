@@ -21,6 +21,7 @@ const cloudfront = new AWS.CloudFront({
   apiVersion: "2020-05-31",
   credentials,
 });
+const ses = new AWS.SES({ apiVersion: "2010-12-01" });
 
 const getDistributionIdByDomain = async (domain: string) => {
   let finished = false;
@@ -43,6 +44,7 @@ const getDistributionIdByDomain = async (domain: string) => {
 export const handler = async (event: {
   roamGraph: string;
   domain: string;
+  email?: string;
 }): Promise<void> => {
   const logStatus = (S: string) =>
     dynamo
@@ -127,40 +129,86 @@ export const handler = async (event: {
           filesToInvalidate.add(key);
         }
       }
-      console.log("Files to Invalidate", filesToInvalidate.size);
 
-      await logStatus("INVALIDATING CACHE");
-      const DistributionId = await getDistributionIdByDomain(event.domain);
-      if (DistributionId) {
-        const invalidatingItems =
-          filesToInvalidate.size === filesToUpload.length
-            ? ["/*"]
-            : Array.from(filesToInvalidate);
-        for (let i = 0; i < invalidatingItems.length; i += INVALIDATION_MAX) {
-          const Items = invalidatingItems
-            .slice(i, i + INVALIDATION_MAX)
-            .flatMap((k) =>
-              k === "index.html" ? ["/", "/index.html"] : [`/${k.replace(/\.html$/, "*")}`]
-            );
-          await cloudfront
-            .createInvalidation({
-              DistributionId,
-              InvalidationBatch: {
-                CallerReference: new Date().toJSON(),
-                Paths: {
-                  Quantity: Items.length,
-                  Items,
+      if (event.email) {
+        await dynamo
+          .putItem({
+            TableName: "RoamJSWebsiteStatuses",
+            Item: {
+              uuid: {
+                S: v4(),
+              },
+              action_graph: {
+                S: `launch_${event.roamGraph}`,
+              },
+              date: {
+                S: new Date().toJSON(),
+              },
+              status: {
+                S: "LIVE",
+              },
+            },
+          })
+          .promise();
+
+        await ses
+          .sendEmail({
+            Destination: {
+              ToAddresses: [event.email],
+            },
+            Message: {
+              Body: {
+                Text: {
+                  Charset: "UTF-8",
+                  Data:
+                    "Your site on RoamJS is now live and have started its first deploy.",
                 },
               },
-            })
-            .promise()
-            .catch(() => {
-              console.error(
-                "Failed to invalidate these paths:\n[\n   ",
-                Items.join(",\n    "),
-                "\n]"
+              Subject: {
+                Charset: "UTF-8",
+                Data: `${event.domain} is now live!`,
+              },
+            },
+            Source: "support@roamjs.com",
+          })
+          .promise();
+      } else {
+        console.log("Files to Invalidate", filesToInvalidate.size);
+        await logStatus("INVALIDATING CACHE");
+        const DistributionId = await getDistributionIdByDomain(event.domain);
+        if (DistributionId) {
+          const invalidatingItems =
+            filesToInvalidate.size === filesToUpload.length
+              ? ["/*"]
+              : Array.from(filesToInvalidate);
+          for (let i = 0; i < invalidatingItems.length; i += INVALIDATION_MAX) {
+            const Items = invalidatingItems
+              .slice(i, i + INVALIDATION_MAX)
+              .flatMap((k) =>
+                k === "index.html"
+                  ? ["/", "/index.html"]
+                  : [`/${k.replace(/\.html$/, "*")}`]
               );
-            });
+            await cloudfront
+              .createInvalidation({
+                DistributionId,
+                InvalidationBatch: {
+                  CallerReference: new Date().toJSON(),
+                  Paths: {
+                    Quantity: Items.length,
+                    Items,
+                  },
+                },
+              })
+              .promise()
+              .catch(() => {
+                console.error(
+                  "Failed to invalidate these paths:\n[\n   ",
+                  Items.join(",\n    "),
+                  "\n]"
+                );
+              });
+          }
         }
       }
       await logStatus("SUCCESS");
