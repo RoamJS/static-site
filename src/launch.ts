@@ -11,6 +11,7 @@ const credentials = {
 const cf = new AWS.CloudFormation({ apiVersion: "2010-05-15", credentials });
 const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
 const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
+const lambda = new AWS.Lambda({ apiVersion: "2015-03-31", credentials });
 
 const getHostedZoneIdByName = async (domain: string) => {
   let finished = false;
@@ -80,7 +81,7 @@ export const handler: Handler<{
   const roamjsSubdomain = namor.generate({ words: 3, saltLength: 0 });
   const roamjsDomain = `${roamjsSubdomain}.roamjs.com`;
 
-  await logStatus("CREATING WEBSITE", { domain, email });
+  await logStatus("CREATING WEBSITE", { email });
   const Tags = [
     {
       Key: "Application",
@@ -257,6 +258,17 @@ export const handler: Handler<{
             },
           },
         },
+      }),
+    })
+    .promise();
+
+  await lambda
+    .invoke({
+      FunctionName: "RoamJS_deploy",
+      InvocationType: "Event",
+      Payload: JSON.stringify({
+        roamGraph,
+        domain,
       }),
     })
     .promise();
