@@ -30,10 +30,6 @@ variable "cloudfront_secret" {
   type = string
 }
 
-variable "contact_detail" {
-  type = string
-}
-
 provider "aws" {
     region = "us-east-1"
     access_key = var.aws_access_token
@@ -67,6 +63,10 @@ data "aws_iam_policy_document" "lambda_logs_policy_doc" {
       "logs:CreateLogGroup"
     ]
   }
+}
+
+data "aws_route53_zone" "roamjs" {
+    name  = "roamjs.com."
 }
 
 resource "aws_iam_role_policy" "logs_role_policy" {
@@ -424,12 +424,6 @@ resource "github_actions_secret" "support_roam_password" {
   plaintext_value  = var.support_roam_password
 }
 
-resource "github_actions_secret" "contact_detail" {
-  repository       = "generate-roam-site-lambda"
-  secret_name      = "CONTACT_DETAIL"
-  plaintext_value  = var.contact_detail
-}
-
 resource "github_actions_secret" "cloudfront_secret" {
   repository       = "generate-roam-site-lambda"
   secret_name      = "CLOUDFRONT_SECRET"
@@ -470,4 +464,10 @@ resource "github_actions_secret" "s3_website_endpoint_secret" {
   repository       = "generate-roam-site-lambda"
   secret_name      = "S3_WEBSITE_ENDPOINT"
   plaintext_value  = aws_s3_bucket.main.website_endpoint
+}
+
+resource "github_actions_secret" "roamjs_zone_id_secret" {
+  repository       = "generate-roam-site-lambda"
+  secret_name      = "ROAMJS_ZONE_ID"
+  plaintext_value  = data.aws_route53_zone.roamjs.zone_id
 }
