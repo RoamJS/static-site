@@ -1,7 +1,7 @@
 import AWS from "aws-sdk";
 import { Handler } from "aws-lambda";
-import { v4 } from "uuid";
 import namor from "namor";
+import { createLogStatus, ZONE_COMMENT_PREFIX } from "./common";
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -9,7 +9,6 @@ const credentials = {
 };
 
 const cf = new AWS.CloudFormation({ apiVersion: "2010-05-15", credentials });
-const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
 const lambda = new AWS.Lambda({ apiVersion: "2015-03-31", credentials });
 
 export const handler: Handler<{
@@ -17,32 +16,7 @@ export const handler: Handler<{
   domain: string;
   email: string;
 }> = async ({ roamGraph, domain, email }) => {
-  const logStatus = async (S: string, props?: { [key: string]: string }) =>
-    await dynamo
-      .putItem({
-        TableName: "RoamJSWebsiteStatuses",
-        Item: {
-          uuid: {
-            S: v4(),
-          },
-          action_graph: {
-            S: `launch_${roamGraph}`,
-          },
-          date: {
-            S: new Date().toJSON(),
-          },
-          status: {
-            S,
-          },
-          ...(props
-            ? Object.fromEntries(
-                Object.keys(props).map((prop) => [prop, { S: props[prop] }])
-              )
-            : {}),
-        },
-      })
-      .promise();
-
+  const logStatus = createLogStatus(roamGraph);
   await logStatus("ALLOCATING HOST");
   const domainParts = domain.split(".");
   const HostedZoneName = domainParts.slice(domainParts.length - 2).join(".");
@@ -50,7 +24,7 @@ export const handler: Handler<{
   const roamjsSubdomain = namor.generate({ words: 3, saltLength: 0 });
   const roamjsDomain = `${roamjsSubdomain}.roamjs.com`;
 
-  await logStatus("CREATING WEBSITE", { email });
+  await logStatus("CREATING WEBSITE");
   const Tags = [
     {
       Key: "Application",
@@ -177,7 +151,7 @@ export const handler: Handler<{
             Type: "AWS::Route53::HostedZone",
             Properties: {
               HostedZoneConfig: {
-                Comment: "RoamJS Static Site Hosted Zone",
+                Comment: `${ZONE_COMMENT_PREFIX}${email}`,
               },
               Name: HostedZoneName,
             },
