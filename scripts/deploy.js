@@ -2,6 +2,8 @@ const AWS = require("aws-sdk");
 const path = require("path");
 const fs = require("fs");
 
+const ignoreFiles= ['common'];
+
 const lambda = new AWS.Lambda({
   apiVersion: "2015-03-31",
   region: "us-east-1",
@@ -9,9 +11,10 @@ const lambda = new AWS.Lambda({
 const changedFiles = process.argv
   .slice(2)
   .filter((f) => f.startsWith("src/"))
-  .map((f) => f.replace("src/", "").replace(".ts", ""));
+  .map((f) => f.replace("src/", "").replace(".ts", ""))
+  .filter((f) => ignoreFiles.includes(f));
 
-console.log("Files that were changed", changedFiles, __dirname);
+console.log("Files that were changed", changedFiles);
 const out = path.join(__dirname, "..", "out");
 
 Promise.all(

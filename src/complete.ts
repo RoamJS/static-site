@@ -28,6 +28,7 @@ const getHostedZone = async (domain: string) => {
     finished = !IsTruncated;
     Marker = NextMarker;
   }
+
   return undefined;
 };
 
