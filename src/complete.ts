@@ -1,6 +1,6 @@
 import AWS from "aws-sdk";
 import { SNSEvent } from "aws-lambda";
-import { createLogStatus, ZONE_COMMENT_PREFIX } from "./common";
+import { createLogStatus, getStackSummaries, ZONE_COMMENT_PREFIX } from "./common";
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -8,8 +8,8 @@ const credentials = {
 };
 
 const ses = new AWS.SES({ apiVersion: "2010-12-01" });
-const cf = new AWS.CloudFormation({ apiVersion: "2010-05-15", credentials });
 const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
+const acm = new AWS.ACM({ apiVersion: "2015-12-08", credentials });
 const ACM_START_TEXT = "Content of DNS Record is: ";
 
 const getHostedZone = async (domain: string) => {
@@ -47,16 +47,13 @@ export const handler = async (event: SNSEvent) => {
     StackName,
     LogicalResourceId,
     ResourceStatus,
-    StatusReason,
+    ResourceStatusReason,
   } = messageObject;
   const roamGraph = StackName.match("roamjs-(.*)")[1];
   const logStatus = createLogStatus(roamGraph);
 
   if (LogicalResourceId === StackName && ResourceStatus === "CREATE_COMPLETE") {
-    const summaries = await cf
-      .listStackResources({ StackName })
-      .promise()
-      .then((r) => r.StackResourceSummaries);
+    const summaries = await getStackSummaries(StackName);
     const roamjsDomain = summaries.find(
       (s) => s.LogicalResourceId === "Route53ARecordRoamJS"
     ).PhysicalResourceId;
@@ -90,16 +87,24 @@ export const handler = async (event: SNSEvent) => {
         })
         .promise();
     }
-  } else if (StatusReason.startsWith(ACM_START_TEXT)) {
-    console.log("ACM!!!", JSON.stringify(messageObject, null, 4));
-    const summaries = await cf
-      .listStackResources({ StackName })
-      .promise()
-      .then((r) => r.StackResourceSummaries);
-    const domain = summaries.find(
-      (s) => s.LogicalResourceId === "Route53ARecord"
+  } else if (ResourceStatusReason.startsWith(ACM_START_TEXT)) {
+    const summaries = await getStackSummaries(StackName);
+    const CertificateArn = summaries.find(
+      (s) => s.LogicalResourceId === "AcmCertificate"
     ).PhysicalResourceId;
+    const domain = await acm
+      .describeCertificate({ CertificateArn })
+      .promise()
+      .then((r) => r.Certificate.DomainName);
     const zone = await getHostedZone(domain);
+    console.log(
+      "ACM!!!",
+      JSON.stringify(
+        { ...messageObject, domain, CertificateArn, summaries },
+        null,
+        4
+      )
+    );
     if (zone) {
       const sets = await route53
         .listResourceRecordSets({ HostedZoneId: zone.Id })
@@ -109,9 +114,6 @@ export const handler = async (event: SNSEvent) => {
       logStatus("AWAITING VALIDATION", JSON.stringify(ns));
     }
   } else {
-    console.log(
-      "I would like to log some of these",
-      JSON.stringify(messageObject, null, 4)
-    );
+    logStatus("MAKING PROGRESS", JSON.stringify(messageObject));
   }
 };

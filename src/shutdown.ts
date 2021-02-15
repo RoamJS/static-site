@@ -1,5 +1,6 @@
 import AWS from "aws-sdk";
 import { v4 } from "uuid";
+import { getStackSummaries } from "./common";
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -11,8 +12,9 @@ const s3 = new AWS.S3({
 });
 const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
 const cf = new AWS.CloudFormation({ apiVersion: "2010-05-15", credentials });
+const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
 
-const emptyBucket = async (props: {Bucket: string, Prefix: string}) => {
+const emptyBucket = async (props: { Bucket: string; Prefix: string }) => {
   const { Contents, IsTruncated } = await s3.listObjects(props).promise();
   if (Contents.length > 0) {
     await s3
@@ -53,13 +55,29 @@ export const handler = async (event: { roamGraph: string }) => {
 
   const Bucket = `roamjs-static-sites`;
   await logStatus("EMPTYING HOST");
-  await emptyBucket({Bucket, Prefix: event.roamGraph});
+  await emptyBucket({ Bucket, Prefix: event.roamGraph });
+
+  await logStatus("DELETE RECORD");
+  const summaries = await getStackSummaries(`roamjs-${event.roamGraph}`);
+  const HostedZoneId = summaries.find(
+    (s) => s.LogicalResourceId === "HostedZone"
+  ).PhysicalResourceId;
+  const CNAME = await route53
+    .listResourceRecordSets({ HostedZoneId })
+    .promise()
+    .then((sets) => sets.ResourceRecordSets.find((r) => r.Type === "CNAME"));
+  await route53.changeResourceRecordSets({
+    HostedZoneId,
+    ChangeBatch: { Changes: [{ Action: "DELETE", ResourceRecordSet: CNAME }] },
+  });
 
   await logStatus("DELETING WEBSITE");
-  await cf.deleteStack({
-    StackName: `roamjs-${event.roamGraph}`,
-  }).promise()
-    
+  await cf
+    .deleteStack({
+      StackName: `roamjs-${event.roamGraph}`,
+    })
+    .promise();
+
   await logStatus("INACTIVE");
   return { success: true };
 };
