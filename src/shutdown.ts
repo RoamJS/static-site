@@ -69,7 +69,7 @@ export const handler = async (event: { roamGraph: string }) => {
   await route53.changeResourceRecordSets({
     HostedZoneId,
     ChangeBatch: { Changes: [{ Action: "DELETE", ResourceRecordSet: CNAME }] },
-  });
+  }).promise();
 
   await logStatus("DELETING WEBSITE");
   await cf
