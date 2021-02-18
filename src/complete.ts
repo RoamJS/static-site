@@ -105,6 +105,7 @@ export const handler = async (event: SNSEvent) => {
         4
       )
     );
+    
     if (zone) {
       const sets = await route53
         .listResourceRecordSets({ HostedZoneId: zone.Id })

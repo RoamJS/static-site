@@ -17,7 +17,7 @@ export const handler: Handler<{
   email: string;
 }> = async ({ roamGraph, domain, email }) => {
   const logStatus = createLogStatus(roamGraph);
-  
+
   await logStatus("ALLOCATING HOST");
   const domainParts = domain.split(".");
   const HostedZoneName = domainParts.slice(domainParts.length - 2).join(".");

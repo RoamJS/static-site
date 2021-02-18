@@ -12,7 +12,7 @@ const changedFiles = process.argv
   .slice(2)
   .filter((f) => f.startsWith("src/"))
   .map((f) => f.replace("src/", "").replace(".ts", ""))
-  .filter((f) => ignoreFiles.includes(f));
+  .filter((f) => !ignoreFiles.includes(f));
 
 console.log("Files that were changed", changedFiles);
 const out = path.join(__dirname, "..", "out");
