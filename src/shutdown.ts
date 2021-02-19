@@ -31,7 +31,10 @@ const emptyBucket = async (props: { Bucket: string; Prefix: string }) => {
   }
 };
 
-export const handler = async (event: { roamGraph: string }) => {
+export const handler = async (event: {
+  roamGraph: string;
+  shutdownCallback: string;
+}) => {
   const logStatus = async (S: string) =>
     await dynamo
       .putItem({
@@ -58,7 +61,8 @@ export const handler = async (event: { roamGraph: string }) => {
   await emptyBucket({ Bucket, Prefix: event.roamGraph });
 
   await logStatus("DELETE RECORD");
-  const summaries = await getStackSummaries(`roamjs-${event.roamGraph}`);
+  const StackName = `roamjs-${event.roamGraph}`;
+  const summaries = await getStackSummaries(StackName);
   const HostedZoneId = summaries.find(
     (s) => s.LogicalResourceId === "HostedZone"
   ).PhysicalResourceId;
@@ -66,18 +70,28 @@ export const handler = async (event: { roamGraph: string }) => {
     .listResourceRecordSets({ HostedZoneId })
     .promise()
     .then((sets) => sets.ResourceRecordSets.find((r) => r.Type === "CNAME"));
-  await route53.changeResourceRecordSets({
-    HostedZoneId,
-    ChangeBatch: { Changes: [{ Action: "DELETE", ResourceRecordSet: CNAME }] },
+  await route53
+    .changeResourceRecordSets({
+      HostedZoneId,
+      ChangeBatch: {
+        Changes: [{ Action: "DELETE", ResourceRecordSet: CNAME }],
+      },
+    })
+    .promise();
+
+  /*
+  await cf.updateStack({
+    StackName,
+    Parameters: [{ ParameterKey: "ShutdownCallback", ParameterValue: event.shutdownCallback }],
   }).promise();
+  */
 
   await logStatus("DELETING WEBSITE");
   await cf
     .deleteStack({
-      StackName: `roamjs-${event.roamGraph}`,
+      StackName,
     })
     .promise();
-
-  await logStatus("INACTIVE");
+  
   return { success: true };
 };

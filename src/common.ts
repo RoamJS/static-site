@@ -6,9 +6,7 @@ const credentials = {
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
 };
 const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
-const cf = new AWS.CloudFormation({ apiVersion: "2010-05-15", credentials });
-
-export const ZONE_COMMENT_PREFIX = "RoamJS Static Site For ";
+export const cf = new AWS.CloudFormation({ apiVersion: "2010-05-15", credentials });
 
 export const createLogStatus = (roamGraph: string) => async (
   S: string,

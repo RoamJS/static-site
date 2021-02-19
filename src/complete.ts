@@ -1,6 +1,6 @@
 import AWS from "aws-sdk";
 import { SNSEvent } from "aws-lambda";
-import { createLogStatus, getStackSummaries, ZONE_COMMENT_PREFIX } from "./common";
+import { cf, createLogStatus, getStackSummaries } from "./common";
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -52,20 +52,26 @@ export const handler = async (event: SNSEvent) => {
   const roamGraph = StackName.match("roamjs-(.*)")[1];
   const logStatus = createLogStatus(roamGraph);
 
-  if (LogicalResourceId === StackName && ResourceStatus === "CREATE_COMPLETE") {
-    const summaries = await getStackSummaries(StackName);
-    const roamjsDomain = summaries.find(
-      (s) => s.LogicalResourceId === "Route53ARecordRoamJS"
-    ).PhysicalResourceId;
-    const domain = summaries.find(
-      (s) => s.LogicalResourceId === "Route53ARecord"
-    ).PhysicalResourceId;
+  if (LogicalResourceId === StackName) {
+    if (ResourceStatus === "CREATE_COMPLETE") {
+      const summaries = await getStackSummaries(StackName);
+      const roamjsDomain = summaries.find(
+        (s) => s.LogicalResourceId === "Route53ARecordRoamJS"
+      ).PhysicalResourceId;
+      const domain = summaries.find(
+        (s) => s.LogicalResourceId === "Route53ARecord"
+      ).PhysicalResourceId;
 
-    const zone = await getHostedZone(domain);
-    await logStatus("LIVE");
-
-    if (zone) {
-      const email = zone.Config.Comment.substring(ZONE_COMMENT_PREFIX.length);
+      await logStatus("LIVE");
+      const email = await cf
+        .describeStacks({ StackName })
+        .promise()
+        .then(
+          (c) =>
+            c.Stacks[0].Parameters.find(
+              ({ ParameterKey }) => ParameterKey === "Email"
+            ).ParameterValue
+        );
       await ses
         .sendEmail({
           Destination: {
@@ -86,6 +92,8 @@ export const handler = async (event: SNSEvent) => {
           Source: "support@roamjs.com",
         })
         .promise();
+    } else if (ResourceStatus === "DELETE_COMPLETE") {
+      await logStatus("INACTIVE");
     }
   } else if (ResourceStatusReason.startsWith(ACM_START_TEXT)) {
     const summaries = await getStackSummaries(StackName);
@@ -100,12 +108,18 @@ export const handler = async (event: SNSEvent) => {
     console.log(
       "ACM!!!",
       JSON.stringify(
-        { ...messageObject, domain, CertificateArn, summaries },
+        {
+          ...messageObject,
+          domain,
+          CertificateArn,
+          summaries,
+          zoneId: zone?.Id,
+        },
         null,
         4
       )
     );
-    
+
     if (zone) {
       const sets = await route53
         .listResourceRecordSets({ HostedZoneId: zone.Id })

@@ -1,7 +1,7 @@
 import AWS from "aws-sdk";
 import { Handler } from "aws-lambda";
 import namor from "namor";
-import { createLogStatus, ZONE_COMMENT_PREFIX } from "./common";
+import { createLogStatus } from "./common";
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -46,10 +46,28 @@ export const handler: Handler<{
   await cf
     .createStack({
       NotificationARNs: [process.env.SNS_TOPIC_ARN],
+      Parameters: [
+        {
+          ParameterKey: "Email",
+          ParameterValue: email,
+        },
+        {
+          ParameterKey: "ShutdownCallback",
+          ParameterValue: "{}",
+        },
+      ],
       RoleARN: process.env.CLOUDFORMATION_ROLE_ARN,
       StackName: `roamjs-${roamGraph}`,
       Tags,
       TemplateBody: JSON.stringify({
+        Parameters: {
+          Email: {
+            Type: "String",
+          },
+          ShutdownCallback: {
+            Type: "String",
+          },
+        },
         Resources: {
           AcmCertificate: {
             Type: "AWS::CertificateManager::Certificate",
@@ -152,7 +170,7 @@ export const handler: Handler<{
             Type: "AWS::Route53::HostedZone",
             Properties: {
               HostedZoneConfig: {
-                Comment: `${ZONE_COMMENT_PREFIX}${email}`,
+                Comment: `RoamJS Static Site For ${roamGraph}`,
               },
               Name: HostedZoneName,
             },
