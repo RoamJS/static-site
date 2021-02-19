@@ -1,5 +1,6 @@
 import AWS from "aws-sdk";
 import { SNSEvent } from "aws-lambda";
+import axios from "axios";
 import { cf, createLogStatus, getStackSummaries } from "./common";
 
 const credentials = {
@@ -11,6 +12,31 @@ const ses = new AWS.SES({ apiVersion: "2010-12-01" });
 const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
 const acm = new AWS.ACM({ apiVersion: "2015-12-08", credentials });
 const ACM_START_TEXT = "Content of DNS Record is: ";
+
+type Status = {
+  CREATE_IN_PROGRESS: string;
+  CREATE_COMPLETE: string;
+  DELETE_IN_PROGRESS: string;
+  DELETE_COMPLETE: string;
+};
+
+const factory = (resource: string) => ({
+  CREATE_IN_PROGRESS: `CREATING ${resource}`,
+  CREATE_COMPLETE: `${resource} CREATED`,
+  DELETE_IN_PROGRESS: `DELETING ${resource}`,
+  DELETE_COMPLETE: `${resource} DELETED`,
+});
+
+const STATUSES = {
+  AcmCertificate: factory("CERTIFICATE"),
+  CloudfrontDistribution: factory("NETWORK"),
+  HostedZone: factory("ZONE"),
+  Route53ARecord: factory("DOMAIN"),
+  Route53AAAARecord: factory("ALTERNATE DOMAIN"),
+  Route53ARecordRoamJS: factory("ROAMJS DOMAIN"),
+  Route53AAAARecordRoamJS: factory("ALTERNATE ROAMJS DOMAIN"),
+  CloudwatchRule: factory("DEPLOYER"),
+};
 
 const getHostedZone = async (domain: string) => {
   let finished = false;
@@ -94,6 +120,21 @@ export const handler = async (event: SNSEvent) => {
         .promise();
     } else if (ResourceStatus === "DELETE_COMPLETE") {
       await logStatus("INACTIVE");
+      const shutdownCallback = await cf
+        .describeStacks({ StackName })
+        .promise()
+        .then(
+          (c) =>
+            c.Stacks[0].Parameters.find(
+              ({ ParameterKey }) => ParameterKey === "ShutdownCallback"
+            ).ParameterValue
+        );
+      const { url, ...data } = JSON.parse(shutdownCallback);
+      axios.post(url, data);
+    } else if (ResourceStatus === "CREATE_IN_PROGRESS") {
+      logStatus("CREATING RESOURCES");
+    } else if (ResourceStatus === "DELETE_IN_PROGRESS") {
+      logStatus("BEGIN DESTROYING RESOURCES");
     }
   } else if (ResourceStatusReason.startsWith(ACM_START_TEXT)) {
     const summaries = await getStackSummaries(StackName);
@@ -112,7 +153,6 @@ export const handler = async (event: SNSEvent) => {
           ...messageObject,
           domain,
           CertificateArn,
-          summaries,
           zoneId: zone?.Id,
         },
         null,
@@ -129,6 +169,14 @@ export const handler = async (event: SNSEvent) => {
       logStatus("AWAITING VALIDATION", JSON.stringify(ns));
     }
   } else {
-    logStatus("MAKING PROGRESS", JSON.stringify(messageObject));
+    const loggedStatus =
+      STATUSES[LogicalResourceId as keyof typeof STATUSES]?.[
+        ResourceStatus as keyof Status
+      ];
+    if (!loggedStatus) {
+      logStatus("MAKING PROGRESS", JSON.stringify(messageObject, null, 4));
+    } else {
+      logStatus(loggedStatus);
+    }
   }
 };

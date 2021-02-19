@@ -79,19 +79,43 @@ export const handler = async (event: {
     })
     .promise();
 
-  /*
-  await cf.updateStack({
-    StackName,
-    Parameters: [{ ParameterKey: "ShutdownCallback", ParameterValue: event.shutdownCallback }],
-  }).promise();
-  */
+  await cf
+    .updateStack({
+      StackName,
+      Parameters: [
+        {
+          ParameterKey: "ShutdownCallback",
+          ParameterValue: JSON.stringify(event.shutdownCallback),
+        },
+      ],
+    })
+    .promise();
 
-  await logStatus("DELETING WEBSITE");
+  await new Promise<void>((resolve, reject) => {
+    let count = 0;
+    const checkUpdate = () =>
+      cf
+        .describeStacks({ StackName })
+        .promise()
+        .then((r) => r.Stacks[0].StackStatus)
+        .then((s) => {
+          count++;
+          if (s === "UPDATE_COMPLETE") {
+            resolve();
+          } else if (count === 100) {
+            reject(`Timed out waiting for update. Current status: ${s}`);
+          } else {
+            setTimeout(checkUpdate, 1000);
+          }
+        });
+    return checkUpdate();
+  });
+
   await cf
     .deleteStack({
       StackName,
     })
     .promise();
-  
+
   return { success: true };
 };

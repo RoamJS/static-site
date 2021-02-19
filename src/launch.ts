@@ -1,14 +1,13 @@
 import AWS from "aws-sdk";
 import { Handler } from "aws-lambda";
 import namor from "namor";
-import { createLogStatus } from "./common";
+import { createLogStatus, cf } from "./common";
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
 };
 
-const cf = new AWS.CloudFormation({ apiVersion: "2010-05-15", credentials });
 const lambda = new AWS.Lambda({ apiVersion: "2015-03-31", credentials });
 
 export const handler: Handler<{
