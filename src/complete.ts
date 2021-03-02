@@ -146,26 +146,17 @@ export const handler = async (event: SNSEvent) => {
       .promise()
       .then((r) => r.Certificate.DomainName);
     const zone = await getHostedZone(domain);
-    console.log(
-      "ACM!!!",
-      JSON.stringify(
-        {
-          ...messageObject,
-          domain,
-          CertificateArn,
-          zoneId: zone?.Id,
-        },
-        null,
-        4
-      )
-    );
 
     if (zone) {
+      console.log('Get in the zone');
       const sets = await route53
         .listResourceRecordSets({ HostedZoneId: zone.Id })
         .promise();
+      console.log('sets', JSON.stringify(sets, null, 4));
       const set = sets.ResourceRecordSets.find((r) => r.Type === "NS");
+      console.log('set', JSON.stringify(set, null, 4));
       const ns = set.ResourceRecords.map((r) => r.Value);
+      console.log('ns', JSON.stringify(ns, null, 4));
       logStatus("AWAITING VALIDATION", JSON.stringify(ns));
     }
   } else {

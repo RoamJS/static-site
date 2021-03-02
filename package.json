@@ -23,7 +23,7 @@
   "dependencies": {
     "aws-sdk": "^2.826.0",
     "axios": "^0.21.1",
-    "generate-roam-site": "^2.3.7",
+    "generate-roam-site": "^2.5.2",
     "namor": "^2.0.2",
     "uuid": "^8.3.2"
   },

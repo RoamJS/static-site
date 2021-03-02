@@ -6,6 +6,7 @@ import { v4 } from "uuid";
 import "generate-roam-site/dist/aws.tar.br";
 import "generate-roam-site/dist/chromium.br";
 import "generate-roam-site/dist/swiftshader.tar.br";
+import { createLogStatus } from "./common";
 
 // https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html#invalidation-specifying-objects
 const INVALIDATION_MAX = 2999;
@@ -44,26 +45,7 @@ export const handler = async (event: {
   roamGraph: string;
   domain: string;
 }): Promise<void> => {
-  const logStatus = (S: string) =>
-    dynamo
-      .putItem({
-        TableName: "RoamJSWebsiteStatuses",
-        Item: {
-          uuid: {
-            S: v4(),
-          },
-          action_graph: {
-            S: `deploy_${event.roamGraph}`,
-          },
-          date: {
-            S: new Date().toJSON(),
-          },
-          status: {
-            S,
-          },
-        },
-      })
-      .promise();
+  const logStatus = createLogStatus(event.roamGraph);
 
   await logStatus("BUILDING SITE");
   return build({
@@ -168,7 +150,7 @@ export const handler = async (event: {
       await logStatus("SUCCESS");
     })
     .catch(async (e) => {
-      await logStatus("FAILURE");
+      await logStatus("FAILURE", JSON.stringify({ message: e.message }));
       console.error(e);
     });
 };
