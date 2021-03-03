@@ -17,7 +17,6 @@ const credentials = {
 };
 
 const s3 = new AWS.S3({ apiVersion: "2006-03-01", credentials });
-const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
 const cloudfront = new AWS.CloudFront({
   apiVersion: "2020-05-31",
   credentials,
@@ -45,7 +44,7 @@ export const handler = async (event: {
   roamGraph: string;
   domain: string;
 }): Promise<void> => {
-  const logStatus = createLogStatus(event.roamGraph);
+  const logStatus = createLogStatus(event.roamGraph, "deploy");
 
   await logStatus("BUILDING SITE");
   return build({

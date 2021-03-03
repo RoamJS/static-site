@@ -6,9 +6,12 @@ const credentials = {
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
 };
 const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
-export const cf = new AWS.CloudFormation({ apiVersion: "2010-05-15", credentials });
+export const cf = new AWS.CloudFormation({
+  apiVersion: "2010-05-15",
+  credentials,
+});
 
-export const createLogStatus = (roamGraph: string) => async (
+export const createLogStatus = (roamGraph: string, type = "launch") => async (
   S: string,
   props?: string
 ) =>
@@ -20,7 +23,7 @@ export const createLogStatus = (roamGraph: string) => async (
           S: v4(),
         },
         action_graph: {
-          S: `launch_${roamGraph}`,
+          S: `${type}_${roamGraph}`,
         },
         date: {
           S: new Date().toJSON(),
