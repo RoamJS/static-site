@@ -2,7 +2,6 @@ import build from "generate-roam-site";
 import path from "path";
 import fs from "fs";
 import AWS from "aws-sdk";
-import { v4 } from "uuid";
 import "generate-roam-site/dist/aws.tar.br";
 import "generate-roam-site/dist/chromium.br";
 import "generate-roam-site/dist/swiftshader.tar.br";

@@ -79,6 +79,7 @@ export const handler = async (event: {
     })
     .promise();
 
+  await logStatus("PREPARING TO DELETE STACK");
   await cf
     .updateStack({
       StackName,
@@ -88,6 +89,7 @@ export const handler = async (event: {
           ParameterValue: JSON.stringify(event.shutdownCallback),
         },
       ],
+      UsePreviousTemplate: true,
     })
     .promise();
 
