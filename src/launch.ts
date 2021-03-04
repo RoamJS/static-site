@@ -50,10 +50,6 @@ export const handler: Handler<{
           ParameterKey: "Email",
           ParameterValue: email,
         },
-        {
-          ParameterKey: "ShutdownCallback",
-          ParameterValue: "{}",
-        },
       ],
       RoleARN: process.env.CLOUDFORMATION_ROLE_ARN,
       StackName: `roamjs-${roamGraph}`,
@@ -61,9 +57,6 @@ export const handler: Handler<{
       TemplateBody: JSON.stringify({
         Parameters: {
           Email: {
-            Type: "String",
-          },
-          ShutdownCallback: {
             Type: "String",
           },
         },

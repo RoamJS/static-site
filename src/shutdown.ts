@@ -1,5 +1,5 @@
 import AWS from "aws-sdk";
-import { createLogStatus, getStackSummaries } from "./common";
+import { cf, createLogStatus, getStackSummaries, SHUTDOWN_CALLBACK_STATUS } from "./common";
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -9,7 +9,6 @@ const s3 = new AWS.S3({
   apiVersion: "2006-03-01",
   credentials,
 });
-const cf = new AWS.CloudFormation({ apiVersion: "2010-05-15", credentials });
 const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
 
 const emptyBucket = async (props: { Bucket: string; Prefix: string }) => {
@@ -60,47 +59,7 @@ export const handler = async (event: {
       .promise();
   }
 
-  await logStatus("PREPARING TO DELETE STACK");
-  const Parameters = await cf
-    .describeStacks({ StackName })
-    .promise()
-    .then((c) =>
-      c.Stacks[0].Parameters.map((p) =>
-        p.ParameterKey === "ShutdownCallback"
-          ? {
-              ParameterKey: "ShutdownCallback",
-              ParameterValue: JSON.stringify(event.shutdownCallback),
-            }
-          : p
-      )
-    );
-  await cf
-    .updateStack({
-      StackName,
-      Parameters,
-      UsePreviousTemplate: true,
-    })
-    .promise();
-
-  await new Promise<void>((resolve, reject) => {
-    let count = 0;
-    const checkUpdate = () =>
-      cf
-        .describeStacks({ StackName })
-        .promise()
-        .then((r) => r.Stacks[0].StackStatus)
-        .then((s) => {
-          count++;
-          if (s === "UPDATE_COMPLETE") {
-            resolve();
-          } else if (count === 100) {
-            reject(`Timed out waiting for update. Current status: ${s}`);
-          } else {
-            setTimeout(checkUpdate, 1000);
-          }
-        });
-    return checkUpdate();
-  });
+  await logStatus(SHUTDOWN_CALLBACK_STATUS, JSON.stringify(event.shutdownCallback));
 
   await cf
     .deleteStack({

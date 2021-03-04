@@ -1,7 +1,13 @@
 import AWS from "aws-sdk";
 import { SNSEvent } from "aws-lambda";
 import axios from "axios";
-import { cf, createLogStatus, getStackSummaries } from "./common";
+import {
+  cf,
+  createLogStatus,
+  dynamo,
+  getStackSummaries,
+  SHUTDOWN_CALLBACK_STATUS,
+} from "./common";
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -120,17 +126,28 @@ export const handler = async (event: SNSEvent) => {
         .promise();
     } else if (ResourceStatus === "DELETE_COMPLETE") {
       await logStatus("INACTIVE");
-      const shutdownCallback = await cf
-        .describeStacks({ StackName })
+      const shutdownCallback = await dynamo
+        .query({
+          TableName: "RoamJSWebsiteStatuses",
+          KeyConditionExpression: "action_graph = :a",
+          ExpressionAttributeValues: {
+            ":a": {
+              S: `launch_${roamGraph}`,
+            },
+          },
+          ScanIndexForward: false,
+          IndexName: "primary-index",
+        })
         .promise()
         .then(
-          (c) =>
-            c.Stacks[0].Parameters.find(
-              ({ ParameterKey }) => ParameterKey === "ShutdownCallback"
-            ).ParameterValue
+          (r) =>
+            (r.Items || []).find((i) => i.status.S === SHUTDOWN_CALLBACK_STATUS)
+              ?.status_props?.S
         );
-      const { url, ...data } = JSON.parse(shutdownCallback);
-      axios.post(url, data);
+      if (shutdownCallback) {
+        const { url, ...data } = JSON.parse(shutdownCallback);
+        axios.post(url, data);
+      }
     } else if (ResourceStatus === "CREATE_IN_PROGRESS") {
       logStatus("CREATING RESOURCES");
     } else if (ResourceStatus === "DELETE_IN_PROGRESS") {
@@ -148,15 +165,15 @@ export const handler = async (event: SNSEvent) => {
     const zone = await getHostedZone(domain);
 
     if (zone) {
-      console.log('Get in the zone');
+      console.log("Get in the zone");
       const sets = await route53
         .listResourceRecordSets({ HostedZoneId: zone.Id })
         .promise();
-      console.log('sets', JSON.stringify(sets, null, 4));
+      console.log("sets", JSON.stringify(sets, null, 4));
       const set = sets.ResourceRecordSets.find((r) => r.Type === "NS");
-      console.log('set', JSON.stringify(set, null, 4));
+      console.log("set", JSON.stringify(set, null, 4));
       const ns = set.ResourceRecords.map((r) => r.Value);
-      console.log('ns', JSON.stringify(ns, null, 4));
+      console.log("ns", JSON.stringify(ns, null, 4));
       logStatus("AWAITING VALIDATION", JSON.stringify(ns));
     }
   } else {
