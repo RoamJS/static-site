@@ -1,6 +1,5 @@
 import AWS from "aws-sdk";
-import { v4 } from "uuid";
-import { getStackSummaries } from "./common";
+import { createLogStatus, getStackSummaries } from "./common";
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -10,7 +9,6 @@ const s3 = new AWS.S3({
   apiVersion: "2006-03-01",
   credentials,
 });
-const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
 const cf = new AWS.CloudFormation({ apiVersion: "2010-05-15", credentials });
 const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
 
@@ -35,32 +33,13 @@ export const handler = async (event: {
   roamGraph: string;
   shutdownCallback: string;
 }) => {
-  const logStatus = async (S: string) =>
-    await dynamo
-      .putItem({
-        TableName: "RoamJSWebsiteStatuses",
-        Item: {
-          uuid: {
-            S: v4(),
-          },
-          action_graph: {
-            S: `launch_${event.roamGraph}`,
-          },
-          date: {
-            S: new Date().toJSON(),
-          },
-          status: {
-            S,
-          },
-        },
-      })
-      .promise();
+  const logStatus = createLogStatus(event.roamGraph);
 
   const Bucket = `roamjs-static-sites`;
   await logStatus("EMPTYING HOST");
   await emptyBucket({ Bucket, Prefix: event.roamGraph });
 
-  await logStatus("DELETE RECORD");
+  await logStatus("DELETING RECORD");
   const StackName = `roamjs-${event.roamGraph}`;
   const summaries = await getStackSummaries(StackName);
   const HostedZoneId = summaries.find(
@@ -70,14 +49,16 @@ export const handler = async (event: {
     .listResourceRecordSets({ HostedZoneId })
     .promise()
     .then((sets) => sets.ResourceRecordSets.find((r) => r.Type === "CNAME"));
-  await route53
-    .changeResourceRecordSets({
-      HostedZoneId,
-      ChangeBatch: {
-        Changes: [{ Action: "DELETE", ResourceRecordSet: CNAME }],
-      },
-    })
-    .promise();
+  if (CNAME) {
+    await route53
+      .changeResourceRecordSets({
+        HostedZoneId,
+        ChangeBatch: {
+          Changes: [{ Action: "DELETE", ResourceRecordSet: CNAME }],
+        },
+      })
+      .promise();
+  }
 
   await logStatus("PREPARING TO DELETE STACK");
   await cf
