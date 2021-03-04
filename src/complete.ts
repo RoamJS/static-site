@@ -126,7 +126,7 @@ export const handler = async (event: SNSEvent) => {
         .promise();
     } else if (ResourceStatus === "DELETE_COMPLETE") {
       await logStatus("INACTIVE");
-      const shutdownCallback = await dynamo
+      const { shutdownCallback, Count, Items } = await dynamo
         .query({
           TableName: "RoamJSWebsiteStatuses",
           KeyConditionExpression: "action_graph = :a",
@@ -139,11 +139,21 @@ export const handler = async (event: SNSEvent) => {
           IndexName: "primary-index",
         })
         .promise()
-        .then(
-          (r) =>
-            (r.Items || []).find((i) => i.status.S === SHUTDOWN_CALLBACK_STATUS)
-              ?.status_props?.S
-        );
+        .then((r) => ({
+          shutdownCallback: (r.Items || []).find(
+            (i) => i.status.S === SHUTDOWN_CALLBACK_STATUS
+          )?.status_props?.S,
+          Count: r.Count,
+          Items: r.Items.slice(0, 10),
+        }));
+      console.log(
+        "INACTIVE",
+        shutdownCallback,
+        "Count",
+        Count,
+        "Items",
+        JSON.stringify(Items, null, 4)
+      );
       if (shutdownCallback) {
         const { url, ...data } = JSON.parse(shutdownCallback);
         axios.post(url, data);
@@ -165,16 +175,16 @@ export const handler = async (event: SNSEvent) => {
     const zone = await getHostedZone(domain);
 
     if (zone) {
-      console.log("Get in the zone");
       const sets = await route53
         .listResourceRecordSets({ HostedZoneId: zone.Id })
         .promise();
-      console.log("sets", JSON.stringify(sets, null, 4));
       const set = sets.ResourceRecordSets.find((r) => r.Type === "NS");
-      console.log("set", JSON.stringify(set, null, 4));
-      const ns = set.ResourceRecords.map((r) => r.Value);
-      console.log("ns", JSON.stringify(ns, null, 4));
-      logStatus("AWAITING VALIDATION", JSON.stringify(ns));
+      const nameServers = set.ResourceRecords.map((r) => r.Value);
+      console.log(
+        "Sanity checking the name servers",
+        JSON.stringify({ nameServers })
+      );
+      logStatus("AWAITING VALIDATION", JSON.stringify({ nameServers }));
     }
   } else {
     const loggedStatus =
