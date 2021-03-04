@@ -61,15 +61,23 @@ export const handler = async (event: {
   }
 
   await logStatus("PREPARING TO DELETE STACK");
+  const Parameters = await cf
+    .describeStacks({ StackName })
+    .promise()
+    .then((c) =>
+      c.Stacks[0].Parameters.map((p) =>
+        p.ParameterKey === "ShutdownCallback"
+          ? {
+              ParameterKey: "ShutdownCallback",
+              ParameterValue: JSON.stringify(event.shutdownCallback),
+            }
+          : p
+      )
+    );
   await cf
     .updateStack({
       StackName,
-      Parameters: [
-        {
-          ParameterKey: "ShutdownCallback",
-          ParameterValue: JSON.stringify(event.shutdownCallback),
-        },
-      ],
+      Parameters,
       UsePreviousTemplate: true,
     })
     .promise();
