@@ -147,8 +147,8 @@ export const handler = async (event: {
       }
       await logStatus("SUCCESS");
     })
-    .catch(async (e) => {
-      await logStatus("FAILURE", JSON.stringify({ message: e.message }));
+    .catch((e) => {
       console.error(e);
+      logStatus("FAILURE", JSON.stringify({ message: e.message }));
     });
 };

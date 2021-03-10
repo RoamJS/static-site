@@ -113,7 +113,7 @@ export const handler = async (event: SNSEvent) => {
             Body: {
               Text: {
                 Charset: "UTF-8",
-                Data: `Your static site is live and accessible at ${roamjsDomain}. Follow instructions below to make your site accessible from your custom domain, ${domain}.`,
+                Data: `Your static site is live and accessible at ${domain}.\n\nThere is also a RoamJS subdomain that will always host your site at ${roamjsDomain}.`,
               },
             },
             Subject: {
@@ -185,6 +185,7 @@ export const handler = async (event: SNSEvent) => {
         JSON.stringify({ nameServers })
       );
       logStatus("AWAITING VALIDATION", JSON.stringify({ nameServers }));
+      console.log("This should've logged!!!");
     }
   } else {
     const loggedStatus =
