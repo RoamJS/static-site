@@ -145,7 +145,7 @@ export const handler = async (event: {
             });
         }
       }
-      await logStatus("SUCCESS");
+      logStatus("SUCCESS");
     })
     .catch((e) => {
       console.error(e);
