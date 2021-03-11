@@ -156,7 +156,12 @@ export const handler = async (event: SNSEvent) => {
       );
       if (shutdownCallback) {
         const { url, ...data } = JSON.parse(shutdownCallback);
-        await axios.post(url, data);
+        await axios
+          .post(url, data)
+          .then(() => console.log(`successfully called ${url}`))
+          .catch(() => console.error(`failed to call ${url}`));
+      } else {
+        console.error("Could not find Shutdown Callback Status");
       }
     } else if (ResourceStatus === "CREATE_IN_PROGRESS") {
       await logStatus("CREATING RESOURCES");
@@ -193,7 +198,10 @@ export const handler = async (event: SNSEvent) => {
         ResourceStatus as keyof Status
       ];
     if (!loggedStatus) {
-      await logStatus("MAKING PROGRESS", JSON.stringify(messageObject, null, 4));
+      await logStatus(
+        "MAKING PROGRESS",
+        JSON.stringify(messageObject, null, 4)
+      );
     } else {
       await logStatus(loggedStatus);
     }
