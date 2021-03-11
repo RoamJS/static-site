@@ -145,10 +145,10 @@ export const handler = async (event: {
             });
         }
       }
-      logStatus("SUCCESS");
+      await logStatus("SUCCESS");
     })
-    .catch((e) => {
+    .catch(async (e) => {
       console.error(e);
-      logStatus("FAILURE", JSON.stringify({ message: e.message }));
+      await logStatus("FAILURE", JSON.stringify({ message: e.message }));
     });
 };

@@ -156,12 +156,12 @@ export const handler = async (event: SNSEvent) => {
       );
       if (shutdownCallback) {
         const { url, ...data } = JSON.parse(shutdownCallback);
-        axios.post(url, data);
+        await axios.post(url, data);
       }
     } else if (ResourceStatus === "CREATE_IN_PROGRESS") {
-      logStatus("CREATING RESOURCES");
+      await logStatus("CREATING RESOURCES");
     } else if (ResourceStatus === "DELETE_IN_PROGRESS") {
-      logStatus("BEGIN DESTROYING RESOURCES");
+      await logStatus("BEGIN DESTROYING RESOURCES");
     }
   } else if (ResourceStatusReason.startsWith(ACM_START_TEXT)) {
     const summaries = await getStackSummaries(StackName);
@@ -184,7 +184,7 @@ export const handler = async (event: SNSEvent) => {
         "Sanity checking the name servers",
         JSON.stringify({ nameServers })
       );
-      logStatus("AWAITING VALIDATION", JSON.stringify({ nameServers }));
+      await logStatus("AWAITING VALIDATION", JSON.stringify({ nameServers }));
       console.log("This should've logged!!!");
     }
   } else {
@@ -193,9 +193,9 @@ export const handler = async (event: SNSEvent) => {
         ResourceStatus as keyof Status
       ];
     if (!loggedStatus) {
-      logStatus("MAKING PROGRESS", JSON.stringify(messageObject, null, 4));
+      await logStatus("MAKING PROGRESS", JSON.stringify(messageObject, null, 4));
     } else {
-      logStatus(loggedStatus);
+      await logStatus(loggedStatus);
     }
   }
 };
