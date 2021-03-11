@@ -159,7 +159,11 @@ export const handler = async (event: SNSEvent) => {
         await axios
           .post(url, data)
           .then(() => console.log(`successfully called ${url}`))
-          .catch(() => console.error(`failed to call ${url}`));
+          .catch((e) =>
+            console.error(
+              `failed to call ${url}: ${e.response?.data || e.message}`
+            )
+          );
       } else {
         console.error("Could not find Shutdown Callback Status");
       }
