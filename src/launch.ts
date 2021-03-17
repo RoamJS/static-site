@@ -14,15 +14,17 @@ export const handler: Handler<{
   roamGraph: string;
   domain: string;
   email: string;
-}> = async ({ roamGraph, domain, email }) => {
+  autoDeploysEnabled: boolean;
+}> = async ({ roamGraph, domain, email, autoDeploysEnabled }) => {
   const logStatus = createLogStatus(roamGraph);
 
   await logStatus("ALLOCATING HOST");
+  const isCustomDomain = !domain.endsWith(".roamjs.com");
   const domainParts = domain.split(".");
   const HostedZoneName = domainParts.slice(domainParts.length - 2).join(".");
-  const HostedZoneId = { "Fn::GetAtt": ["HostedZone", "Id"] };
-  const roamjsSubdomain = namor.generate({ words: 3, saltLength: 0 });
-  const roamjsDomain = `${roamjsSubdomain}.roamjs.com`;
+  const HostedZoneId = isCustomDomain
+    ? { "Fn::GetAtt": ["HostedZone", "Id"] }
+    : process.env.ROAMJS_ZONE_ID;
 
   await logStatus("CREATING WEBSITE");
   const Tags = [
@@ -37,6 +39,7 @@ export const handler: Handler<{
       "Fn::GetAtt": ["CloudfrontDistribution", "DomainName"],
     },
   };
+  const DomainName = { Ref: 'DomainName'};
   const Input = JSON.stringify({
     roamGraph,
     domain,
@@ -50,6 +53,18 @@ export const handler: Handler<{
           ParameterKey: "Email",
           ParameterValue: email,
         },
+        {
+          ParameterKey: "AutoDeploys",
+          ParameterValue: autoDeploysEnabled ? "ENABLED" : "DISABLED",
+        },
+        {
+          ParameterKey: "CustomDomain",
+          ParameterValue: `${isCustomDomain}`,
+        },
+        {
+          ParameterKey: "DomainName",
+          ParameterValue: domain,
+        },
       ],
       RoleARN: process.env.CLOUDFORMATION_ROLE_ARN,
       StackName: `roamjs-${roamGraph}`,
@@ -59,23 +74,38 @@ export const handler: Handler<{
           Email: {
             Type: "String",
           },
+          AutoDeploys: {
+            Type: "String",
+          },
+          CustomDomain: {
+            Type: "String",
+          },
+          DomainName: {
+            Type: "String",
+          },
+        },
+        Conditions: {
+          CustomDomain: {
+            "Fn::Equals": [
+              {
+                Ref: "CustomDomain",
+              },
+              "true",
+            ],
+          },
         },
         Resources: {
           AcmCertificate: {
             Type: "AWS::CertificateManager::Certificate",
             Properties: {
-              DomainName: domain,
-              SubjectAlternativeNames: [roamjsDomain],
+              DomainName,
+              SubjectAlternativeNames: [],
               Tags,
               ValidationMethod: "DNS",
               DomainValidationOptions: [
                 {
-                  DomainName: domain,
+                  DomainName,
                   HostedZoneId,
-                },
-                {
-                  DomainName: roamjsDomain,
-                  HostedZoneId: process.env.ROAMJS_ZONE_ID,
                 },
               ],
             },
@@ -84,7 +114,7 @@ export const handler: Handler<{
             Type: "AWS::CloudFront::Distribution",
             Properties: {
               DistributionConfig: {
-                Aliases: [domain, roamjsDomain],
+                Aliases: [DomainName],
                 Comment: `CloudFront CDN for ${domain}`,
                 CustomErrorResponses: [
                   {
@@ -160,6 +190,7 @@ export const handler: Handler<{
           },
           HostedZone: {
             Type: "AWS::Route53::HostedZone",
+            Condition: "CustomDomain",
             Properties: {
               HostedZoneConfig: {
                 Comment: `RoamJS Static Site For ${roamGraph}`,
@@ -172,7 +203,7 @@ export const handler: Handler<{
             Properties: {
               AliasTarget,
               HostedZoneId,
-              Name: domain,
+              Name: DomainName,
               Type: "A",
             },
           },
@@ -181,25 +212,7 @@ export const handler: Handler<{
             Properties: {
               AliasTarget,
               HostedZoneId,
-              Name: domain,
-              Type: "AAAA",
-            },
-          },
-          Route53ARecordRoamJS: {
-            Type: "AWS::Route53::RecordSet",
-            Properties: {
-              AliasTarget,
-              HostedZoneId: process.env.ROAMJS_ZONE_ID,
-              Name: roamjsDomain,
-              Type: "A",
-            },
-          },
-          Route53AAAARecordRoamJS: {
-            Type: "AWS::Route53::RecordSet",
-            Properties: {
-              AliasTarget,
-              HostedZoneId: process.env.ROAMJS_ZONE_ID,
-              Name: roamjsDomain,
+              Name: DomainName,
               Type: "AAAA",
             },
           },
@@ -210,7 +223,7 @@ export const handler: Handler<{
               ScheduleExpression: "cron(0 4 ? * * *)",
               Name: `RoamJS-${roamGraph}`,
               RoleArn: process.env.CLOUDWATCH_ROLE_ARN,
-              State: "ENABLED",
+              State: { Ref: "AutoDeploys" },
               Targets: [
                 {
                   Id: "DeployLambda",

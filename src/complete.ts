@@ -14,7 +14,7 @@ const credentials = {
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
 };
 
-const ses = new AWS.SES({ apiVersion: "2010-12-01" });
+const ses = new AWS.SES({ apiVersion: "2010-12-01", credentials });
 const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
 const acm = new AWS.ACM({ apiVersion: "2015-12-08", credentials });
 const ACM_START_TEXT = "Content of DNS Record is: ";
@@ -39,8 +39,6 @@ const STATUSES = {
   HostedZone: factory("ZONE"),
   Route53ARecord: factory("DOMAIN"),
   Route53AAAARecord: factory("ALTERNATE DOMAIN"),
-  Route53ARecordRoamJS: factory("ROAMJS DOMAIN"),
-  Route53AAAARecordRoamJS: factory("ALTERNATE ROAMJS DOMAIN"),
   CloudwatchRule: factory("DEPLOYER"),
 };
 
@@ -87,9 +85,6 @@ export const handler = async (event: SNSEvent) => {
   if (LogicalResourceId === StackName) {
     if (ResourceStatus === "CREATE_COMPLETE") {
       const summaries = await getStackSummaries(StackName);
-      const roamjsDomain = summaries.find(
-        (s) => s.LogicalResourceId === "Route53ARecordRoamJS"
-      ).PhysicalResourceId;
       const domain = summaries.find(
         (s) => s.LogicalResourceId === "Route53ARecord"
       ).PhysicalResourceId;
@@ -113,7 +108,7 @@ export const handler = async (event: SNSEvent) => {
             Body: {
               Text: {
                 Charset: "UTF-8",
-                Data: `Your static site is live and accessible at ${domain}.\n\nThere is also a RoamJS subdomain that will always host your site at ${roamjsDomain}.`,
+                Data: `Your static site is live and accessible at ${domain}.`,
               },
             },
             Subject: {
@@ -146,14 +141,6 @@ export const handler = async (event: SNSEvent) => {
           Count: r.Count,
           Items: r.Items.slice(0, 10),
         }));
-      console.log(
-        "INACTIVE",
-        shutdownCallback,
-        "Count",
-        Count,
-        "Items",
-        JSON.stringify(Items, null, 4)
-      );
       if (shutdownCallback) {
         const { url, ...data } = JSON.parse(shutdownCallback);
         await axios
@@ -188,13 +175,10 @@ export const handler = async (event: SNSEvent) => {
         .listResourceRecordSets({ HostedZoneId: zone.Id })
         .promise();
       const set = sets.ResourceRecordSets.find((r) => r.Type === "NS");
-      const nameServers = set.ResourceRecords.map((r) => r.Value);
-      console.log(
-        "Sanity checking the name servers",
-        JSON.stringify({ nameServers })
+      const nameServers = set.ResourceRecords.map((r) =>
+        r.Value.replace(/\.$/, "")
       );
       await logStatus("AWAITING VALIDATION", JSON.stringify({ nameServers }));
-      console.log("This should've logged!!!");
     }
   } else {
     const loggedStatus =

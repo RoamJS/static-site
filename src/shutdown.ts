@@ -1,5 +1,10 @@
 import AWS from "aws-sdk";
-import { cf, createLogStatus, getStackSummaries, SHUTDOWN_CALLBACK_STATUS } from "./common";
+import {
+  cf,
+  createLogStatus,
+  getStackSummaries,
+  SHUTDOWN_CALLBACK_STATUS,
+} from "./common";
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -44,22 +49,27 @@ export const handler = async (event: {
   const HostedZoneId = summaries.find(
     (s) => s.LogicalResourceId === "HostedZone"
   ).PhysicalResourceId;
-  const CNAME = await route53
-    .listResourceRecordSets({ HostedZoneId })
-    .promise()
-    .then((sets) => sets.ResourceRecordSets.find((r) => r.Type === "CNAME"));
-  if (CNAME) {
-    await route53
-      .changeResourceRecordSets({
-        HostedZoneId,
-        ChangeBatch: {
-          Changes: [{ Action: "DELETE", ResourceRecordSet: CNAME }],
-        },
-      })
-      .promise();
+  if (HostedZoneId) {
+    const CNAME = await route53
+      .listResourceRecordSets({ HostedZoneId })
+      .promise()
+      .then((sets) => sets.ResourceRecordSets.find((r) => r.Type === "CNAME"));
+    if (CNAME) {
+      await route53
+        .changeResourceRecordSets({
+          HostedZoneId,
+          ChangeBatch: {
+            Changes: [{ Action: "DELETE", ResourceRecordSet: CNAME }],
+          },
+        })
+        .promise();
+    }
   }
 
-  await logStatus(SHUTDOWN_CALLBACK_STATUS, JSON.stringify(event.shutdownCallback));
+  await logStatus(
+    SHUTDOWN_CALLBACK_STATUS,
+    JSON.stringify(event.shutdownCallback)
+  );
 
   await cf
     .deleteStack({
