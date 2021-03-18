@@ -79,6 +79,17 @@ export const handler = async (event: SNSEvent) => {
     ResourceStatus,
     ResourceStatusReason,
   } = messageObject;
+
+  const getParameter = (key: string) =>
+    cf
+      .describeStacks({ StackName })
+      .promise()
+      .then(
+        (c) =>
+          c.Stacks[0].Parameters.find(
+            ({ ParameterKey }) => ParameterKey === key
+          ).ParameterValue
+      );
   const roamGraph = StackName.match("roamjs-(.*)")[1];
   const logStatus = createLogStatus(roamGraph);
 
@@ -90,15 +101,7 @@ export const handler = async (event: SNSEvent) => {
       ).PhysicalResourceId;
 
       await logStatus("LIVE");
-      const email = await cf
-        .describeStacks({ StackName })
-        .promise()
-        .then(
-          (c) =>
-            c.Stacks[0].Parameters.find(
-              ({ ParameterKey }) => ParameterKey === "Email"
-            ).ParameterValue
-        );
+      const email = await getParameter("Email");
       await ses
         .sendEmail({
           Destination: {
@@ -121,7 +124,7 @@ export const handler = async (event: SNSEvent) => {
         .promise();
     } else if (ResourceStatus === "DELETE_COMPLETE") {
       await logStatus("INACTIVE");
-      const { shutdownCallback, Count, Items } = await dynamo
+      const shutdownCallback = await dynamo
         .query({
           TableName: "RoamJSWebsiteStatuses",
           KeyConditionExpression: "action_graph = :a",
@@ -134,13 +137,11 @@ export const handler = async (event: SNSEvent) => {
           IndexName: "primary-index",
         })
         .promise()
-        .then((r) => ({
-          shutdownCallback: (r.Items || []).find(
-            (i) => i.status.S === SHUTDOWN_CALLBACK_STATUS
-          )?.status_props?.S,
-          Count: r.Count,
-          Items: r.Items.slice(0, 10),
-        }));
+        .then(
+          (r) =>
+            (r.Items || []).find((i) => i.status.S === SHUTDOWN_CALLBACK_STATUS)
+              ?.status_props?.S
+        );
       if (shutdownCallback) {
         const { url, ...data } = JSON.parse(shutdownCallback);
         await axios
@@ -160,25 +161,30 @@ export const handler = async (event: SNSEvent) => {
       await logStatus("BEGIN DESTROYING RESOURCES");
     }
   } else if (ResourceStatusReason.startsWith(ACM_START_TEXT)) {
-    const summaries = await getStackSummaries(StackName);
-    const CertificateArn = summaries.find(
-      (s) => s.LogicalResourceId === "AcmCertificate"
-    ).PhysicalResourceId;
-    const domain = await acm
-      .describeCertificate({ CertificateArn })
-      .promise()
-      .then((r) => r.Certificate.DomainName);
-    const zone = await getHostedZone(domain);
+    const isCustomDomain = (await getParameter("CustomDomain")) === "true";
+    if (isCustomDomain) {
+      const summaries = await getStackSummaries(StackName);
+      const CertificateArn = summaries.find(
+        (s) => s.LogicalResourceId === "AcmCertificate"
+      ).PhysicalResourceId;
+      const domain = await acm
+        .describeCertificate({ CertificateArn })
+        .promise()
+        .then((r) => r.Certificate.DomainName);
+      const zone = await getHostedZone(domain);
 
-    if (zone) {
-      const sets = await route53
-        .listResourceRecordSets({ HostedZoneId: zone.Id })
-        .promise();
-      const set = sets.ResourceRecordSets.find((r) => r.Type === "NS");
-      const nameServers = set.ResourceRecords.map((r) =>
-        r.Value.replace(/\.$/, "")
-      );
-      await logStatus("AWAITING VALIDATION", JSON.stringify({ nameServers }));
+      if (zone) {
+        const sets = await route53
+          .listResourceRecordSets({ HostedZoneId: zone.Id })
+          .promise();
+        const set = sets.ResourceRecordSets.find((r) => r.Type === "NS");
+        const nameServers = set.ResourceRecords.map((r) =>
+          r.Value.replace(/\.$/, "")
+        );
+        await logStatus("AWAITING VALIDATION", JSON.stringify({ nameServers }));
+      }
+    } else {
+      await logStatus("AWAITING VALIDATION");
     }
   } else {
     const loggedStatus =

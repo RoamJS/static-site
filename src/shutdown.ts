@@ -48,7 +48,7 @@ export const handler = async (event: {
   const summaries = await getStackSummaries(StackName);
   const HostedZoneId = summaries.find(
     (s) => s.LogicalResourceId === "HostedZone"
-  ).PhysicalResourceId;
+  )?.PhysicalResourceId;
   if (HostedZoneId) {
     const CNAME = await route53
       .listResourceRecordSets({ HostedZoneId })
