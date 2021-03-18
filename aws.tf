@@ -231,6 +231,36 @@ resource "aws_s3_bucket" "main" {
   }
 }
 
+data "aws_iam_role" "lambda_execution" {
+  name = "roam-js-extensions-lambda-execution"
+}
+
+data "aws_iam_policy_document" "data_policy" {
+  statement {
+    actions = [
+      "s3:PutObject",
+    ]
+
+    resources = [
+      "arn:aws:s3:::roamjs-static-site-data/*",
+    ]
+
+    principals {
+      type        = "AWS"
+      identifiers = [aws_iam_role.lambda_execution.arn]
+    }
+  }
+}
+
+resource "aws_s3_bucket" "data" {
+  bucket = "roamjs-static-site-data"
+  policy = data.aws_iam_policy_document.data_policy.json
+
+  tags = {
+    Application = "Roam JS Extensions"
+  }
+}
+
 resource "aws_iam_role" "cf_role" {
   name = "roamjs_cloudformation"
 
