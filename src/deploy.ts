@@ -53,13 +53,15 @@ export const handler = async (event: {
           .promise()
           .then((data) => {
             const { pages, config } = JSON.parse(data.Body.toString());
+            const outputPath = path.join(pathRoot, "out");
+            fs.mkdirSync(outputPath, { recursive: true });
             return processSiteData({
               pages,
               config: {
                 ...defaultConfig,
                 ...config,
               },
-              outputPath: path.join(pathRoot, "out"),
+              outputPath,
               info: console.log,
             });
           })
