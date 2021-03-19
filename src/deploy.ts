@@ -1,4 +1,4 @@
-import build, { processSiteData } from "generate-roam-site";
+import build, { processSiteData, defaultConfig } from "generate-roam-site";
 import path from "path";
 import fs from "fs";
 import AWS from "aws-sdk";
@@ -47,25 +47,32 @@ export const handler = async (event: {
   const logStatus = createLogStatus(event.roamGraph, "deploy");
   const pathRoot = "/tmp";
   const buildSite = event.key
-    ? s3
-        .getObject({ Bucket: "roamjs-static-site-data", Key: event.key })
-        .promise()
-        .then((data) =>
-          processSiteData({
-            ...JSON.parse(data.Body.toString()),
-            outputPath: path.join(pathRoot, "out"),
-            info: console.log,
+    ? () =>
+        s3
+          .getObject({ Bucket: "roamjs-static-site-data", Key: event.key })
+          .promise()
+          .then((data) => {
+            const { pages, config } = JSON.parse(data.Body.toString());
+            return processSiteData({
+              pages,
+              config: {
+                ...defaultConfig,
+                ...config,
+              },
+              outputPath: path.join(pathRoot, "out"),
+              info: console.log,
+            });
           })
-        )
-    : build({
-        ...event,
-        pathRoot,
-        roamUsername: "support@roamjs.com",
-        roamPassword: process.env.SUPPORT_ROAM_PASSWORD,
-      });
+    : () =>
+        build({
+          ...event,
+          pathRoot,
+          roamUsername: "support@roamjs.com",
+          roamPassword: process.env.SUPPORT_ROAM_PASSWORD,
+        });
 
   await logStatus("BUILDING SITE");
-  return buildSite
+  return buildSite()
     .then(async () => {
       await logStatus("DELETING STALE FILES");
       const Bucket = `roamjs-static-sites`;
