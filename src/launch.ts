@@ -39,7 +39,7 @@ export const handler: Handler<{
       "Fn::GetAtt": ["CloudfrontDistribution", "DomainName"],
     },
   };
-  const DomainName = { Ref: 'DomainName'};
+  const DomainName = { Ref: "DomainName" };
   const Input = JSON.stringify({
     roamGraph,
     domain,
@@ -234,17 +234,6 @@ export const handler: Handler<{
             },
           },
         },
-      }),
-    })
-    .promise();
-
-  await lambda
-    .invoke({
-      FunctionName: "RoamJS_deploy",
-      InvocationType: "Event",
-      Payload: JSON.stringify({
-        roamGraph,
-        domain,
       }),
     })
     .promise();

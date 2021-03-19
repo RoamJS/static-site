@@ -247,7 +247,7 @@ data "aws_iam_policy_document" "data_policy" {
 
     principals {
       type        = "AWS"
-      identifiers = [aws_iam_role.lambda_execution.arn]
+      identifiers = [data.aws_iam_role.lambda_execution.arn]
     }
   }
 }
