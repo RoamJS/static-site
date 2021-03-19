@@ -137,7 +137,7 @@ export const handler = async (event: {
       if (DistributionId) {
         const invalidatingItems =
           filesToInvalidate.size === filesToUpload.length
-            ? ["/*"]
+            ? ["*"]
             : Array.from(filesToInvalidate);
         for (let i = 0; i < invalidatingItems.length; i += INVALIDATION_MAX) {
           const Items = invalidatingItems
