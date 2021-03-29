@@ -214,6 +214,8 @@ export const handler = async (event: SNSEvent) => {
     }
   } else if (ResourceStatus === "ROLLBACK_IN_PROGRESS") {
     await clearRecords(StackName);
+  } else if (ResourceStatus === "ROLLBACK_FAILED") {
+    await logStatus("ROLLBACK FAILED. MESSAGE support@roamjs.com FOR HELP");
   } else {
     const loggedStatus =
       STATUSES[LogicalResourceId as keyof typeof STATUSES]?.[
