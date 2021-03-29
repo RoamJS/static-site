@@ -3,6 +3,7 @@ import { SNSEvent } from "aws-lambda";
 import axios from "axios";
 import {
   cf,
+  clearRecords,
   createLogStatus,
   dynamo,
   getStackSummaries,
@@ -182,10 +183,37 @@ export const handler = async (event: SNSEvent) => {
           r.Value.replace(/\.$/, "")
         );
         await logStatus("AWAITING VALIDATION", JSON.stringify({ nameServers }));
+        const email = await getParameter("Email");
+        await ses
+          .sendEmail({
+            Destination: {
+              ToAddresses: [email],
+            },
+            Message: {
+              Body: {
+                Text: {
+                  Charset: "UTF-8",
+                  Data: `Add the following four nameservers to your domain settings.\n\n${nameServers
+                    .map((ns) => `- ${ns}\n`)
+                    .join(
+                      ""
+                    )}\nIf the domain is not validated in the next 48 hours, the website will fail to launch and a rollback will begin.`,
+                },
+              },
+              Subject: {
+                Charset: "UTF-8",
+                Data: `Your RoamJS static site is awaiting validation.`,
+              },
+            },
+            Source: "support@roamjs.com",
+          })
+          .promise();
       }
     } else {
       await logStatus("AWAITING VALIDATION");
     }
+  } else if (ResourceStatus === "ROLLBACK_IN_PROGRESS") {
+    await clearRecords(StackName);
   } else {
     const loggedStatus =
       STATUSES[LogicalResourceId as keyof typeof STATUSES]?.[

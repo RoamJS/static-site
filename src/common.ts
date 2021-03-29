@@ -5,11 +5,15 @@ const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
 };
-export const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10", credentials });
+export const dynamo = new AWS.DynamoDB({
+  apiVersion: "2012-08-10",
+  credentials,
+});
 export const cf = new AWS.CloudFormation({
   apiVersion: "2010-05-15",
   credentials,
 });
+export const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
 
 export const SHUTDOWN_CALLBACK_STATUS = "PREPARING TO DELETE STACK";
 
@@ -43,3 +47,26 @@ export const getStackSummaries = (StackName: string) =>
     .listStackResources({ StackName })
     .promise()
     .then((r) => r.StackResourceSummaries);
+
+export const clearRecords = async (StackName: string) => {
+  const summaries = await getStackSummaries(StackName);
+  const HostedZoneId = summaries.find(
+    (s) => s.LogicalResourceId === "HostedZone"
+  )?.PhysicalResourceId;
+  if (HostedZoneId) {
+    const CNAME = await route53
+      .listResourceRecordSets({ HostedZoneId })
+      .promise()
+      .then((sets) => sets.ResourceRecordSets.find((r) => r.Type === "CNAME"));
+    if (CNAME) {
+      await route53
+        .changeResourceRecordSets({
+          HostedZoneId,
+          ChangeBatch: {
+            Changes: [{ Action: "DELETE", ResourceRecordSet: CNAME }],
+          },
+        })
+        .promise();
+    }
+  }
+};

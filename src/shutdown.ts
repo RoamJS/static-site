@@ -1,6 +1,7 @@
 import AWS from "aws-sdk";
 import {
   cf,
+  clearRecords,
   createLogStatus,
   getStackSummaries,
   SHUTDOWN_CALLBACK_STATUS,
@@ -14,7 +15,6 @@ const s3 = new AWS.S3({
   apiVersion: "2006-03-01",
   credentials,
 });
-const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
 
 const emptyBucket = async (props: { Bucket: string; Prefix: string }) => {
   const { Contents, IsTruncated } = await s3.listObjects(props).promise();
@@ -45,26 +45,7 @@ export const handler = async (event: {
 
   await logStatus("DELETING RECORD");
   const StackName = `roamjs-${event.roamGraph}`;
-  const summaries = await getStackSummaries(StackName);
-  const HostedZoneId = summaries.find(
-    (s) => s.LogicalResourceId === "HostedZone"
-  )?.PhysicalResourceId;
-  if (HostedZoneId) {
-    const CNAME = await route53
-      .listResourceRecordSets({ HostedZoneId })
-      .promise()
-      .then((sets) => sets.ResourceRecordSets.find((r) => r.Type === "CNAME"));
-    if (CNAME) {
-      await route53
-        .changeResourceRecordSets({
-          HostedZoneId,
-          ChangeBatch: {
-            Changes: [{ Action: "DELETE", ResourceRecordSet: CNAME }],
-          },
-        })
-        .promise();
-    }
-  }
+  await clearRecords(StackName);
 
   await logStatus(
     SHUTDOWN_CALLBACK_STATUS,
