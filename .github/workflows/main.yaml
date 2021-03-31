@@ -6,6 +6,7 @@ on:
       - "src/*"
       - "webpack.config.js"
       - ".github/workflows/main.yaml"
+      - "package.json"
 
 env:
   AWS_ACCESS_KEY_ID: ${{ secrets.DEPLOY_AWS_ACCESS_KEY }}
