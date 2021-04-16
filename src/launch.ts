@@ -40,6 +40,7 @@ export const handler: Handler<{
     },
   };
   const DomainName = { Ref: "DomainName" };
+  const HostedZone = { Ref: "HostedZone" };
   const Input = JSON.stringify({
     roamGraph,
     domain,
@@ -65,6 +66,10 @@ export const handler: Handler<{
           ParameterKey: "DomainName",
           ParameterValue: domain,
         },
+        {
+          ParameterKey: "HostedZone",
+          ParameterValue: HostedZoneName,
+        },
       ],
       RoleARN: process.env.CLOUDFORMATION_ROLE_ARN,
       StackName: `roamjs-${roamGraph}`,
@@ -81,6 +86,9 @@ export const handler: Handler<{
             Type: "String",
           },
           DomainName: {
+            Type: "String",
+          },
+          HostedZone: {
             Type: "String",
           },
         },
@@ -195,7 +203,7 @@ export const handler: Handler<{
               HostedZoneConfig: {
                 Comment: `RoamJS Static Site For ${roamGraph}`,
               },
-              Name: HostedZoneName,
+              Name: HostedZone,
             },
           },
           Route53ARecord: {
