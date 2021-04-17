@@ -102,7 +102,7 @@ export const handler = async (event: SNSEvent) => {
     if (ResourceStatus === "CREATE_COMPLETE") {
       const summaries = await getStackSummaries(StackName);
       const domain = summaries.find(
-        (s) => s.LogicalResourceId === "Route53ARecord"
+        (s) => s.LogicalResourceId.startsWith("Route53ARecord")
       ).PhysicalResourceId;
 
       await logStatus("LIVE");
