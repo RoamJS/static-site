@@ -67,7 +67,7 @@ export const handler: Handler<{
           ParameterValue: domain,
         },
         {
-          ParameterKey: "HostedZone",
+          ParameterKey: "HostedZoneName",
           ParameterValue: hostedZoneName,
         },
       ],
