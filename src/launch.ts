@@ -21,7 +21,7 @@ export const handler: Handler<{
   await logStatus("ALLOCATING HOST");
   const isCustomDomain = !domain.endsWith(".roamjs.com");
   const domainParts = domain.split(".");
-  const HostedZoneName = domainParts.slice(domainParts.length - 2).join(".");
+  const hostedZoneName = domainParts.slice(domainParts.length - 2).join(".");
   const HostedZoneId = isCustomDomain
     ? { "Fn::GetAtt": ["HostedZone", "Id"] }
     : process.env.ROAMJS_ZONE_ID;
@@ -40,7 +40,7 @@ export const handler: Handler<{
     },
   };
   const DomainName = { Ref: "DomainName" };
-  const HostedZone = { Ref: "HostedZone" };
+  const HostedZoneName = { Ref: "HostedZoneName" };
   const Input = JSON.stringify({
     roamGraph,
     domain,
@@ -68,7 +68,7 @@ export const handler: Handler<{
         },
         {
           ParameterKey: "HostedZone",
-          ParameterValue: HostedZoneName,
+          ParameterValue: hostedZoneName,
         },
       ],
       RoleARN: process.env.CLOUDFORMATION_ROLE_ARN,
@@ -88,7 +88,7 @@ export const handler: Handler<{
           DomainName: {
             Type: "String",
           },
-          HostedZone: {
+          HostedZoneName: {
             Type: "String",
           },
         },
@@ -203,7 +203,7 @@ export const handler: Handler<{
               HostedZoneConfig: {
                 Comment: `RoamJS Static Site For ${roamGraph}`,
               },
-              Name: HostedZone,
+              Name: HostedZoneName,
             },
           },
           Route53ARecord: {
