@@ -332,7 +332,12 @@ export const handler: Handler<{
             Type: "AWS::Route53::RecordSet",
             Condition: "HasRoamjsDomain",
             Properties: {
-              AliasTarget,
+              AliasTarget: {
+                HostedZoneId: "Z2FDTNDATAQYW2",
+                DNSName: {
+                  "Fn::GetAtt": ["CloudfrontDistributionRoamjs", "DomainName"],
+                },
+              },
               HostedZoneId: process.env.ROAMJS_ZONE_ID,
               Name: DomainName,
               Type: "A",
@@ -342,7 +347,12 @@ export const handler: Handler<{
             Type: "AWS::Route53::RecordSet",
             Condition: "HasRoamjsDomain",
             Properties: {
-              AliasTarget,
+              AliasTarget: {
+                HostedZoneId: "Z2FDTNDATAQYW2",
+                DNSName: {
+                  "Fn::GetAtt": ["CloudfrontDistributionRoamjs", "DomainName"],
+                },
+              },
               HostedZoneId: process.env.ROAMJS_ZONE_ID,
               Name: DomainName,
               Type: "AAAA",
