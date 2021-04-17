@@ -99,7 +99,7 @@ export const handler = async (event: SNSEvent) => {
   const logStatus = createLogStatus(roamGraph);
 
   if (LogicalResourceId === StackName) {
-    if (ResourceStatus === "CREATE_COMPLETE") {
+    if (ResourceStatus === "CREATE_COMPLETE" || ResourceStatus === 'UPDATE_COMPLETE') {
       const summaries = await getStackSummaries(StackName);
       const domain = summaries.find(
         (s) => s.LogicalResourceId.startsWith("Route53ARecord")
