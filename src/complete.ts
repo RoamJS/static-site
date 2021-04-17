@@ -35,11 +35,15 @@ const factory = (resource: string) => ({
 });
 
 const STATUSES = {
+  HostedZone: factory("ZONE"),
   AcmCertificate: factory("CERTIFICATE"),
   CloudfrontDistribution: factory("NETWORK"),
-  HostedZone: factory("ZONE"),
   Route53ARecord: factory("DOMAIN"),
   Route53AAAARecord: factory("ALTERNATE DOMAIN"),
+  AcmCertificateRoamjs: factory("CERTIFICATE"),
+  CloudfrontDistributionRoamjs: factory("NETWORK"),
+  Route53ARecordRoamjs: factory("DOMAIN"),
+  Route53AAAARecordRoamjs: factory("ALTERNATE DOMAIN"),
   CloudwatchRule: factory("DEPLOYER"),
 };
 

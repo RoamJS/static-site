@@ -42,13 +42,6 @@ export const handler: Handler<{
     roamGraph,
     domain,
   });
-  const HostedZoneId = {
-    "Fn::If": [
-      "HasCustomDomain",
-      { "Fn::GetAtt": ["HostedZone", "Id"] },
-      process.env.ROAMJS_ZONE_ID,
-    ],
-  };
 
   await cf
     .createStack({
@@ -105,10 +98,29 @@ export const handler: Handler<{
               "true",
             ],
           },
+          HasRoamjsDomain: {
+            "Fn::Equals": [
+              {
+                Ref: "CustomDomain",
+              },
+              "false",
+            ],
+          },
         },
         Resources: {
+          HostedZone: {
+            Type: "AWS::Route53::HostedZone",
+            Condition: "HasCustomDomain",
+            Properties: {
+              HostedZoneConfig: {
+                Comment: `RoamJS Static Site For ${roamGraph}`,
+              },
+              Name: HostedZoneName,
+            },
+          },
           AcmCertificate: {
             Type: "AWS::CertificateManager::Certificate",
+            Condition: "HasCustomDomain",
             Properties: {
               DomainName,
               SubjectAlternativeNames: [],
@@ -117,13 +129,30 @@ export const handler: Handler<{
               DomainValidationOptions: [
                 {
                   DomainName,
-                  HostedZoneId,
+                  HostedZoneId: { "Fn::GetAtt": ["HostedZone", "Id"] },
+                },
+              ],
+            },
+          },
+          AcmCertificateRoamjs: {
+            Type: "AWS::CertificateManager::Certificate",
+            Condition: "HasRoamjsDomain",
+            Properties: {
+              DomainName,
+              SubjectAlternativeNames: [],
+              Tags,
+              ValidationMethod: "DNS",
+              DomainValidationOptions: [
+                {
+                  DomainName,
+                  HostedZoneId: process.env.ROAMJS_ZONE_ID,
                 },
               ],
             },
           },
           CloudfrontDistribution: {
             Type: "AWS::CloudFront::Distribution",
+            Condition: "HasCustomDomain",
             Properties: {
               DistributionConfig: {
                 Aliases: [DomainName],
@@ -200,30 +229,121 @@ export const handler: Handler<{
               Tags,
             },
           },
-          HostedZone: {
-            Type: "AWS::Route53::HostedZone",
-            Condition: "HasCustomDomain",
+          CloudfrontDistributionRoamjs: {
+            Type: "AWS::CloudFront::Distribution",
+            Condition: "HasRoamjsDomain",
             Properties: {
-              HostedZoneConfig: {
-                Comment: `RoamJS Static Site For ${roamGraph}`,
+              DistributionConfig: {
+                Aliases: [DomainName],
+                Comment: `CloudFront CDN for ${domain}`,
+                CustomErrorResponses: [
+                  {
+                    ErrorCode: 404,
+                    ResponseCode: 200,
+                    ResponsePagePath: "/404.html",
+                  },
+                  {
+                    ErrorCode: 403,
+                    ResponseCode: 200,
+                    ResponsePagePath: "/index.html",
+                  },
+                ],
+                DefaultCacheBehavior: {
+                  AllowedMethods: ["GET", "HEAD", "OPTIONS"],
+                  CachedMethods: ["GET", "HEAD", "OPTIONS"],
+                  Compress: true,
+                  DefaultTTL: 86400,
+                  ForwardedValues: {
+                    Cookies: {
+                      Forward: "none",
+                    },
+                    QueryString: false,
+                  },
+                  LambdaFunctionAssociations: [
+                    {
+                      EventType: "origin-request",
+                      IncludeBody: false,
+                      LambdaFunctionARN: process.env.ORIGIN_LAMBDA_ARN,
+                    },
+                  ],
+                  MaxTTL: 31536000,
+                  MinTTL: 0,
+                  TargetOriginId: `S3-${domain}`,
+                  ViewerProtocolPolicy: "redirect-to-https",
+                },
+                DefaultRootObject: `${roamGraph}/index.html`,
+                Enabled: true,
+                IPV6Enabled: true,
+                Origins: [
+                  {
+                    CustomOriginConfig: {
+                      HTTPPort: 80,
+                      HTTPSPort: 443,
+                      OriginProtocolPolicy: "http-only",
+                      OriginSSLProtocols: ["TLSv1", "TLSv1.2"],
+                    },
+                    DomainName: process.env.S3_WEBSITE_ENDPOINT,
+                    Id: `S3-${domain}`,
+                    OriginCustomHeaders: [
+                      {
+                        HeaderName: "User-Agent",
+                        HeaderValue: process.env.CLOUDFRONT_SECRET,
+                      },
+                      {
+                        HeaderName: "X-Roam-Graph",
+                        HeaderValue: roamGraph,
+                      },
+                    ],
+                  },
+                ],
+                PriceClass: "PriceClass_All",
+                ViewerCertificate: {
+                  AcmCertificateArn: {
+                    Ref: "AcmCertificateRoamjs",
+                  },
+                  MinimumProtocolVersion: "TLSv1_2016",
+                  SslSupportMethod: "sni-only",
+                },
               },
-              Name: HostedZoneName,
+              Tags,
             },
           },
           Route53ARecord: {
             Type: "AWS::Route53::RecordSet",
+            Condition: "HasCustomDomain",
             Properties: {
               AliasTarget,
-              HostedZoneId,
+              HostedZoneId: { "Fn::GetAtt": ["HostedZone", "Id"] },
               Name: DomainName,
               Type: "A",
             },
           },
           Route53AAAARecord: {
             Type: "AWS::Route53::RecordSet",
+            Condition: "HasCustomDomain",
             Properties: {
               AliasTarget,
-              HostedZoneId,
+              HostedZoneId: { "Fn::GetAtt": ["HostedZone", "Id"] },
+              Name: DomainName,
+              Type: "AAAA",
+            },
+          },
+          Route53ARecordRoamjs: {
+            Type: "AWS::Route53::RecordSet",
+            Condition: "HasRoamjsDomain",
+            Properties: {
+              AliasTarget,
+              HostedZoneId: process.env.ROAMJS_ZONE_ID,
+              Name: DomainName,
+              Type: "A",
+            },
+          },
+          Route53AAAARecordRoamjs: {
+            Type: "AWS::Route53::RecordSet",
+            Condition: "HasRoamjsDomain",
+            Properties: {
+              AliasTarget,
+              HostedZoneId: process.env.ROAMJS_ZONE_ID,
               Name: DomainName,
               Type: "AAAA",
             },
