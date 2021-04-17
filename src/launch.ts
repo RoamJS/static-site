@@ -44,7 +44,7 @@ export const handler: Handler<{
   });
   const HostedZoneId = {
     "Fn::If": [
-      "CustomDomain",
+      "HasCustomDomain",
       { "Fn::GetAtt": ["HostedZone", "Id"] },
       process.env.ROAMJS_ZONE_ID,
     ],
@@ -97,7 +97,7 @@ export const handler: Handler<{
           },
         },
         Conditions: {
-          CustomDomain: {
+          HasCustomDomain: {
             "Fn::Equals": [
               {
                 Ref: "CustomDomain",
@@ -202,7 +202,7 @@ export const handler: Handler<{
           },
           HostedZone: {
             Type: "AWS::Route53::HostedZone",
-            Condition: "CustomDomain",
+            Condition: "HasCustomDomain",
             Properties: {
               HostedZoneConfig: {
                 Comment: `RoamJS Static Site For ${roamGraph}`,
