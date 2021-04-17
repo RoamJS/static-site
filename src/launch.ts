@@ -128,7 +128,7 @@ export const handler: Handler<{
               ValidationMethod: "DNS",
               DomainValidationOptions: [
                 {
-                  DomainName,
+                  DomainName: HostedZoneName,
                   HostedZoneId: { "Fn::GetAtt": ["HostedZone", "Id"] },
                 },
               ],
