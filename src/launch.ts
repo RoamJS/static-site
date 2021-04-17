@@ -22,9 +22,13 @@ export const handler: Handler<{
   const isCustomDomain = !domain.endsWith(".roamjs.com");
   const domainParts = domain.split(".");
   const hostedZoneName = domainParts.slice(domainParts.length - 2).join(".");
-  const HostedZoneId = isCustomDomain
-    ? { "Fn::GetAtt": ["HostedZone", "Id"] }
-    : process.env.ROAMJS_ZONE_ID;
+  const HostedZoneId = {
+    "Fn::If": [
+      isCustomDomain,
+      { "Fn::GetAtt": ["HostedZone", "Id"] },
+      process.env.ROAMJS_ZONE_ID,
+    ],
+  };
 
   await logStatus("CREATING WEBSITE");
   const Tags = [
