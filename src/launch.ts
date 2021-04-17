@@ -44,7 +44,7 @@ export const handler: Handler<{
   });
   const HostedZoneId = {
     "Fn::If": [
-      { "Fn::Equals": ["true", { Ref: "CustomDomain" }] },
+      "CustomDomain",
       { "Fn::GetAtt": ["HostedZone", "Id"] },
       process.env.ROAMJS_ZONE_ID,
     ],
