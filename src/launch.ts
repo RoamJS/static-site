@@ -20,8 +20,6 @@ export const handler: Handler<{
 
   await logStatus("ALLOCATING HOST");
   const isCustomDomain = !domain.endsWith(".roamjs.com");
-  const domainParts = domain.split(".");
-  const hostedZoneName = domainParts.slice(domainParts.length - 2).join(".");
 
   await logStatus("CREATING WEBSITE");
   const Tags = [
@@ -37,7 +35,6 @@ export const handler: Handler<{
     },
   };
   const DomainName = { Ref: "DomainName" };
-  const HostedZoneName = { Ref: "HostedZoneName" };
   const Input = JSON.stringify({
     roamGraph,
     domain,
@@ -63,10 +60,6 @@ export const handler: Handler<{
           ParameterKey: "DomainName",
           ParameterValue: domain,
         },
-        {
-          ParameterKey: "HostedZoneName",
-          ParameterValue: hostedZoneName,
-        },
       ],
       RoleARN: process.env.CLOUDFORMATION_ROLE_ARN,
       StackName: `roamjs-${roamGraph}`,
@@ -83,9 +76,6 @@ export const handler: Handler<{
             Type: "String",
           },
           DomainName: {
-            Type: "String",
-          },
-          HostedZoneName: {
             Type: "String",
           },
         },
@@ -115,7 +105,7 @@ export const handler: Handler<{
               HostedZoneConfig: {
                 Comment: `RoamJS Static Site For ${roamGraph}`,
               },
-              Name: HostedZoneName,
+              Name: DomainName,
             },
           },
           AcmCertificate: {
@@ -128,7 +118,7 @@ export const handler: Handler<{
               ValidationMethod: "DNS",
               DomainValidationOptions: [
                 {
-                  DomainName: HostedZoneName,
+                  DomainName,
                   HostedZoneId: { "Fn::GetAtt": ["HostedZone", "Id"] },
                 },
               ],
