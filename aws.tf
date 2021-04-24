@@ -144,6 +144,20 @@ resource "aws_lambda_function" "shutdown_function" {
   memory_size      = 1600
 }
 
+resource "aws_lambda_function" "update_function" {
+  function_name    = "RoamJS_update"
+  role             = data.aws_iam_role.cron_role.arn
+  handler          = "update.handler"
+  runtime          = "nodejs12.x"
+  filename         = "dummy.zip"
+  publish          = false
+  tags             = {
+    Application = "Roam JS Extensions"
+  }
+  timeout          = 300
+  memory_size      = 1600
+}
+
 resource "aws_lambda_function" "origin_request" {
   function_name    = "RoamJS_origin-request"
   role             = aws_iam_role.cloudfront_lambda.arn
