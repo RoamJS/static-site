@@ -13,7 +13,14 @@ export const cf = new AWS.CloudFormation({
   apiVersion: "2010-05-15",
   credentials,
 });
-export const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
+export const route53 = new AWS.Route53({
+  apiVersion: "2013-04-01",
+  credentials,
+});
+export const cloudfront = new AWS.CloudFront({
+  apiVersion: "2020-05-31",
+  credentials,
+});
 
 export const SHUTDOWN_CALLBACK_STATUS = "PREPARING TO DELETE STACK";
 
@@ -48,11 +55,7 @@ export const getStackSummaries = (StackName: string) =>
     .promise()
     .then((r) => r.StackResourceSummaries);
 
-export const clearRecords = async (StackName: string) => {
-  const summaries = await getStackSummaries(StackName);
-  const HostedZoneId = summaries.find(
-    (s) => s.LogicalResourceId === "HostedZone"
-  )?.PhysicalResourceId;
+export const clearRecordsById = async (HostedZoneId?: string) => {
   if (HostedZoneId) {
     const CNAME = await route53
       .listResourceRecordSets({ HostedZoneId })
@@ -71,13 +74,20 @@ export const clearRecords = async (StackName: string) => {
   }
 };
 
+export const clearRecords = async (StackName: string) => {
+  const summaries = await getStackSummaries(StackName);
+  const HostedZoneId = summaries.find(
+    (s) => s.LogicalResourceId === "HostedZone"
+  )?.PhysicalResourceId;
+  await clearRecordsById(HostedZoneId);
+};
+
 export const getStackParameter = (key: string, StackName: string) =>
   cf
     .describeStacks({ StackName })
     .promise()
     .then(
       (c) =>
-        c.Stacks[0].Parameters.find(
-          ({ ParameterKey }) => ParameterKey === key
-        ).ParameterValue
+        c.Stacks[0].Parameters.find(({ ParameterKey }) => ParameterKey === key)
+          .ParameterValue
     );

@@ -5,7 +5,7 @@ import AWS from "aws-sdk";
 import "generate-roam-site/dist/aws.tar.br";
 import "generate-roam-site/dist/chromium.br";
 import "generate-roam-site/dist/swiftshader.tar.br";
-import { createLogStatus, getStackParameter } from "./common";
+import { cloudfront, createLogStatus, getStackParameter } from "./common";
 
 // https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html#invalidation-specifying-objects
 const INVALIDATION_MAX = 2999;
@@ -16,10 +16,6 @@ const credentials = {
 };
 
 const s3 = new AWS.S3({ apiVersion: "2006-03-01", credentials });
-const cloudfront = new AWS.CloudFront({
-  apiVersion: "2020-05-31",
-  credentials,
-});
 
 const getDistributionIdByDomain = async (domain: string) => {
   let finished = false;

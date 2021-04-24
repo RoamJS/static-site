@@ -4,6 +4,8 @@ import axios from "axios";
 import {
   cf,
   clearRecords,
+  clearRecordsById,
+  cloudfront,
   createLogStatus,
   dynamo,
   getStackParameter,
@@ -84,6 +86,7 @@ export const handler = async (event: SNSEvent) => {
     LogicalResourceId,
     ResourceStatus,
     ResourceStatusReason,
+    PhysicalResourceId,
   } = messageObject;
 
   const roamGraph = StackName.match("roamjs-(.*)")[1];
@@ -94,33 +97,63 @@ export const handler = async (event: SNSEvent) => {
       ResourceStatus === "CREATE_COMPLETE" ||
       ResourceStatus === "UPDATE_COMPLETE"
     ) {
-      const summaries = await getStackSummaries(StackName);
-      const domain = summaries.find((s) =>
-        s.LogicalResourceId.startsWith("Route53ARecord")
-      ).PhysicalResourceId;
+      const domain = await getStackParameter("DomainName", StackName);
 
       await logStatus("LIVE");
       const email = await getStackParameter("Email", StackName);
-      await ses
-        .sendEmail({
-          Destination: {
-            ToAddresses: [email],
-          },
-          Message: {
-            Body: {
-              Text: {
+      if (domain.split(".").length > 2 && !domain.endsWith(".roamjs.com")) {
+        const Id = await getStackSummaries(StackName).then(
+          (summaries) =>
+            summaries.find(
+              (s) => s.LogicalResourceId === "CloudfrontDistribution"
+            ).PhysicalResourceId
+        );
+        const cloudfrontDomain = await cloudfront
+          .getDistribution({ Id })
+          .promise()
+          .then((r) => r.Distribution.DomainName);
+        await ses
+          .sendEmail({
+            Destination: {
+              ToAddresses: [email],
+            },
+            Message: {
+              Body: {
+                Text: {
+                  Charset: "UTF-8",
+                  Data: `Now, for your site to be accessible at ${domain}, you will need to add one more DNS record to the settings of your domain:\n\nType: CNAME\nName: ${domain}\nValue: ${cloudfrontDomain}`,
+                },
+              },
+              Subject: {
                 Charset: "UTF-8",
-                Data: `Your static site is live and accessible at ${domain}.`,
+                Data: `Your RoamJS site is almost ready!`,
               },
             },
-            Subject: {
-              Charset: "UTF-8",
-              Data: `Your RoamJS site is now live!`,
+            Source: "support@roamjs.com",
+          })
+          .promise();
+      } else {
+        await ses
+          .sendEmail({
+            Destination: {
+              ToAddresses: [email],
             },
-          },
-          Source: "support@roamjs.com",
-        })
-        .promise();
+            Message: {
+              Body: {
+                Text: {
+                  Charset: "UTF-8",
+                  Data: `Your static site is live and accessible at ${domain}.`,
+                },
+              },
+              Subject: {
+                Charset: "UTF-8",
+                Data: `Your RoamJS site is now live!`,
+              },
+            },
+            Source: "support@roamjs.com",
+          })
+          .promise();
+      }
     } else if (ResourceStatus === "DELETE_COMPLETE") {
       await logStatus("INACTIVE");
       const shutdownCallback = await dynamo
@@ -163,50 +196,81 @@ export const handler = async (event: SNSEvent) => {
     const isCustomDomain =
       (await getStackParameter("CustomDomain", StackName)) === "true";
     if (isCustomDomain) {
-      const summaries = await getStackSummaries(StackName);
-      const CertificateArn = summaries.find(
-        (s) => s.LogicalResourceId === "AcmCertificate"
-      ).PhysicalResourceId;
-      const domain = await acm
-        .describeCertificate({ CertificateArn })
-        .promise()
-        .then((r) => r.Certificate.DomainName);
+      const domain = await getStackParameter("DomainName", StackName);
       const zone = await getHostedZone(domain);
 
       if (zone) {
         const sets = await route53
           .listResourceRecordSets({ HostedZoneId: zone.Id })
           .promise();
-        const set = sets.ResourceRecordSets.find((r) => r.Type === "NS");
-        const nameServers = set.ResourceRecords.map((r) =>
-          r.Value.replace(/\.$/, "")
-        );
-        await logStatus("AWAITING VALIDATION", JSON.stringify({ nameServers }));
         const email = await getStackParameter("Email", StackName);
-        await ses
-          .sendEmail({
-            Destination: {
-              ToAddresses: [email],
-            },
-            Message: {
-              Body: {
-                Text: {
+        const domainParts = domain.split(".").length;
+        if (domainParts === 2) {
+          const set = sets.ResourceRecordSets.find((r) => r.Type === "NS");
+          const nameServers = set.ResourceRecords.map((r) =>
+            r.Value.replace(/\.$/, "")
+          );
+          await logStatus(
+            "AWAITING VALIDATION",
+            JSON.stringify({ nameServers })
+          );
+          await ses
+            .sendEmail({
+              Destination: {
+                ToAddresses: [email],
+              },
+              Message: {
+                Body: {
+                  Text: {
+                    Charset: "UTF-8",
+                    Data: `Add the following four nameservers to your domain settings.\n\n${nameServers
+                      .map((ns) => `- ${ns}\n`)
+                      .join(
+                        ""
+                      )}\nIf the domain is not validated in the next 48 hours, the website will fail to launch and a rollback will begin.`,
+                  },
+                },
+                Subject: {
                   Charset: "UTF-8",
-                  Data: `Add the following four nameservers to your domain settings.\n\n${nameServers
-                    .map((ns) => `- ${ns}\n`)
-                    .join(
-                      ""
-                    )}\nIf the domain is not validated in the next 48 hours, the website will fail to launch and a rollback will begin.`,
+                  Data: `Your RoamJS static site is awaiting validation.`,
                 },
               },
-              Subject: {
-                Charset: "UTF-8",
-                Data: `Your RoamJS static site is awaiting validation.`,
+              Source: "support@roamjs.com",
+            })
+            .promise();
+        } else if (domainParts > 2) {
+          const set = sets.ResourceRecordSets.find((r) => r.Type === "CNAME");
+          const cname = {
+            name: set.Name.replace(/\.$/, ""),
+            value: set.ResourceRecords[0].Value.replace(/\.$/, ""),
+          };
+          await logStatus(
+            "AWAITING VALIDATION",
+            JSON.stringify({
+              cname,
+            })
+          );
+          await ses
+            .sendEmail({
+              Destination: {
+                ToAddresses: [email],
               },
-            },
-            Source: "support@roamjs.com",
-          })
-          .promise();
+              Message: {
+                Body: {
+                  Text: {
+                    Charset: "UTF-8",
+                    Data: `Add the following DNS Record in the settings for your domain\n\nType: CNAME\nName: ${cname.name}\nValue: ${cname.value}`,
+                  },
+                },
+                Subject: {
+                  Charset: "UTF-8",
+                  Data: `Your RoamJS static site is awaiting validation.`,
+                },
+              },
+              Source: "support@roamjs.com",
+            })
+            .promise();
+        }
       }
     } else {
       await logStatus("AWAITING VALIDATION");
@@ -227,6 +291,9 @@ export const handler = async (event: SNSEvent) => {
       );
     } else {
       await logStatus(loggedStatus);
+    }
+    if (ResourceStatus === 'DELETE_IN_PROGRESS' && LogicalResourceId === 'HostedZone') {
+      await clearRecordsById(PhysicalResourceId);
     }
   }
 };
