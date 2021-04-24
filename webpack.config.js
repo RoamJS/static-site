@@ -9,6 +9,7 @@ module.exports = {
     "origin-request": "./src/origin-request.ts",
     complete: "./src/complete.ts",
     update: "./src/update.ts",
+    describe: "./src/describe.ts",
   },
   target: "node",
   mode: "production",

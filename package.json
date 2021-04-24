@@ -7,7 +7,7 @@
     "test": "echo \"No Tests\"",
     "prebuild": "rm -Rf out",
     "build": "webpack --config webpack.config.js",
-    "postbuild": "cd out && zip -rq deploy.zip ./deploy.js ./node_modules/* && zip -rq launch.zip ./launch.js && zip -rq shutdown.zip ./shutdown.js && zip -rq origin-request.zip ./origin-request.js && zip -rq complete.zip ./complete.js && zip -rq update.zip ./update.js",
+    "postbuild": "cd out && zip -rq deploy.zip ./deploy.js ./node_modules/* && zip -rq launch.zip ./launch.js && zip -rq shutdown.zip ./shutdown.js && zip -rq origin-request.zip ./origin-request.js && zip -rq complete.zip ./complete.js && zip -rq update.zip ./update.js && zip -rq describe.zip ./describe.js",
     "deploy": "node scripts/deploy.js"
   },
   "repository": {
