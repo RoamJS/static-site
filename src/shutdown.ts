@@ -3,7 +3,6 @@ import {
   cf,
   clearRecords,
   createLogStatus,
-  getStackSummaries,
   SHUTDOWN_CALLBACK_STATUS,
 } from "./common";
 

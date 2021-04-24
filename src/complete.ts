@@ -6,6 +6,7 @@ import {
   clearRecords,
   createLogStatus,
   dynamo,
+  getStackParameter,
   getStackSummaries,
   SHUTDOWN_CALLBACK_STATUS,
 } from "./common";
@@ -85,28 +86,21 @@ export const handler = async (event: SNSEvent) => {
     ResourceStatusReason,
   } = messageObject;
 
-  const getParameter = (key: string) =>
-    cf
-      .describeStacks({ StackName })
-      .promise()
-      .then(
-        (c) =>
-          c.Stacks[0].Parameters.find(
-            ({ ParameterKey }) => ParameterKey === key
-          ).ParameterValue
-      );
   const roamGraph = StackName.match("roamjs-(.*)")[1];
   const logStatus = createLogStatus(roamGraph);
 
   if (LogicalResourceId === StackName) {
-    if (ResourceStatus === "CREATE_COMPLETE" || ResourceStatus === 'UPDATE_COMPLETE') {
+    if (
+      ResourceStatus === "CREATE_COMPLETE" ||
+      ResourceStatus === "UPDATE_COMPLETE"
+    ) {
       const summaries = await getStackSummaries(StackName);
-      const domain = summaries.find(
-        (s) => s.LogicalResourceId.startsWith("Route53ARecord")
+      const domain = summaries.find((s) =>
+        s.LogicalResourceId.startsWith("Route53ARecord")
       ).PhysicalResourceId;
 
       await logStatus("LIVE");
-      const email = await getParameter("Email");
+      const email = await getStackParameter("Email", StackName);
       await ses
         .sendEmail({
           Destination: {
@@ -166,7 +160,8 @@ export const handler = async (event: SNSEvent) => {
       await logStatus("BEGIN DESTROYING RESOURCES");
     }
   } else if (ResourceStatusReason.startsWith(ACM_START_TEXT)) {
-    const isCustomDomain = (await getParameter("CustomDomain")) === "true";
+    const isCustomDomain =
+      (await getStackParameter("CustomDomain", StackName)) === "true";
     if (isCustomDomain) {
       const summaries = await getStackSummaries(StackName);
       const CertificateArn = summaries.find(
@@ -187,7 +182,7 @@ export const handler = async (event: SNSEvent) => {
           r.Value.replace(/\.$/, "")
         );
         await logStatus("AWAITING VALIDATION", JSON.stringify({ nameServers }));
-        const email = await getParameter("Email");
+        const email = await getStackParameter("Email", StackName);
         await ses
           .sendEmail({
             Destination: {

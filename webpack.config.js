@@ -8,6 +8,7 @@ module.exports = {
     shutdown: "./src/shutdown.ts",
     "origin-request": "./src/origin-request.ts",
     complete: "./src/complete.ts",
+    update: "./src/update.ts",
   },
   target: "node",
   mode: "production",

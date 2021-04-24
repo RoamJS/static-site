@@ -1,14 +1,5 @@
-import AWS from "aws-sdk";
 import { Handler } from "aws-lambda";
-import namor from "namor";
 import { createLogStatus, cf } from "./common";
-
-const credentials = {
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-};
-
-const lambda = new AWS.Lambda({ apiVersion: "2015-03-31", credentials });
 
 export const handler: Handler<{
   roamGraph: string;

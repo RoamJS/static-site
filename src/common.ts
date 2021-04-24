@@ -70,3 +70,14 @@ export const clearRecords = async (StackName: string) => {
     }
   }
 };
+
+export const getStackParameter = (key: string, StackName: string) =>
+  cf
+    .describeStacks({ StackName })
+    .promise()
+    .then(
+      (c) =>
+        c.Stacks[0].Parameters.find(
+          ({ ParameterKey }) => ParameterKey === key
+        ).ParameterValue
+    );

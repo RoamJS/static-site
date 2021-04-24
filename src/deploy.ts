@@ -5,7 +5,7 @@ import AWS from "aws-sdk";
 import "generate-roam-site/dist/aws.tar.br";
 import "generate-roam-site/dist/chromium.br";
 import "generate-roam-site/dist/swiftshader.tar.br";
-import { createLogStatus } from "./common";
+import { createLogStatus, getStackParameter } from "./common";
 
 // https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html#invalidation-specifying-objects
 const INVALIDATION_MAX = 2999;
@@ -41,7 +41,6 @@ const getDistributionIdByDomain = async (domain: string) => {
 
 export const handler = async (event: {
   roamGraph: string;
-  domain: string;
   key?: string;
 }): Promise<void> => {
   const logStatus = createLogStatus(event.roamGraph, "deploy");
@@ -133,7 +132,9 @@ export const handler = async (event: {
 
       console.log("Files to Invalidate", filesToInvalidate.size);
       await logStatus("INVALIDATING CACHE");
-      const DistributionId = await getDistributionIdByDomain(event.domain);
+      const DistributionId = await getDistributionIdByDomain(
+        await getStackParameter("DomainName", `roamjs-${event.roamGraph}`)
+      );
       if (DistributionId) {
         const invalidatingItems =
           filesToInvalidate.size === filesToUpload.length
