@@ -137,7 +137,7 @@ export const handler: Handler<{
             Properties: {
               DistributionConfig: {
                 Aliases: [DomainName],
-                Comment: `CloudFront CDN for ${domain}`,
+                Comment: `CloudFront CDN for RoamJS ${roamGraph}`,
                 CustomErrorResponses: [
                   {
                     ErrorCode: 404,
