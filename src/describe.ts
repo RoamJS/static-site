@@ -1,11 +1,11 @@
 import { Handler } from "aws-lambda";
-import { cf } from "./common";
+import { cf, graphToStackName } from "./common";
 
 export const handler: Handler<{
   roamGraph: string;
 }> = async ({ roamGraph }) => {
   return cf
-    .describeStacks({ StackName: `roamjs-${roamGraph}` })
+    .describeStacks({ StackName: graphToStackName(roamGraph) })
     .promise()
     .then((c) =>
       Object.fromEntries(

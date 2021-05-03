@@ -1,5 +1,5 @@
 import { Handler } from "aws-lambda";
-import { createLogStatus, cf } from "./common";
+import { createLogStatus, cf, graphToStackName } from "./common";
 
 export const handler: Handler<{
   roamGraph: string;
@@ -51,9 +51,13 @@ export const handler: Handler<{
           ParameterKey: "DomainName",
           ParameterValue: domain,
         },
+        {
+          ParameterKey: "RoamGraph",
+          ParameterValue: roamGraph,
+        },
       ],
       RoleARN: process.env.CLOUDFORMATION_ROLE_ARN,
-      StackName: `roamjs-${roamGraph}`,
+      StackName: graphToStackName(roamGraph),
       Tags,
       TemplateBody: JSON.stringify({
         Parameters: {
@@ -67,6 +71,9 @@ export const handler: Handler<{
             Type: "String",
           },
           DomainName: {
+            Type: "String",
+          },
+          RoamGraph: {
             Type: "String",
           },
         },

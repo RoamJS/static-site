@@ -10,22 +10,26 @@ const lambda = new AWS.Lambda({
   region: "us-east-1",
 });
 
-const changedFiles = process.argv
-  .slice(2)
-  .filter((f) => f.startsWith("src/") || !!mappedFiles[f])
-  .map((f) =>
-    Object.keys(mappedFiles).reduce(
-      (prev, cur) => prev.replace(cur, mappedFiles[cur]),
-      f.replace("src/", "").replace(".ts", "")
-    )
+const changedFiles = Array.from(
+  new Set(
+    process.argv
+      .slice(2)
+      .filter((f) => f.startsWith("src/") || !!mappedFiles[f])
+      .map((f) =>
+        Object.keys(mappedFiles).reduce(
+          (prev, cur) => prev.replace(cur, mappedFiles[cur]),
+          f.replace("src/", "").replace(".ts", "")
+        )
+      )
+      .filter((f) => !ignoreFiles.includes(f))
   )
-  .filter((f) => !ignoreFiles.includes(f));
+);
 
 console.log("Files that were changed", changedFiles);
 const out = path.join(__dirname, "..", "out");
 
 Promise.all(
-  Array.from(new Set(changedFiles)).map((id) =>
+  changedFiles.map((id) =>
     lambda
       .updateFunctionCode({
         FunctionName: `RoamJS_${id}`,

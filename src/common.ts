@@ -91,3 +91,6 @@ export const getStackParameter = (key: string, StackName: string) =>
         c.Stacks[0].Parameters.find(({ ParameterKey }) => ParameterKey === key)
           .ParameterValue
     );
+
+export const graphToStackName = (graph: string) =>
+  `roamjs-${graph.replace("_", "-")}`;

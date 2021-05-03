@@ -89,7 +89,7 @@ export const handler = async (event: SNSEvent) => {
     PhysicalResourceId,
   } = messageObject;
 
-  const roamGraph = StackName.match("roamjs-(.*)")[1];
+  const roamGraph = await getStackParameter("RoamGraph", StackName);
   const logStatus = createLogStatus(roamGraph);
 
   if (LogicalResourceId === StackName) {
@@ -292,7 +292,10 @@ export const handler = async (event: SNSEvent) => {
     } else {
       await logStatus(loggedStatus);
     }
-    if (ResourceStatus === 'DELETE_IN_PROGRESS' && LogicalResourceId === 'HostedZone') {
+    if (
+      ResourceStatus === "DELETE_IN_PROGRESS" &&
+      LogicalResourceId === "HostedZone"
+    ) {
       await clearRecordsById(PhysicalResourceId);
     }
   }

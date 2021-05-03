@@ -3,6 +3,7 @@ import {
   cf,
   clearRecords,
   createLogStatus,
+  graphToStackName,
   SHUTDOWN_CALLBACK_STATUS,
 } from "./common";
 
@@ -43,7 +44,7 @@ export const handler = async (event: {
   await emptyBucket({ Bucket, Prefix: event.roamGraph });
 
   await logStatus("DELETING RECORD");
-  const StackName = `roamjs-${event.roamGraph}`;
+  const StackName = graphToStackName(event.roamGraph);
   await clearRecords(StackName);
 
   await logStatus(
