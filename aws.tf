@@ -36,8 +36,8 @@ provider "aws" {
     secret_key = var.aws_secret_token
 }
 
-data "aws_iam_role" "cron_role" {
-  name = "RoamJS-lambda-cron"
+data "aws_iam_role" "roamjs_lambda_role" {
+  name = "roam-js-extensions-lambda-execution"
 }
 
 data "aws_iam_policy_document" "assume_lambda_edge_policy" {
@@ -96,7 +96,7 @@ data "archive_file" "dummy" {
 
 resource "aws_lambda_function" "deploy_function" {
   function_name    = "RoamJS_deploy"
-  role             = data.aws_iam_role.cron_role.arn
+  role             = data.aws_iam_role.roamjs_lambda_role.arn
   handler          = "deploy.handler"
   runtime          = "nodejs12.x"
   filename         = "dummy.zip"
@@ -118,7 +118,7 @@ resource "aws_lambda_permission" "deploy_permission" {
 
 resource "aws_lambda_function" "launch_function" {
   function_name    = "RoamJS_launch"
-  role             = data.aws_iam_role.cron_role.arn
+  role             = data.aws_iam_role.roamjs_lambda_role.arn
   handler          = "launch.handler"
   runtime          = "nodejs12.x"
   filename         = "dummy.zip"
@@ -132,7 +132,7 @@ resource "aws_lambda_function" "launch_function" {
 
 resource "aws_lambda_function" "shutdown_function" {
   function_name    = "RoamJS_shutdown"
-  role             = data.aws_iam_role.cron_role.arn
+  role             = data.aws_iam_role.roamjs_lambda_role.arn
   handler          = "shutdown.handler"
   runtime          = "nodejs12.x"
   filename         = "dummy.zip"
@@ -146,7 +146,7 @@ resource "aws_lambda_function" "shutdown_function" {
 
 resource "aws_lambda_function" "update_function" {
   function_name    = "RoamJS_update"
-  role             = data.aws_iam_role.cron_role.arn
+  role             = data.aws_iam_role.roamjs_lambda_role.arn
   handler          = "update.handler"
   runtime          = "nodejs12.x"
   filename         = "dummy.zip"
@@ -160,7 +160,7 @@ resource "aws_lambda_function" "update_function" {
 
 resource "aws_lambda_function" "describe_function" {
   function_name    = "RoamJS_describe"
-  role             = data.aws_iam_role.cron_role.arn
+  role             = data.aws_iam_role.roamjs_lambda_role.arn
   handler          = "describe.handler"
   runtime          = "nodejs12.x"
   filename         = "dummy.zip"
@@ -431,7 +431,7 @@ resource "aws_iam_role_policy" "cloudformation_extra" {
 
 resource "aws_lambda_function" "complete_function" {
   function_name    = "RoamJS_complete"
-  role             = data.aws_iam_role.cron_role.arn
+  role             = data.aws_iam_role.roamjs_lambda_role.arn
   handler          = "complete.handler"
   runtime          = "nodejs12.x"
   filename         = "dummy.zip"
