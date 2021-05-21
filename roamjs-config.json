@@ -1,0 +1,9 @@
+{
+  "extraFiles": {
+    "deploy": [
+      "node_modules/generate-roam-site/dist/aws.tar.br",
+      "node_modules/generate-roam-site/dist/chromium.br",
+      "node_modules/generate-roam-site/dist/swiftshader.tar.br"
+    ]
+  }
+}

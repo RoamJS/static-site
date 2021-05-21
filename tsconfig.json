@@ -7,6 +7,6 @@
     "target": "es2015",
     "lib": ["esnext"],
   },
-  "include": ["src"],
+  "include": ["src", "lambdas/common/common.ts"],
   "exclude": ["node_modules"]
 }

@@ -1,5 +1,5 @@
 import { Handler } from "aws-lambda";
-import { createLogStatus, cf, graphToStackName } from "./common";
+import { createLogStatus, cf, graphToStackName } from "./common/common";
 
 export const handler: Handler<{
   roamGraph: string;

@@ -6,9 +6,9 @@
   "scripts": {
     "test": "echo \"No Tests\"",
     "prebuild": "rm -Rf out",
-    "build": "webpack --config webpack.config.js",
-    "postbuild": "cd out && zip -rq deploy.zip ./deploy.js ./node_modules/* && zip -rq launch.zip ./launch.js && zip -rq shutdown.zip ./shutdown.js && zip -rq origin-request.zip ./origin-request.js && zip -rq complete.zip ./complete.js && zip -rq update.zip ./update.js && zip -rq describe.zip ./describe.js",
-    "deploy": "node scripts/deploy.js"
+    "lambdas": "roamjs-scripts lambdas",
+    "build": "roamjs-scripts build",
+    "deploy": "roamjs-scripts deploy"
   },
   "repository": {
     "type": "git",
@@ -25,13 +25,18 @@
     "axios": "^0.21.1",
     "generate-roam-site": "^2.8.0",
     "namor": "^2.0.2",
+    "react": "^17.0.2",
+    "react-dom": "^17.0.2",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.70",
+    "@types/react": "^17.0.6",
+    "@types/react-dom": "^17.0.5",
     "@types/uuid": "^8.3.0",
     "dotenv-webpack": "^2.0.0",
     "file-loader": "^6.2.0",
+    "roamjs-scripts": "^0.8.4",
     "ts-loader": "^8.0.3",
     "typescript": "^4.1.2",
     "webpack": "^5.2.0",

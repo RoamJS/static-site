@@ -3,8 +3,7 @@ on:
   push:
     branches: main
     paths:
-      - "src/*"
-      - "webpack.config.js"
+      - "lambdas/*"
       - ".github/workflows/main.yaml"
       - "package.json"
 

@@ -5,7 +5,7 @@ import {
   createLogStatus,
   graphToStackName,
   SHUTDOWN_CALLBACK_STATUS,
-} from "./common";
+} from "./common/common";
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
