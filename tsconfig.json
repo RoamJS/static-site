@@ -1,12 +1,5 @@
 {
-  "compilerOptions": {
-    "noImplicitAny": true,
-    "allowSyntheticDefaultImports": true,
-    "moduleResolution": "node",
-    "module": "esnext",
-    "target": "es2015",
-    "lib": ["esnext"],
-  },
-  "include": ["src", "lambdas/common/common.ts"],
+  "extends": "./node_modules/roamjs-scripts/dist/default.tsconfig",
+  "include": ["src", "lambdas"],
   "exclude": ["node_modules"]
 }
