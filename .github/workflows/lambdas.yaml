@@ -13,15 +13,13 @@ env:
 
 jobs:
   deploy:
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js 12.16.1
         uses: actions/setup-node@v1
         with:
           node-version: 12.16.1
-      - id: files
-        uses: jitterbit/get-changed-files@v1
       - name: install
         run: npm install
       - name: Setup env
