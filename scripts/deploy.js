@@ -10,20 +10,15 @@ const lambda = new AWS.Lambda({
   region: "us-east-1",
 });
 
-const changedFiles = Array.from(
-  new Set(
-    process.argv
-      .slice(2)
-      .filter((f) => f.startsWith("src/") || !!mappedFiles[f])
-      .map((f) =>
-        Object.keys(mappedFiles).reduce(
-          (prev, cur) => prev.replace(cur, mappedFiles[cur]),
-          f.replace("src/", "").replace(".ts", "")
-        )
-      )
-      .filter((f) => !ignoreFiles.includes(f))
-  )
-);
+const changedFiles = [
+  "deploy",
+  "launch",
+  "shutdown",
+  "origin-request",
+  "complete",
+  "update",
+  "describe",
+];
 
 console.log("Files that were changed", changedFiles);
 const out = path.join(__dirname, "..", "out");

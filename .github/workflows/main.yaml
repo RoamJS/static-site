@@ -1,7 +1,7 @@
 name: Push to Main
 on:
   push:
-    branches: main
+    branches: Old_Version
     paths:
       - "src/*"
       - "webpack.config.js"
@@ -21,8 +21,6 @@ jobs:
         uses: actions/setup-node@v1
         with:
           node-version: 12.16.1
-      - id: files
-        uses: jitterbit/get-changed-files@v1
       - name: install
         run: npm install
       - name: Setup env
