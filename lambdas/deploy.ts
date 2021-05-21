@@ -5,12 +5,7 @@ import AWS from "aws-sdk";
 import "generate-roam-site/dist/aws.tar.br";
 import "generate-roam-site/dist/chromium.br";
 import "generate-roam-site/dist/swiftshader.tar.br";
-import {
-  cloudfront,
-  createLogStatus,
-  getStackParameter,
-  graphToStackName,
-} from "./common/common";
+import { cloudfront, createLogStatus, getStackParameter, graphToStackName } from "./common/common";
 
 // https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html#invalidation-specifying-objects
 const INVALIDATION_MAX = 2999;
@@ -40,10 +35,6 @@ const getDistributionIdByDomain = async (domain: string) => {
   return null;
 };
 
-// Throwing confusing error on ts-loader https://github.com/dvargas92495/roamjs-service-static-site/runs/2642588890
-const spread = (obj: Record<string, unknown>) =>
-  Object.keys(obj).map((k) => [k, obj[k]]);
-
 export const handler = async (event: {
   roamGraph: string;
   key?: string;
@@ -61,16 +52,17 @@ export const handler = async (event: {
             fs.mkdirSync(outputPath, { recursive: true });
             return processSiteData({
               pages,
-              config: Object.fromEntries(
-                spread(defaultConfig).concat(spread(config))
-              ),
+              config: {
+                ...defaultConfig,
+                ...config,
+              },
               outputPath,
               info: console.log,
             });
           })
     : () =>
         build({
-          roamGraph: event.roamGraph,
+          ...event,
           pathRoot,
           roamUsername: "support@roamjs.com",
           roamPassword: process.env.SUPPORT_ROAM_PASSWORD,
@@ -91,7 +83,11 @@ export const handler = async (event: {
       let finished = false;
       let ContinuationToken: string = undefined;
       while (!finished) {
-        const { Contents, IsTruncated, NextContinuationToken } = await s3
+        const {
+          Contents,
+          IsTruncated,
+          NextContinuationToken,
+        } = await s3
           .listObjectsV2({ Bucket, ContinuationToken, Prefix })
           .promise();
         Contents.map(({ Key, ETag }) => {

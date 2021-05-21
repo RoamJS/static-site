@@ -21,12 +21,17 @@
   },
   "homepage": "https://github.com/dvargas92495/generate-roam-site-lambda#readme",
   "dependencies": {
+    "@blueprintjs/core": "^3.44.3",
     "aws-sdk": "^2.826.0",
     "axios": "^0.21.1",
+    "codemirror": "^5.61.1",
     "generate-roam-site": "^2.8.0",
     "namor": "^2.0.2",
     "react": "^17.0.2",
+    "react-codemirror2": "^7.2.1",
     "react-dom": "^17.0.2",
+    "roam-client": "^1.66.1",
+    "roamjs-components": "^0.10.6",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
@@ -36,7 +41,7 @@
     "@types/uuid": "^8.3.0",
     "dotenv-webpack": "^2.0.0",
     "file-loader": "^6.2.0",
-    "roamjs-scripts": "^0.8.4",
+    "roamjs-scripts": "^0.8.5",
     "ts-loader": "^8.0.3",
     "typescript": "^4.1.2",
     "webpack": "^5.2.0",
