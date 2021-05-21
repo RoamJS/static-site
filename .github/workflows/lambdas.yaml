@@ -3,8 +3,8 @@ on:
   push:
     branches: main
     paths:
-      - "lambdas/*"
-      - ".github/workflows/main.yaml"
+      - "lambdas/**"
+      - ".github/workflows/lambdas.yaml"
       - "package.json"
 
 env:
@@ -37,7 +37,5 @@ jobs:
           echo "SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }}" >> .env.local
           echo "S3_WEBSITE_ENDPOINT=${{ secrets.S3_WEBSITE_ENDPOINT }}" >> .env.local
           echo "ROAMJS_ZONE_ID=${{ secrets.ROAMJS_ZONE_ID }}" >> .env.local
-      - name: Build
-        run: npm run build
       - name: Deploy
-        run: npm run deploy -- ${{ steps.files.outputs.all }}
+        run: npm run lambdas
