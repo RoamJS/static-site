@@ -104,7 +104,7 @@ resource "aws_lambda_function" "deploy_function" {
   tags             = {
     Application = "Roam JS Extensions"
   }
-  timeout          = 300
+  timeout          = 600
   memory_size      = 1600
 }
 
