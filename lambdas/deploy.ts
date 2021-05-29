@@ -38,6 +38,7 @@ const getDistributionIdByDomain = async (domain: string) => {
 export const handler = async (event: {
   roamGraph: string;
   key?: string;
+  debug?: boolean;
 }): Promise<void> => {
   const logStatus = createLogStatus(event.roamGraph, "deploy");
   const pathRoot = "/tmp";
