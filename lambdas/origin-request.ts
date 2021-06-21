@@ -6,7 +6,7 @@ export const handler: CloudFrontRequestHandler = (event, _, callback) => {
   const graph = request.origin.custom.customHeaders["x-roam-graph"][0].value;
   if (olduri !== `/${graph}/index.html`) {
     const newuri = `/${graph}${olduri}${olduri.includes(".") ? "" : ".html"}`;
-    request.uri = newuri;
+    request.uri = encodeURIComponent(newuri);
   }
   console.log("Mapped", olduri, "to", request.uri);
   return callback(null, request);
