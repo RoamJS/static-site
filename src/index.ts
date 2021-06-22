@@ -1,9 +1,7 @@
-/*
 import Dashboard from "./components/StaticSiteDashboard";
-import { runService } from "./components/ServiceCommonComponents";
+import { runService } from "roamjs-components";
 
 runService({
   id: "static-site",
   Dashboard,
 });
-*/
