@@ -9,11 +9,19 @@ import {
   ProgressBar,
   Spinner,
   Switch,
+  Tab,
+  Tabs,
   Tooltip,
 } from "@blueprintjs/core";
 import { Controlled as CodeMirror } from "react-codemirror2";
 import "codemirror/mode/xml/xml";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   extractTag,
   getAllPageNames,
@@ -24,6 +32,8 @@ import {
   TreeNode,
   getPageTitlesAndBlockUidsReferencingPage,
   getPageViewType,
+  getShallowTreeByParentUid,
+  deleteBlock,
 } from "roam-client";
 import {
   Description,
@@ -101,7 +111,8 @@ const RequestShareContent: StageContent = ({ openPanel }) => {
                   document.getElementsByTagName("input")
                 ).find((i) => i.placeholder.includes("Enter email"));
                 if (input) {
-                  input.parentElement.parentElement.style.border = SERVICE_GUIDE_HIGHLIGHT;
+                  input.parentElement.parentElement.style.border =
+                    SERVICE_GUIDE_HIGHLIGHT;
                   const container = input.parentElement?.parentElement;
                   if (container) {
                     const perm =
@@ -531,6 +542,7 @@ const getDeployBody = () => {
   const templateNode = getConfigNode("template");
   const referenceTemplateNode = getConfigNode("reference template");
   const pluginsNode = getConfigNode("plugins");
+  const themeNode = getConfigNode("theme");
   const getCode = (node?: TreeNode) =>
     (node?.children || [])
       .map((s) => s.text.match(HTML_REGEX))
@@ -570,6 +582,22 @@ const getDeployBody = () => {
       }
     : {};
 
+  const withTheme = themeNode?.children?.length
+  ? {
+      theme: Object.fromEntries(
+        themeNode.children.map((p) => [
+          p.text,
+          Object.fromEntries(
+            (p.children || []).map((c) => [
+              c.text,
+              c.children[0]?.text,
+            ])
+          ),
+        ])
+      ),
+    }
+  : {};
+
   const config = {
     index: "Website Index",
     filter: [] as Filter[],
@@ -578,6 +606,7 @@ const getDeployBody = () => {
     ...withTemplate,
     ...withReferenceTemplate,
     ...withPlugins,
+    ...withTheme,
   };
 
   const titleFilters = config.filter.length
@@ -1175,6 +1204,98 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
   );
 };
 
+const tabIds = {
+  text: ["font"],
+  layout: ["width"],
+};
+
+const RequestThemeContent: StageContent = ({ openPanel }) => {
+  const nextStage = useServiceNextStage(openPanel);
+  const pageUid = useServicePageUid();
+  const themeUid = useMemo(
+    () =>
+      getShallowTreeByParentUid(pageUid).find((t) =>
+        toFlexRegex("theme").test(t.text)
+      )?.uid ||
+      createBlock({ parentUid: pageUid, node: { text: "theme" }, order: 1 }),
+    [pageUid]
+  );
+  const [values, setValues] =
+    useState<Record<string, Record<string, string>>>({});
+  const outerKeys = useMemo(
+    () => Object.keys(tabIds) as (keyof typeof tabIds)[],
+    []
+  );
+  const [outerKey, setOuterKey] = useState(outerKeys[0]);
+  const innerKeys = useMemo(() => tabIds[outerKey], [outerKey]);
+  const [innerKey, setInnerKey] = useState(innerKeys[0]);
+  const onSubmit = useCallback(() => {
+    getShallowTreeByParentUid(themeUid).forEach(({ uid }) => deleteBlock(uid));
+    Object.entries(values)
+      .map(([k, m]) => ({
+        text: k,
+        children: Object.entries(m).map(([mk, v]) => ({
+          text: mk,
+          children: [{ text: v }],
+        })),
+      }))
+      .forEach((node, order) =>
+        createBlock({ parentUid: themeUid, node, order })
+      );
+    nextStage();
+  }, [values, nextStage, themeUid]);
+  return (
+    <div>
+      <Tabs
+        vertical
+        onChange={(k) => setOuterKey(k as keyof typeof tabIds)}
+        selectedTabId={outerKey}
+      >
+        {outerKeys.map((tabId) => (
+          <Tab
+            id={tabId}
+            key={tabId}
+            title={tabId}
+            panel={
+              <Tabs
+                vertical
+                onChange={(k) => setInnerKey(k as string)}
+                selectedTabId={innerKey}
+              >
+                {innerKeys.map((tabId) => (
+                  <Tab
+                    id={tabId}
+                    key={tabId}
+                    title={tabId}
+                    panel={
+                      <Label>
+                        {innerKey}
+                        <InputGroup
+                          value={values?.[outerKey]?.[innerKey] || ''}
+                          onChange={(e) =>
+                            setValues({
+                              ...values,
+                              [outerKey]: {
+                                ...values[outerKey],
+                                [innerKey]: e.target.value,
+                              },
+                            })
+                          }
+                        />
+                      </Label>
+                    }
+                  />
+                ))}
+              </Tabs>
+            }
+          />
+        ))}
+      </Tabs>
+      <ServiceNextButton onClick={onSubmit} />
+    </div>
+  );
+};
+
 const StaticSiteDashboard = (): React.ReactElement => (
   <ServiceDashboard
     service={"static-site"}
@@ -1208,6 +1329,10 @@ const StaticSiteDashboard = (): React.ReactElement => (
       {
         component: RequestPluginsContent,
         setting: "Plugins",
+      },
+      {
+        component: RequestThemeContent,
+        setting: "Theme",
       },
     ]}
   />
