@@ -353,6 +353,11 @@ const RequestIndexContent: StageContent = ({ openPanel }) => {
     <div onKeyDown={onKeyDown}>
       <Label>
         Website Index
+        <Description
+          description={
+            "Choose the page from your Roam Graph that will serve as your home page"
+          }
+        />
         <PageInput value={value} setValue={setValue} />
       </Label>
       <ServiceNextButton onClick={onSubmit} disabled={!value} />
@@ -404,6 +409,14 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
   return (
     <>
       <div style={{ margin: "16px 0" }}>
+        <Label>
+          Filters
+          <Description
+            description={
+              "Add the filter criteria for specifying which pages in your graph will be included in your static site."
+            }
+          />
+        </Label>
         {filters.map((f) => (
           <div
             key={f.key}
@@ -583,20 +596,17 @@ const getDeployBody = () => {
     : {};
 
   const withTheme = themeNode?.children?.length
-  ? {
-      theme: Object.fromEntries(
-        themeNode.children.map((p) => [
-          p.text,
-          Object.fromEntries(
-            (p.children || []).map((c) => [
-              c.text,
-              c.children[0]?.text,
-            ])
-          ),
-        ])
-      ),
-    }
-  : {};
+    ? {
+        theme: Object.fromEntries(
+          themeNode.children.map((p) => [
+            p.text,
+            Object.fromEntries(
+              (p.children || []).map((c) => [c.text, c.children[0]?.text])
+            ),
+          ])
+        ),
+      }
+    : {};
 
   const config = {
     index: "Website Index",
@@ -1103,6 +1113,11 @@ const RequestHtmlContent = ({
             }}
             onBeforeChange={onBeforeChange}
           />
+          <Button
+            icon={"reset"}
+            onClick={() => setValue(defaultValue)}
+            minimal
+          />
         </div>
       </Label>
       <ServiceNextButton onClick={onSubmit} disabled={!value} />
@@ -1220,8 +1235,9 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
       createBlock({ parentUid: pageUid, node: { text: "theme" }, order: 1 }),
     [pageUid]
   );
-  const [values, setValues] =
-    useState<Record<string, Record<string, string>>>({});
+  const [values, setValues] = useState<Record<string, Record<string, string>>>(
+    {}
+  );
   const outerKeys = useMemo(
     () => Object.keys(tabIds) as (keyof typeof tabIds)[],
     []
@@ -1271,7 +1287,7 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
                       <Label>
                         {innerKey}
                         <InputGroup
-                          value={values?.[outerKey]?.[innerKey] || ''}
+                          value={values?.[outerKey]?.[innerKey] || ""}
                           onChange={(e) =>
                             setValues({
                               ...values,
