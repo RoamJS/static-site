@@ -1184,19 +1184,70 @@ const RequestReferenceTemplateContent: StageContent = ({ openPanel }) => {
 };
 
 const supportedPlugins = ["inline-block-references", "header"];
+const pluginIds = [
+  { id: "header", tabs: [{ id: "links", options: ["{page}"] }] },
+  {
+    id: "sidebar",
+    tabs: [
+      {
+        id: "widgets",
+        options: ["graph"],
+      },
+    ],
+  },
+  { id: "inline-block-references", tabs: [] },
+];
 const RequestPluginsContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
   const pageUid = useServicePageUid();
-  const [values, setValues] = useState(useServiceFieldVals("plugins"));
+  const pluginUid = useMemo(
+    () =>
+      getShallowTreeByParentUid(pageUid).find((t) =>
+        toFlexRegex("plugins").test(t.text)
+      )?.uid ||
+      createBlock({ parentUid: pageUid, node: { text: "plugins" }, order: 1 }),
+    [pageUid]
+  );
+  const [values, setValues] = useState<
+    Record<string, Record<string, string[]>>
+  >(
+    pluginUid
+      ? Object.fromEntries(
+          getShallowTreeByParentUid(pluginUid).map(({ uid, text }) => [
+            text,
+            Object.fromEntries(
+              getShallowTreeByParentUid(uid).map((c) => [
+                c.text,
+                getShallowTreeByParentUid(c.uid).map((t) => t.text),
+              ])
+            ),
+          ])
+        )
+      : {}
+  );
+  const outerKeys = useMemo(() => pluginIds.map(({ id }) => id), []);
+  const [outerKey, setOuterKey] = useState(outerKeys[0]);
+  const innerKeys = useMemo(
+    () => pluginIds.find(({ id }) => id === outerKey).tabs.map(({ id }) => id),
+    [outerKey]
+  );
+  const [innerKey, setInnerKey] = useState(outerKey);
   const onSubmit = useCallback(() => {
-    setInputSettings({
-      blockUid: pageUid,
-      key: "plugins",
-      values,
-      index: 1,
-    });
+    getShallowTreeByParentUid(pluginUid).forEach(({ uid }) => deleteBlock(uid));
+    Object.entries(values)
+      .map(([k, m]) => ({
+        text: k,
+        children: Object.entries(m).map(([mk, vs]) => ({
+          text: mk,
+          children: vs.map((v) => ({ text: v })),
+        })),
+      }))
+      .forEach((node, order) =>
+        createBlock({ parentUid: pluginUid, node, order })
+      );
     nextStage();
   }, [values, nextStage, pageUid]);
+  const [activeValue, setActiveValue] = useState("");
   return (
     <div>
       <Label>
@@ -1206,22 +1257,95 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
             "Enable any of the following plugins to include extra features on your static site!"
           }
         />
-        {supportedPlugins.map((p) => (
-          <Switch
-            key={p}
-            label={idToTitle(p)}
-            checked={values.includes(p)}
-            onChange={(e) => {
-              const checked = (e.target as HTMLInputElement).checked;
-              if (checked) {
-                setValues([...values, p]);
-              } else {
-                setValues(values.filter((v) => v !== p));
-              }
-            }}
+      </Label>
+      <Tabs
+        vertical
+        onChange={(k) => {
+          const t = k as string;
+          setOuterKey(t);
+          setInnerKey(t);
+          setActiveValue("");
+        }}
+        selectedTabId={outerKey}
+      >
+        {outerKeys.map((tabId) => (
+          <Tab
+            id={tabId}
+            key={tabId}
+            title={tabId}
+            panel={
+              <Tabs
+                vertical
+                onChange={(k) => {
+                  setInnerKey(k as string);
+                  setActiveValue("");
+                }}
+                selectedTabId={innerKey}
+              >
+                <Tab
+                  id={tabId}
+                  key={tabId}
+                  title={"enabled"}
+                  panel={
+                    <Switch
+                      label={"Enabled"}
+                      checked={!!values[tabId]}
+                      onChange={(e) => {
+                        const checked = (e.target as HTMLInputElement).checked;
+                        if (checked) {
+                          setValues({ ...values, [tabId]: {} });
+                        } else {
+                          const { [tabId]: _, ...rest } = values;
+                          setValues(rest);
+                        }
+                      }}
+                    />
+                  }
+                />
+                {innerKeys.map((subtabId) => (
+                  <Tab
+                    id={subtabId}
+                    key={subtabId}
+                    title={subtabId}
+                    disabled={!values[tabId]}
+                    panel={
+                      <>
+                        <Label>
+                          {innerKey}
+                          <InputGroup
+                            value={activeValue}
+                            onChange={(e) => setActiveValue(e.target.value)}
+                          />
+                          <Button
+                            icon={"add"}
+                            minimal
+                            onClick={() => {
+                              const { [subtabId]: activeValues = [], ...rest } =
+                                values[tabId];
+                              setValues({
+                                ...values,
+                                [tabId]: {
+                                  ...rest,
+                                  [subtabId]: [...activeValues, activeValue],
+                                },
+                              });
+                            }}
+                          />
+                        </Label>
+                        <ul>
+                          {(values[tabId]?.[subtabId] || []).map((p) => (
+                            <li key={p}>{p}</li>
+                          ))}
+                        </ul>
+                      </>
+                    }
+                  />
+                ))}
+              </Tabs>
+            }
           />
         ))}
-      </Label>
+      </Tabs>
       <ServiceNextButton onClick={onSubmit} />
     </div>
   );
@@ -1282,6 +1406,12 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
   }, [values, nextStage, themeUid]);
   return (
     <div>
+      <Label>
+        Theme
+        <Description
+          description={"Configure the look and feel of your static site!"}
+        />
+      </Label>
       <Tabs
         vertical
         onChange={(k) => {
@@ -1302,22 +1432,22 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
                 onChange={(k) => setInnerKey(k as string)}
                 selectedTabId={innerKey}
               >
-                {innerKeys.map((tabId) => (
+                {innerKeys.map((subtabId) => (
                   <Tab
-                    id={tabId}
-                    key={tabId}
-                    title={tabId}
+                    id={subtabId}
+                    key={subtabId}
+                    title={subtabId}
                     panel={
                       <Label>
-                        {innerKey}
+                        {subtabId}
                         <InputGroup
-                          value={values?.[outerKey]?.[innerKey] || ""}
+                          value={values?.[tabId]?.[subtabId] || ""}
                           onChange={(e) =>
                             setValues({
                               ...values,
-                              [outerKey]: {
-                                ...values[outerKey],
-                                [innerKey]: e.target.value,
+                              [tabId]: {
+                                ...values[tabId],
+                                [subtabId]: e.target.value,
                               },
                             })
                           }
@@ -1359,20 +1489,20 @@ const StaticSiteDashboard = (): React.ReactElement => (
       },
       WrapServiceMainStage(LiveContent),
       {
-        component: RequestTemplateContent,
-        setting: "Template",
-      },
-      {
-        component: RequestReferenceTemplateContent,
-        setting: "Reference Template",
+        component: RequestThemeContent,
+        setting: "Theme",
       },
       {
         component: RequestPluginsContent,
         setting: "Plugins",
       },
       {
-        component: RequestThemeContent,
-        setting: "Theme",
+        component: RequestTemplateContent,
+        setting: "Template",
+      },
+      {
+        component: RequestReferenceTemplateContent,
+        setting: "Reference Template",
       },
     ]}
   />
