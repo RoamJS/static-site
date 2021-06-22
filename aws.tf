@@ -30,6 +30,14 @@ variable "cloudfront_secret" {
   type = string
 }
 
+variable "developer_token" {
+  type = string
+}
+
+variable "github_token" {
+  type = string
+}
+
 provider "aws" {
     region = "us-east-1"
     access_key = var.aws_access_token
@@ -528,4 +536,16 @@ resource "github_actions_secret" "roamjs_zone_id_secret" {
   repository       = "generate-roam-site-lambda"
   secret_name      = "ROAMJS_ZONE_ID"
   plaintext_value  = data.aws_route53_zone.roamjs.zone_id
+}
+
+resource "github_actions_secret" "developer_token" {
+  repository       = "roamjs-service-static-site"
+  secret_name      = "ROAMJS_DEVELOPER_TOKEN"
+  plaintext_value  = var.developer_token
+}
+
+resource "github_actions_secret" "github_token" {
+  repository       = "roamjs-service-static-site"
+  secret_name      = "ROAMJS_RELEASE_TOKEN"
+  plaintext_value  = var.github_token
 }
