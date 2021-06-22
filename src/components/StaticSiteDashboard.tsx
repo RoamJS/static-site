@@ -868,8 +868,15 @@ const LiveContent: StageContent = () => {
     (path: string, getData: () => Record<string, unknown>) => {
       setError("");
       setLoading(true);
-      return new Promise<Record<string, unknown>>((resolve) =>
-        setTimeout(() => resolve(getData()), 1)
+      return new Promise<Record<string, unknown>>((resolve, reject) =>
+        setTimeout(() => {
+          try {
+            const data = getData();
+            resolve(data);
+          } catch (e) {
+            reject(e);
+          }
+        }, 1)
       )
         .then((data) => authenticatedAxiosPost(path, data))
         .then(getWebsite)
