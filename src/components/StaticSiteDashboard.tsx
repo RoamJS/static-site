@@ -1346,6 +1346,7 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
           />
         ))}
       </Tabs>
+      <div style={{ marginTop: 16 }} />
       <ServiceNextButton onClick={onSubmit} />
     </div>
   );
