@@ -34,6 +34,7 @@ import {
   getPageViewType,
   getShallowTreeByParentUid,
   deleteBlock,
+  getFirstChildTextByBlockUid,
 } from "roam-client";
 import {
   Description,
@@ -1243,7 +1244,19 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
     [pageUid]
   );
   const [values, setValues] = useState<Record<string, Record<string, string>>>(
-    {}
+    themeUid
+      ? Object.fromEntries(
+          getShallowTreeByParentUid(themeUid).map(({ uid, text }) => [
+            text,
+            Object.fromEntries(
+              getShallowTreeByParentUid(uid).map((c) => [
+                c.text,
+                getFirstChildTextByBlockUid(c.uid),
+              ])
+            ),
+          ])
+        )
+      : {}
   );
   const outerKeys = useMemo(
     () => Object.keys(tabIds) as (keyof typeof tabIds)[],
@@ -1271,7 +1284,11 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
     <div>
       <Tabs
         vertical
-        onChange={(k) => setOuterKey(k as keyof typeof tabIds)}
+        onChange={(k) => {
+          const t = k as keyof typeof tabIds;
+          setOuterKey(t);
+          setInnerKey(tabIds[t][0]);
+        }}
         selectedTabId={outerKey}
       >
         {outerKeys.map((tabId) => (
