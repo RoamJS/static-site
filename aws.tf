@@ -468,6 +468,26 @@ resource "aws_lambda_permission" "sns_lambda" {
   source_arn    = aws_sns_topic.cloudformation_topic.arn
 }
 
+module "roamjs_lambda" {
+  source = "dvargas92495/lambda/roamjs"
+  providers = {
+    aws = aws
+    github = github
+  }
+
+  name = "static-site"
+  lambdas = [
+    { 
+      path = "deploy", 
+      method = "post"
+    }
+  ]
+  aws_access_token = var.aws_access_token
+  aws_secret_token = var.aws_secret_token
+  github_token     = var.github_token
+  developer_token  = var.developer_token
+}
+
 provider "github" {
     owner = "dvargas92495"
 }
@@ -536,16 +556,4 @@ resource "github_actions_secret" "roamjs_zone_id_secret" {
   repository       = "generate-roam-site-lambda"
   secret_name      = "ROAMJS_ZONE_ID"
   plaintext_value  = data.aws_route53_zone.roamjs.zone_id
-}
-
-resource "github_actions_secret" "developer_token" {
-  repository       = "roamjs-service-static-site"
-  secret_name      = "ROAMJS_DEVELOPER_TOKEN"
-  plaintext_value  = var.developer_token
-}
-
-resource "github_actions_secret" "github_token" {
-  repository       = "roamjs-service-static-site"
-  secret_name      = "ROAMJS_RELEASE_TOKEN"
-  plaintext_value  = var.github_token
 }
