@@ -475,7 +475,7 @@ module "roamjs_lambda" {
     github = github
   }
 
-  name = "static-site"
+  name = "service-static-site"
   lambdas = [
     { 
       path = "deploy", 
