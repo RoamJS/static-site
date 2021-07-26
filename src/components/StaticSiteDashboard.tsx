@@ -35,17 +35,16 @@ import {
   getShallowTreeByParentUid,
   deleteBlock,
   getFirstChildTextByBlockUid,
+  DAILY_NOTE_PAGE_TITLE_REGEX,
+  getPageUidByPageTitle,
 } from "roam-client";
 import {
   Description,
   MenuItemSelect,
   PageInput,
-  idToTitle,
   setInputSetting,
-  setInputSettings,
   toFlexRegex,
   useServiceField,
-  useServiceFieldVals,
   SERVICE_GUIDE_HIGHLIGHT,
   useServiceIsFieldSet,
   WrapServiceMainStage,
@@ -429,7 +428,7 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
             }}
           >
             <MenuItemSelect
-              items={["STARTS WITH", "TAGGED WITH"]}
+              items={["STARTS WITH", "TAGGED WITH", "DAILY", "ALL"]}
               onItemSelect={(s) =>
                 setFilters(
                   filters.map((filter) =>
@@ -456,21 +455,25 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
                 }
               />
             ) : (
-              <InputGroup
-                value={f.children[0].text}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setFilters(
-                    filters.map((filter) =>
-                      f.key === filter.key
-                        ? {
-                            ...filter,
-                            children: [{ text: e.target.value, children: [] }],
-                          }
-                        : filter
+              f.text === "STARTS WITH" && (
+                <InputGroup
+                  value={f.children[0].text}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setFilters(
+                      filters.map((filter) =>
+                        f.key === filter.key
+                          ? {
+                              ...filter,
+                              children: [
+                                { text: e.target.value, children: [] },
+                              ],
+                            }
+                          : filter
+                      )
                     )
-                  )
-                }
-              />
+                  }
+                />
+              )
             )}
             <Button
               icon={"trash"}
@@ -509,25 +512,22 @@ const TITLE_REGEX = new RegExp(`roam/js/static-site/title::(.*)`);
 const HEAD_REGEX = new RegExp(`roam/js/static-stite/head::`);
 const DESCRIPTION_REGEX = new RegExp(`roam/js/static-site/title::(.*)`);
 const HTML_REGEX = new RegExp("```html\n(.*)```", "s");
+const pageReferences: { current: { [p: string]: string[] } } = { current: {} };
 const getTitleRuleFromNode = ({ rule: text, values: children }: Filter) => {
-  if (text.trim().toUpperCase() === "STARTS WITH" && children.length) {
+  const ruleType = text.trim().toUpperCase();
+  if (ruleType === "STARTS WITH" && children.length) {
     const tag = extractTag(children[0]);
     return (title: string) => {
       return title.startsWith(tag);
     };
-  }
-  return undefined;
-};
-
-const getContentRuleFromNode = ({ rule: text, values: children }: Filter) => {
-  if (text.trim().toUpperCase() === "TAGGED WITH" && children.length) {
+  } else if (ruleType === "DAILY") {
+    return (title: string) => DAILY_NOTE_PAGE_TITLE_REGEX.test(title);
+  } else if (ruleType === "ALL") {
+    return () => true;
+  } else if (ruleType === "TAGGED WITH" && children.length) {
     const tag = extractTag(children[0]);
-    const findTag = (content: TreeNode) =>
-      content.text.includes(`#${tag}`) ||
-      content.text.includes(`[[${tag}]]`) ||
-      content.text.includes(`${tag}::`) ||
-      content.children.some(findTag);
-    return (content: TreeNode[]) => content.some(findTag);
+    const references = pageReferences.current[tag] || [];
+    return (title: string) => !!references && references.includes(title);
   }
   return undefined;
 };
@@ -619,19 +619,24 @@ const getDeployBody = () => {
     ...withPlugins,
     ...withTheme,
   };
-
-  const titleFilters = config.filter.length
-    ? config.filter.map(getTitleRuleFromNode).filter((f) => !!f)
-    : [() => false];
-  const contentFilters = config.filter
-    .map(getContentRuleFromNode)
+  pageReferences.current = window.roamAlphaAPI
+    .q(
+      "[:find ?t ?title :where [?parent :node/title ?title] [?b :block/page ?parent] [?b :block/refs ?p] [?p :node/title ?t]]"
+    )
+    .reduce(
+      (prev, cur: string[]) => ({
+        ...prev,
+        [cur[0]]: [...(prev[cur[0]] || []), cur[1]],
+      }),
+      {} as { [p: string]: string[] }
+    );
+  const titleFilters = config.filter
+    .map(getTitleRuleFromNode)
     .filter((f) => !!f);
-
   const titleFilter = (t: string) =>
     !titleFilters.length || titleFilters.some((r) => r && r(t));
-  const contentFilter = (c: TreeNode[]) =>
-    !contentFilters.length || contentFilters.some((r) => r && r(c));
-  const blockReferences = config.plugins["inline-block-references"]
+
+  const blockReferences = config.plugins?.["inline-block-references"]
     ? window.roamAlphaAPI
         .q(
           "[:find ?pu ?pt ?ru :where [?pp :node/title ?pt] [?p :block/page ?pp] [?p :block/uid ?pu] [?r :block/uid ?ru] [?p :block/refs ?r]]"
@@ -658,28 +663,24 @@ const getDeployBody = () => {
       pageName,
       content: getTreeByPageName(pageName),
     }));
-  const entries = pageNamesWithContent
-    .filter(
-      ({ pageName, content }) =>
-        pageName === config.index || contentFilter(content)
-    )
-    .map(({ pageName, content }) => {
-      const references = getPageTitlesAndBlockUidsReferencingPage(pageName).map(
-        ({ title, uid }) => ({
-          title,
-          node: getReferences(getTreeByBlockUid(uid)),
-        })
-      );
-      const viewType = getPageViewType(pageName);
-      return {
-        references,
-        pageName,
-        content: content.map(getReferences),
-        viewType,
-      };
-    });
+  const entries = pageNamesWithContent.map(({ pageName, content }) => {
+    const references = getPageTitlesAndBlockUidsReferencingPage(pageName).map(
+      ({ title, uid }) => ({
+        title,
+        node: getReferences(getTreeByBlockUid(uid)),
+      })
+    );
+    const viewType = getPageViewType(pageName);
+    return {
+      references,
+      pageName,
+      content: content.map(getReferences),
+      viewType,
+      uid: getPageUidByPageTitle(pageName),
+    };
+  });
   const pages = Object.fromEntries(
-    entries.map(({ content, pageName, references, viewType }) => {
+    entries.map(({ content, pageName, ...props }) => {
       const allBlocks = content.flatMap(allBlockMapper);
       const titleMatch = allBlocks
         .find((s) => TITLE_REGEX.test(s.text))
@@ -697,11 +698,10 @@ const getDeployBody = () => {
         pageName,
         {
           content,
-          references,
           title,
           description,
           head,
-          viewType,
+          ...props,
         },
       ];
     })
@@ -1111,7 +1111,10 @@ const RequestHtmlContent = ({
         {field.substring(0, 1).toUpperCase()}
         {field.substring(1)}
         <Description description={description} />
-        <div style={{ border: "1px solid lightgray" }}>
+        <div
+          style={{ border: "1px solid lightgray", position: "relative" }}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
           <CodeMirror
             value={value}
             options={{
@@ -1121,11 +1124,22 @@ const RequestHtmlContent = ({
             }}
             onBeforeChange={onBeforeChange}
           />
-          <Button
-            icon={"reset"}
-            onClick={() => setValue(defaultValue)}
-            minimal
-          />
+          <div
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              zIndex: 2,
+            }}
+          >
+            <Tooltip content={"Reset to default"}>
+              <Button
+                icon={"reset"}
+                onClick={() => setValue(defaultValue)}
+                minimal
+              />
+            </Tooltip>
+          </div>
         </div>
       </Label>
       <ServiceNextButton onClick={onSubmit} disabled={!value} />
@@ -1183,7 +1197,6 @@ const RequestReferenceTemplateContent: StageContent = ({ openPanel }) => {
   );
 };
 
-const supportedPlugins = ["inline-block-references", "header"];
 const pluginIds = [
   { id: "header", tabs: [{ id: "links", options: ["{page}"] }] },
   {
@@ -1196,6 +1209,7 @@ const pluginIds = [
     ],
   },
   { id: "inline-block-references", tabs: [] },
+  { id: "uid-paths", tabs: [] },
 ];
 const RequestPluginsContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
