@@ -74,7 +74,7 @@ export const handler = async (event: {
     .then(async () => {
       await logStatus("DELETING STALE FILES");
       const Bucket = `roamjs-static-sites`;
-      const ContentType = "text/html";
+      const ContentType = "text/html;charset=UTF-8";
       const Prefix = `${event.roamGraph}/`;
       const filesToUpload = fs.readdirSync(path.join("/tmp", "out"));
 

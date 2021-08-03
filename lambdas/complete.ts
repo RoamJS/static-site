@@ -2,7 +2,6 @@ import AWS from "aws-sdk";
 import { SNSEvent } from "aws-lambda";
 import axios from "axios";
 import {
-  cf,
   clearRecords,
   clearRecordsById,
   cloudfront,
@@ -20,7 +19,6 @@ const credentials = {
 
 const ses = new AWS.SES({ apiVersion: "2010-12-01", credentials });
 const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
-const acm = new AWS.ACM({ apiVersion: "2015-12-08", credentials });
 const ACM_START_TEXT = "Content of DNS Record is: ";
 
 type Status = {
