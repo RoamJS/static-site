@@ -5,10 +5,15 @@ import AWS from "aws-sdk";
 import "generate-roam-site/dist/aws.tar.br";
 import "generate-roam-site/dist/chromium.br";
 import "generate-roam-site/dist/swiftshader.tar.br";
-import { cloudfront, createLogStatus, getStackParameter, graphToStackName } from "./common/common";
+import {
+  cloudfront,
+  createLogStatus,
+  getStackParameter,
+  graphToStackName,
+} from "./common/common";
 
 // https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html#invalidation-specifying-objects
-const INVALIDATION_MAX = 2999;
+const INVALIDATION_MAX = 1499;
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -84,11 +89,7 @@ export const handler = async (event: {
       let finished = false;
       let ContinuationToken: string = undefined;
       while (!finished) {
-        const {
-          Contents,
-          IsTruncated,
-          NextContinuationToken,
-        } = await s3
+        const { Contents, IsTruncated, NextContinuationToken } = await s3
           .listObjectsV2({ Bucket, ContinuationToken, Prefix })
           .promise();
         Contents.map(({ Key, ETag }) => {
@@ -143,7 +144,7 @@ export const handler = async (event: {
             .flatMap((k) =>
               k === "index.html"
                 ? ["/", "/index.html"]
-                : [`/${k.replace(/\.html$/, "*")}`]
+                : [`/${k.replace(/\.html$/, "")}`, `/${k}`]
             );
           await cloudfront
             .createInvalidation({
