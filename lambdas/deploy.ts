@@ -157,12 +157,13 @@ export const handler = async (event: {
               },
             })
             .promise()
-            .catch(() => {
+            .catch((e) => {
               console.error(
                 "Failed to invalidate these paths:\n[\n   ",
                 Items.join(",\n    "),
                 "\n]"
               );
+              console.error(e);
             });
         }
       }
