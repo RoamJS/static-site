@@ -26,7 +26,7 @@
     "aws-sdk": "^2.826.0",
     "axios": "^0.21.1",
     "codemirror": "^5.61.1",
-    "generate-roam-site": "^2.12.3",
+    "generate-roam-site": "^2.13.0",
     "namor": "^2.0.2",
     "react": "^17.0.2",
     "react-codemirror2": "^7.2.1",
