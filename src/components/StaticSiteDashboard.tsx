@@ -1241,8 +1241,8 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
   );
   const outerKeys = useMemo(() => pluginIds.map(({ id }) => id), []);
   const [outerKey, setOuterKey] = useState(outerKeys[0]);
-  const innerKeys = useMemo(
-    () => pluginIds.find(({ id }) => id === outerKey).tabs.map(({ id }) => id),
+  const outerTabSelected = useMemo(
+    () => pluginIds.find(({ id }) => id === outerKey),
     [outerKey]
   );
   const [innerKey, setInnerKey] = useState(outerKey);
@@ -1316,45 +1316,98 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
                     />
                   }
                 />
-                {innerKeys.map((subtabId) => (
-                  <Tab
-                    id={subtabId}
-                    key={subtabId}
-                    title={subtabId}
-                    disabled={!values[tabId]}
-                    panel={
-                      <>
-                        <Label>
-                          {innerKey}
-                          <InputGroup
-                            value={activeValue}
-                            onChange={(e) => setActiveValue(e.target.value)}
-                          />
-                          <Button
-                            icon={"add"}
-                            minimal
-                            onClick={() => {
-                              const { [subtabId]: activeValues = [], ...rest } =
-                                values[tabId];
-                              setValues({
-                                ...values,
-                                [tabId]: {
-                                  ...rest,
-                                  [subtabId]: [...activeValues, activeValue],
-                                },
-                              });
-                            }}
-                          />
-                        </Label>
-                        <ul>
-                          {(values[tabId]?.[subtabId] || []).map((p) => (
-                            <li key={p}>{p}</li>
-                          ))}
-                        </ul>
-                      </>
-                    }
-                  />
-                ))}
+                {outerTabSelected.tabs.map(({ id: subtabId, options }) => {
+                  const onConfirm = () => {
+                    const { [subtabId]: activeValues = [], ...rest } =
+                      values[tabId];
+                    setValues({
+                      ...values,
+                      [tabId]: {
+                        ...rest,
+                        [subtabId]: [...activeValues, activeValue],
+                      },
+                    });
+                    setActiveValue('');
+                  };
+                  return (
+                    <Tab
+                      id={subtabId}
+                      key={subtabId}
+                      title={subtabId}
+                      disabled={!values[tabId]}
+                      panel={
+                        <>
+                          <Label>
+                            {innerKey}
+                            {options.includes("{page}") ? (
+                              <PageInput
+                                value={activeValue}
+                                setValue={setActiveValue}
+                                extra={options.filter((s) => s !== "{page}")}
+                                showButton
+                                onConfirm={onConfirm}
+                              />
+                            ) : options.length ? (
+                              <div style={{ display: "flex" }}>
+                                <MenuItemSelect
+                                  activeItem={activeValue}
+                                  items={options.filter(o => !values[tabId][subtabId].includes(o))}
+                                  onItemSelect={(e) => setActiveValue(e)}
+                                />
+                                <Button
+                                  icon={"add"}
+                                  minimal
+                                  onClick={onConfirm}
+                                />
+                              </div>
+                            ) : (
+                              <InputGroup
+                                value={activeValue}
+                                onChange={(e) => setActiveValue(e.target.value)}
+                                rightElement={
+                                  <Button
+                                    icon={"add"}
+                                    minimal
+                                    onClick={onConfirm}
+                                  />
+                                }
+                              />
+                            )}
+                          </Label>
+                          <ul style={{ listStyle: "none", paddingLeft: 4 }}>
+                            {(values[tabId]?.[subtabId] || []).map((p) => (
+                              <li
+                                key={p}
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <span>{p}</span>
+                                <Button
+                                  icon={"trash"}
+                                  minimal
+                                  onClick={() =>
+                                    setValues({
+                                      ...values,
+                                      [tabId]: {
+                                        ...values[tabId],
+                                        [subtabId]: values[tabId][
+                                          subtabId
+                                        ].filter((v) => v !== p),
+                                      },
+                                    })
+                                  }
+                                />
+                              </li>
+                            ))}
+                          </ul>
+                        </>
+                      }
+                    />
+                  );
+                })}
               </Tabs>
             }
           />
