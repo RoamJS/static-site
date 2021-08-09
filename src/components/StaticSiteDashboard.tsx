@@ -1327,7 +1327,7 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
                         [subtabId]: [...activeValues, activeValue],
                       },
                     });
-                    setActiveValue('');
+                    setActiveValue("");
                   };
                   return (
                     <Tab
@@ -1351,7 +1351,12 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
                               <div style={{ display: "flex" }}>
                                 <MenuItemSelect
                                   activeItem={activeValue}
-                                  items={options.filter(o => !values[tabId][subtabId].includes(o))}
+                                  items={options.filter(
+                                    (o) =>
+                                      !(
+                                        values[tabId]?.[subtabId] || []
+                                      ).includes(o)
+                                  )}
                                   onItemSelect={(e) => setActiveValue(e)}
                                 />
                                 <Button
