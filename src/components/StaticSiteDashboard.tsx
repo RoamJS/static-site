@@ -1199,7 +1199,7 @@ const RequestReferenceTemplateContent: StageContent = ({ openPanel }) => {
 
 const pluginIds = [
   { id: "header", tabs: [{ id: "links", options: ["{page}"] }] },
-  { id: "image-previews", tabs: [] },
+  { id: "image-preview", tabs: [] },
   { id: "inline-block-references", tabs: [] },
   {
     id: "sidebar",
