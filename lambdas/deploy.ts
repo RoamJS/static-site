@@ -40,32 +40,36 @@ const getDistributionIdByDomain = async (domain: string) => {
   return null;
 };
 
-const waitForCloudfront = (props: {trial?: number, Id: string, DistributionId: string }) =>
-  new Promise((resolve) => {
-    const { trial = 0, ...args } = props;
-    cloudfront
-      .getInvalidation(args)
-      .promise()
-      .then((r) => r.Invalidation.Status)
-      .then((status) => {
-        if (status === "Completed") {
-          resolve("Done!");
-        } else if (trial === 60) {
-          resolve("Ran out of time waiting for cloudfront...");
-        } else {
-          console.log(
-            "Still waiting for invalidation. Found",
-            status,
-            "on trial",
-            trial
-          );
-          setTimeout(
-            () => waitForCloudfront({ ...args, trial: trial + 1 }),
-            1000
-          );
-        }
-      });
-  });
+const waitForCloudfront = (props: {
+  trial?: number;
+  Id: string;
+  DistributionId: string;
+  resolve: (s: string) => void;
+}) => {
+  const { trial = 0, resolve, ...args } = props;
+  cloudfront
+    .getInvalidation(args)
+    .promise()
+    .then((r) => r.Invalidation.Status)
+    .then((status) => {
+      if (status === "Completed") {
+        resolve("Done!");
+      } else if (trial === 60) {
+        resolve("Ran out of time waiting for cloudfront...");
+      } else {
+        console.log(
+          "Still waiting for invalidation. Found",
+          status,
+          "on trial",
+          trial
+        );
+        setTimeout(
+          () => waitForCloudfront({ ...args, trial: trial + 1, resolve }),
+          1000
+        );
+      }
+    });
+};
 
 export const handler = async (event: {
   roamGraph: string;
@@ -185,7 +189,16 @@ export const handler = async (event: {
               },
             })
             .promise()
-            .then((r) => waitForCloudfront({ Id: r.Invalidation.Id, DistributionId }))
+            .then(
+              (r) =>
+                new Promise<string>((resolve) =>
+                  waitForCloudfront({
+                    Id: r.Invalidation.Id,
+                    DistributionId,
+                    resolve,
+                  })
+                )
+            )
             .catch((e) => {
               console.error(
                 "Failed to invalidate these paths:\n[\n   ",
