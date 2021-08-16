@@ -1040,7 +1040,7 @@ const LiveContent: StageContent = () => {
               <ul>
                 {deploys.map((d) => (
                   <div key={d.uuid}>
-                    <span style={{ display: "inline-block", minWidth: "30%" }}>
+                    <span style={{ display: "inline-block", minWidth: "35%" }}>
                       At {new Date(d.date).toLocaleString()}
                     </span>
                     <span
@@ -1199,6 +1199,8 @@ const RequestReferenceTemplateContent: StageContent = ({ openPanel }) => {
 
 const pluginIds = [
   { id: "header", tabs: [{ id: "links", options: ["{page}"] }] },
+  { id: "image-previews", tabs: [] },
+  { id: "inline-block-references", tabs: [] },
   {
     id: "sidebar",
     tabs: [
@@ -1208,7 +1210,6 @@ const pluginIds = [
       },
     ],
   },
-  { id: "inline-block-references", tabs: [] },
   { id: "uid-paths", tabs: [] },
 ];
 const RequestPluginsContent: StageContent = ({ openPanel }) => {
