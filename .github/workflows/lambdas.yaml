@@ -30,8 +30,6 @@ jobs:
           echo "CLOUDFRONT_SECRET=${{ secrets.CLOUDFRONT_SECRET }}" >> .env.local
           echo "CLOUDFORMATION_ROLE_ARN=${{ secrets.CLOUDFORMATION_ROLE_ARN }}" >> .env.local
           echo "ORIGIN_LAMBDA_ARN=${{ secrets.ORIGIN_LAMBDA_ARN }}" >> .env.local
-          echo "CLOUDWATCH_ROLE_ARN=${{ secrets.CLOUDWATCH_ROLE_ARN }}" >> .env.local
-          echo "DEPLOY_LAMBDA_ARN=${{ secrets.DEPLOY_LAMBDA_ARN }}" >> .env.local
           echo "SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }}" >> .env.local
           echo "S3_WEBSITE_ENDPOINT=${{ secrets.S3_WEBSITE_ENDPOINT }}" >> .env.local
           echo "ROAMJS_ZONE_ID=${{ secrets.ROAMJS_ZONE_ID }}" >> .env.local

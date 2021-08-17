@@ -64,177 +64,6 @@ const allBlockMapper = (t: TreeNode): TreeNode[] => [
   ...t.children.flatMap(allBlockMapper),
 ];
 
-const RequestShareContent: StageContent = ({ openPanel }) => {
-  const nextStage = useServiceNextStage(openPanel);
-  const pageUid = useServicePageUid();
-  const [ready, setReady] = useState(useServiceIsFieldSet("share"));
-  const [deploySwitch, setDeploySwitch] = useState(
-    !ready || useServiceField("share") === "true"
-  );
-  const onSwitchChange = useCallback(
-    (e: React.FormEvent<HTMLInputElement>) =>
-      setDeploySwitch((e.target as HTMLInputElement).checked),
-    [setDeploySwitch]
-  );
-  const shareListener = useCallback(
-    (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === "DIV" &&
-        target.parentElement.className.includes("bp3-menu-item") &&
-        target.innerText.toUpperCase() === "SETTINGS"
-      ) {
-        document.removeEventListener("click", shareListener);
-        const shareItem = target.parentElement as HTMLAnchorElement;
-        shareItem.style.border = "unset";
-        setTimeout(() => {
-          const sharingTab = document.getElementById(
-            "bp3-tab-title_rm-settings-tabs_rm-sharing-tab"
-          );
-          sharingTab.style.border = SERVICE_GUIDE_HIGHLIGHT;
-          sharingTab.addEventListener(
-            "click",
-            () => {
-              sharingTab.style.border = "unset";
-              setTimeout(() => {
-                if (
-                  Array.from(
-                    document.querySelectorAll<HTMLDivElement>(
-                      ".rm-settings-user-permissions>div:first-child"
-                    )
-                  ).some((e) => e.innerText === "support@roamjs.com")
-                ) {
-                  setReady(true);
-                  return;
-                }
-                const input = Array.from(
-                  document.getElementsByTagName("input")
-                ).find((i) => i.placeholder.includes("Enter email"));
-                if (input) {
-                  input.parentElement.parentElement.style.border =
-                    SERVICE_GUIDE_HIGHLIGHT;
-                  const container = input.parentElement?.parentElement;
-                  if (container) {
-                    const perm =
-                      input.parentElement.parentElement.getElementsByClassName(
-                        "rm-settings__permissions-button"
-                      )?.[0] as HTMLButtonElement;
-                    perm?.click?.();
-                    setTimeout(() => {
-                      const access = Array.from(
-                        document.getElementsByClassName("bp3-menu-item")
-                      )
-                        .map((i) => i as HTMLAnchorElement)
-                        .find(
-                          (i) =>
-                            (i as HTMLAnchorElement).innerText === "read access"
-                        );
-                      access?.click?.();
-                    }, 1);
-                  }
-                  input.addEventListener("keydown", (e) => {
-                    if (
-                      e.key === "Enter" &&
-                      (e.target as HTMLInputElement).value ===
-                        "support@roamjs.com"
-                    ) {
-                      setReady(true);
-                    }
-                  });
-                }
-              }, 500);
-            },
-            { once: true }
-          );
-        }, 500);
-      }
-    },
-    [setReady]
-  );
-  useEffect(() => {
-    if (!ready) {
-      const topbar = document.getElementsByClassName("rm-topbar")[0];
-      if (topbar) {
-        const moreMenu = topbar.getElementsByClassName(
-          "bp3-icon-more"
-        )[0] as HTMLSpanElement;
-        if (moreMenu) {
-          moreMenu.style.border = SERVICE_GUIDE_HIGHLIGHT;
-          moreMenu.addEventListener(
-            "click",
-            () => {
-              moreMenu.style.border = "unset";
-              setTimeout(() => {
-                const menuItems = moreMenu.closest(
-                  ".bp3-popover-target.bp3-popover-open"
-                )?.nextElementSibling;
-                if (menuItems) {
-                  const shareItem = Array.from(
-                    menuItems.getElementsByClassName("bp3-menu-item")
-                  )
-                    .map((e) => e as HTMLAnchorElement)
-                    .find((e) => e.innerText === "Settings");
-                  if (shareItem) {
-                    shareItem.style.border = SERVICE_GUIDE_HIGHLIGHT;
-                  }
-                }
-              }, 500);
-              document.addEventListener("click", shareListener);
-            },
-            { once: true }
-          );
-          return () => {
-            moreMenu.style.border = "unset";
-            document.removeEventListener("click", shareListener);
-          };
-        }
-      }
-    }
-  }, [ready, shareListener]);
-  const onSubmit = useCallback(() => {
-    setInputSetting({
-      blockUid: pageUid,
-      key: "Share",
-      value: `${deploySwitch}`,
-    });
-    nextStage();
-  }, [nextStage, pageUid, deploySwitch, ready]);
-  return (
-    <>
-      <p>
-        In order to have automatic daily deploys, share your graph with{" "}
-        <code>support@roamjs.com</code> as a <b>Reader</b>.{" "}
-        <span style={{ fontSize: 8 }}>
-          Why do we need this?{" "}
-          <Tooltip
-            content={
-              <span style={{ maxWidth: 400, display: "inline-block" }}>
-                RoamJS needs to access your Roam data for automatic daily
-                updates. Instead of trusting RoamJS with your password, we are
-                asking for read only permission. We will only access data based
-                on your soon to be configured filters for the purposes of
-                deploying your site.
-              </span>
-            }
-          >
-            <Icon icon={"info-sign"} iconSize={8} intent={Intent.PRIMARY} />
-          </Tooltip>
-        </span>
-      </p>
-      <p>
-        If you're not comfortable with giving the RoamJS user read access to
-        your graph, you will need to toggle off daily deploys below.
-      </p>
-      <Switch
-        checked={deploySwitch}
-        onChange={onSwitchChange}
-        labelElement={"Daily Deploys"}
-      />
-      <ServiceNextButton onClick={onSubmit} disabled={!ready && deploySwitch} />
-    </>
-  );
-};
-
 const SUBDOMAIN_REGEX = /^((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])$/;
 const DOMAIN_REGEX =
   /^(\*\.)?(((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])\.)+((?!-)[A-Za-z0-9-]{1,62}[A-Za-z0-9])$/;
@@ -500,10 +329,7 @@ const getLaunchBody = () => {
   const tree = getTreeByPageName("roam/js/static-site");
   return {
     graph: getGraph(),
-    domain: tree.find((t) => /domain/i.test(t.text))?.children?.[0]?.text,
-    autoDeploysEnabled: /true/i.test(
-      tree.find((t) => /share/i.test(t.text))?.children?.[0]?.text
-    ),
+    domain: tree.find((t) => /domain/i.test(t.text))?.children?.[0]?.text
   };
 };
 
@@ -538,13 +364,6 @@ type HydratedTreeNode = Omit<TreeNode, "children"> & {
 };
 
 const getDeployBody = () => {
-  const autoDeploysEnabled = /true/i.test(
-    getTreeByPageName("roam/js/static-site").find((t) => /share/i.test(t.text))
-      ?.children?.[0]?.text
-  );
-  if (autoDeploysEnabled) {
-    return {};
-  }
   const allPageNames = getAllPageNames();
   const configPageTree = getTreeByPageName("roam/js/static-site");
   const getConfigNode = (key: string) =>
@@ -1545,10 +1364,6 @@ const StaticSiteDashboard = (): React.ReactElement => (
     service={"static-site"}
     stages={[
       SERVICE_TOKEN_STAGE,
-      {
-        component: RequestShareContent,
-        setting: "Share",
-      },
       {
         component: RequestDomainContent,
         setting: "Domain",

@@ -1,10 +1,7 @@
-import build, { processSiteData, defaultConfig } from "generate-roam-site";
+import { processSiteData, defaultConfig } from "generate-roam-site";
 import path from "path";
 import fs from "fs";
 import AWS from "aws-sdk";
-import "chrome-aws-lambda/bin/aws.tar.br";
-import "chrome-aws-lambda/bin/chromium.br";
-import "chrome-aws-lambda/bin/swiftshader.tar.br";
 import {
   cloudfront,
   createLogStatus,
@@ -77,36 +74,31 @@ export const handler = async (event: {
   debug?: boolean;
 }): Promise<void> => {
   const logStatus = createLogStatus(event.roamGraph, "deploy");
+  if (!event.key) {
+    console.warn("Daily deploys deprecated - `key` is required");
+    await logStatus("SUCCESS");
+    return;
+  }
   const pathRoot = "/tmp";
-  const buildSite = event.key
-    ? () =>
-        s3
-          .getObject({ Bucket: "roamjs-static-site-data", Key: event.key })
-          .promise()
-          .then((data) => {
-            const { pages, config } = JSON.parse(data.Body.toString());
-            const outputPath = path.join(pathRoot, "out");
-            fs.mkdirSync(outputPath, { recursive: true });
-            return processSiteData({
-              pages,
-              config: {
-                ...defaultConfig,
-                ...config,
-              },
-              outputPath,
-              info: console.log,
-            });
-          })
-    : () =>
-        build({
-          ...event,
-          pathRoot,
-          roamUsername: "support@roamjs.com",
-          roamPassword: process.env.SUPPORT_ROAM_PASSWORD,
-        });
 
   await logStatus("BUILDING SITE");
-  return buildSite()
+  return s3
+    .getObject({ Bucket: "roamjs-static-site-data", Key: event.key })
+    .promise()
+    .then((data) => {
+      const { pages, config } = JSON.parse(data.Body.toString());
+      const outputPath = path.join(pathRoot, "out");
+      fs.mkdirSync(outputPath, { recursive: true });
+      return processSiteData({
+        pages,
+        config: {
+          ...defaultConfig,
+          ...config,
+        },
+        outputPath,
+        info: console.log,
+      });
+    })
     .then(async () => {
       await logStatus("DELETING STALE FILES");
       const Bucket = `roamjs-static-sites`;

@@ -534,12 +534,6 @@ resource "github_actions_secret" "cloudwatch_role_arn" {
   plaintext_value  = aws_iam_role.cloudwatch.arn
 }
 
-resource "github_actions_secret" "deploy_lambda_arn_secret" {
-  repository       = "generate-roam-site-lambda"
-  secret_name      = "DEPLOY_LAMBDA_ARN"
-  plaintext_value  = aws_lambda_function.deploy_function.arn
-}
-
 resource "github_actions_secret" "sns_topic_arn_secret" {
   repository       = "generate-roam-site-lambda"
   secret_name      = "SNS_TOPIC_ARN"

@@ -5,8 +5,7 @@ export const handler: Handler<{
   roamGraph: string;
   domain: string;
   email: string;
-  autoDeploysEnabled: boolean;
-}> = async ({ roamGraph, domain, email, autoDeploysEnabled }) => {
+}> = async ({ roamGraph, domain, email }) => {
   const logStatus = createLogStatus(roamGraph);
 
   await logStatus("ALLOCATING HOST");
@@ -40,10 +39,6 @@ export const handler: Handler<{
           ParameterValue: email,
         },
         {
-          ParameterKey: "AutoDeploys",
-          ParameterValue: autoDeploysEnabled ? "ENABLED" : "DISABLED",
-        },
-        {
           ParameterKey: "CustomDomain",
           ParameterValue: `${isCustomDomain}`,
         },
@@ -62,9 +57,6 @@ export const handler: Handler<{
       TemplateBody: JSON.stringify({
         Parameters: {
           Email: {
-            Type: "String",
-          },
-          AutoDeploys: {
             Type: "String",
           },
           CustomDomain: {
@@ -344,23 +336,6 @@ export const handler: Handler<{
               HostedZoneId: process.env.ROAMJS_ZONE_ID,
               Name: DomainName,
               Type: "AAAA",
-            },
-          },
-          CloudwatchRule: {
-            Type: "AWS::Events::Rule",
-            Properties: {
-              Description: `RoamJS Static Site Deploy for ${roamGraph}`,
-              ScheduleExpression: "cron(0 4 ? * * *)",
-              Name: `RoamJS-${roamGraph}`,
-              RoleArn: process.env.CLOUDWATCH_ROLE_ARN,
-              State: { Ref: "AutoDeploys" },
-              Targets: [
-                {
-                  Id: "DeployLambda",
-                  Input,
-                  Arn: process.env.DEPLOY_LAMBDA_ARN,
-                },
-              ],
             },
           },
         },
