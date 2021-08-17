@@ -2,9 +2,9 @@ import build, { processSiteData, defaultConfig } from "generate-roam-site";
 import path from "path";
 import fs from "fs";
 import AWS from "aws-sdk";
-import "generate-roam-site/dist/aws.tar.br";
-import "generate-roam-site/dist/chromium.br";
-import "generate-roam-site/dist/swiftshader.tar.br";
+import "chrome-aws-lambda/bin/aws.tar.br";
+import "chrome-aws-lambda/bin/chromium.br";
+import "chrome-aws-lambda/bin/swiftshader.tar.br";
 import {
   cloudfront,
   createLogStatus,
