@@ -329,7 +329,7 @@ const getLaunchBody = () => {
   const tree = getTreeByPageName("roam/js/static-site");
   return {
     graph: getGraph(),
-    domain: tree.find((t) => /domain/i.test(t.text))?.children?.[0]?.text
+    domain: tree.find((t) => /domain/i.test(t.text))?.children?.[0]?.text,
   };
 };
 
@@ -757,13 +757,31 @@ const LiveContent: StageContent = () => {
                   <div style={{ color: "darkblue" }}>
                     <span>{status}</span>
                     <br />
-                    To continue, add the following Name Servers to your Domain
-                    Management Settings:
-                    <ul>
-                      {getNameServers(statusProps).map((n) => (
-                        <li key={n}>{n}</li>
-                      ))}
-                    </ul>
+                    {statusProps.includes("nameServers") && (
+                      <>
+                        To continue, add the following Name Servers to your
+                        Domain Management Settings:
+                        <ul>
+                          {getNameServers(statusProps).map((n) => (
+                            <li key={n}>{n}</li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                    {statusProps.includes("cname") && (
+                      <>
+                        To continue, add the following CNAME to your Domain
+                        Management Settings:
+                        <p>
+                          <b>Name: </b>
+                          {JSON.parse(statusProps).cname.name}
+                        </p>
+                        <p>
+                          <b>Value: </b>
+                          {JSON.parse(statusProps).cname.value}
+                        </p>
+                      </>
+                    )}
                   </div>
                 ) : (
                   <span
