@@ -14,10 +14,6 @@ terraform {
   }
 }
 
-variable "support_roam_password" {
-    type = string
-}
-
 variable "aws_access_token" {
   type = string
 }
@@ -502,12 +498,6 @@ resource "github_actions_secret" "deploy_aws_access_secret" {
   repository       = "generate-roam-site-lambda"
   secret_name      = "DEPLOY_AWS_ACCESS_SECRET"
   plaintext_value  = var.aws_secret_token
-}
-
-resource "github_actions_secret" "support_roam_password" {
-  repository       = "generate-roam-site-lambda"
-  secret_name      = "SUPPORT_ROAM_PASSWORD"
-  plaintext_value  = var.support_roam_password
 }
 
 resource "github_actions_secret" "cloudfront_secret" {
