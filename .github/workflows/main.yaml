@@ -3,6 +3,7 @@ on:
   push:
     branches: main
     paths:
+      - "package.json"
       - "src/**"
       - ".github/workflows/main.yaml"
 
