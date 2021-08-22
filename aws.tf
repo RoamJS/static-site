@@ -489,55 +489,55 @@ provider "github" {
 }
 
 resource "github_actions_secret" "deploy_aws_access_key" {
-  repository       = "generate-roam-site-lambda"
+  repository       = "roamjs-static-site"
   secret_name      = "DEPLOY_AWS_ACCESS_KEY"
   plaintext_value  = var.aws_access_token
 }
 
 resource "github_actions_secret" "deploy_aws_access_secret" {
-  repository       = "generate-roam-site-lambda"
+  repository       = "roamjs-static-site"
   secret_name      = "DEPLOY_AWS_ACCESS_SECRET"
   plaintext_value  = var.aws_secret_token
 }
 
 resource "github_actions_secret" "cloudfront_secret" {
-  repository       = "generate-roam-site-lambda"
+  repository       = "roamjs-static-site"
   secret_name      = "CLOUDFRONT_SECRET"
   plaintext_value  = var.cloudfront_secret
 }
 
 resource "github_actions_secret" "cloudformation_role_arn_secret" {
-  repository       = "generate-roam-site-lambda"
+  repository       = "roamjs-static-site"
   secret_name      = "CLOUDFORMATION_ROLE_ARN"
   plaintext_value  = aws_iam_role.cf_role.arn
 }
 
 resource "github_actions_secret" "origin_lambda_arn_secret" {
-  repository       = "generate-roam-site-lambda"
+  repository       = "roamjs-static-site"
   secret_name      = "ORIGIN_LAMBDA_ARN"
   plaintext_value  = aws_lambda_function.origin_request.qualified_arn
 }
 
 resource "github_actions_secret" "cloudwatch_role_arn" {
-  repository       = "generate-roam-site-lambda"
+  repository       = "roamjs-static-site"
   secret_name      = "CLOUDWATCH_ROLE_ARN"
   plaintext_value  = aws_iam_role.cloudwatch.arn
 }
 
 resource "github_actions_secret" "sns_topic_arn_secret" {
-  repository       = "generate-roam-site-lambda"
+  repository       = "roamjs-static-site"
   secret_name      = "SNS_TOPIC_ARN"
   plaintext_value  = aws_sns_topic.cloudformation_topic.arn
 }
 
 resource "github_actions_secret" "s3_website_endpoint_secret" {
-  repository       = "generate-roam-site-lambda"
+  repository       = "roamjs-static-site"
   secret_name      = "S3_WEBSITE_ENDPOINT"
   plaintext_value  = aws_s3_bucket.main.website_endpoint
 }
 
 resource "github_actions_secret" "roamjs_zone_id_secret" {
-  repository       = "generate-roam-site-lambda"
+  repository       = "roamjs-static-site"
   secret_name      = "ROAMJS_ZONE_ID"
   plaintext_value  = data.aws_route53_zone.roamjs.zone_id
 }
