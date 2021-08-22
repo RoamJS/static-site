@@ -1063,7 +1063,7 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
   const [values, setValues] = useState<
     Record<string, Record<string, string[]>>
   >(
-    pluginUid
+    () => pluginUid
       ? Object.fromEntries(
           getShallowTreeByParentUid(pluginUid).map(({ uid, text }) => [
             text,
@@ -1181,7 +1181,6 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
                               <PageInput
                                 value={activeValue}
                                 setValue={setActiveValue}
-                                extra={options.filter((s) => s !== "{page}")}
                                 showButton
                                 onConfirm={onConfirm}
                               />
