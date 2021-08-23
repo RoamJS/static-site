@@ -1317,7 +1317,7 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
     [pageUid]
   );
   const [values, setValues] = useState<Record<string, Record<string, string>>>(
-    themeUid
+    () => themeUid
       ? Object.fromEntries(
           getShallowTreeByParentUid(themeUid).map(({ uid, text }) => [
             text,
