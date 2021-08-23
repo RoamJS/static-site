@@ -1218,7 +1218,7 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
                                           ...values,
                                           [tabId]: {
                                             ...values[tabId],
-                                            [subtabId]: [activeValue],
+                                            [subtabId]: [e],
                                           },
                                         });
                                       }
