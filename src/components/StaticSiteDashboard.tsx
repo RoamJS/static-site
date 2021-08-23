@@ -1058,7 +1058,12 @@ const pluginIds: Plugin[] = [
   },
   { id: "uid-paths", tabs: [] },
 ];
-const pluginsById = Object.fromEntries(pluginIds.map(({id, tabs}) => [id, Object.fromEntries(tabs.map(({id, ...rest}) => [id, rest]))]));
+const pluginsById = Object.fromEntries(
+  pluginIds.map(({ id, tabs }) => [
+    id,
+    Object.fromEntries(tabs.map(({ id, ...rest }) => [id, rest])),
+  ])
+);
 
 const RequestPluginsContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
@@ -1125,16 +1130,6 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
         vertical
         onChange={(k) => {
           const t = k as string;
-          const plugin = pluginsById[outerKey][innerKey]
-          if (plugin && !plugin.multi && plugin.options.length) {
-            setValues({
-              ...values,
-              [outerKey]: {
-                ...values[outerKey],
-                [innerKey]: [activeValue],
-              },
-            });
-          }
           setOuterKey(t);
           setInnerKey(t);
           setActiveValue("");
@@ -1150,16 +1145,6 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
               <Tabs
                 vertical
                 onChange={(k) => {
-                  const plugin = pluginsById[outerKey][innerKey]
-                  if (plugin && !plugin.multi && plugin.options.length) {
-                    setValues({
-                      ...values,
-                      [outerKey]: {
-                        ...values[outerKey],
-                        [innerKey]: [activeValue],
-                      },
-                    });
-                  }
                   setInnerKey(k as string);
                   setActiveValue("");
                 }}
@@ -1226,7 +1211,18 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
                                           values[tabId]?.[subtabId] || []
                                         ).includes(o)
                                     )}
-                                    onItemSelect={(e) => setActiveValue(e)}
+                                    onItemSelect={(e) => {
+                                      setActiveValue(e);
+                                      if (!multi) {
+                                        setValues({
+                                          ...values,
+                                          [tabId]: {
+                                            ...values[tabId],
+                                            [subtabId]: [activeValue],
+                                          },
+                                        });
+                                      }
+                                    }}
                                   />
                                   {multi && (
                                     <Button
@@ -1317,19 +1313,20 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
     [pageUid]
   );
   const [values, setValues] = useState<Record<string, Record<string, string>>>(
-    () => themeUid
-      ? Object.fromEntries(
-          getShallowTreeByParentUid(themeUid).map(({ uid, text }) => [
-            text,
-            Object.fromEntries(
-              getShallowTreeByParentUid(uid).map((c) => [
-                c.text,
-                getFirstChildTextByBlockUid(c.uid),
-              ])
-            ),
-          ])
-        )
-      : {}
+    () =>
+      themeUid
+        ? Object.fromEntries(
+            getShallowTreeByParentUid(themeUid).map(({ uid, text }) => [
+              text,
+              Object.fromEntries(
+                getShallowTreeByParentUid(uid).map((c) => [
+                  c.text,
+                  getFirstChildTextByBlockUid(c.uid),
+                ])
+              ),
+            ])
+          )
+        : {}
   );
   const outerKeys = useMemo(
     () => Object.keys(tabIds) as (keyof typeof tabIds)[],
