@@ -1034,21 +1034,32 @@ const RequestReferenceTemplateContent: StageContent = ({ openPanel }) => {
   );
 };
 
-const pluginIds = [
-  { id: "header", tabs: [{ id: "links", options: ["{page}"] }] },
+type PluginTab = { id: string; options: string[]; multi?: true };
+
+type Plugin = {
+  id: string;
+  tabs: PluginTab[];
+};
+
+const pluginIds: Plugin[] = [
+  { id: "header", tabs: [{ id: "links", options: ["{page}"], multi: true }] },
   { id: "image-preview", tabs: [] },
   { id: "inline-block-references", tabs: [] },
+  { id: "paths", tabs: [{ id: "type", options: ["uid", "lowercase"] }] },
   {
     id: "sidebar",
     tabs: [
       {
         id: "widgets",
         options: ["graph"],
+        multi: true,
       },
     ],
   },
   { id: "uid-paths", tabs: [] },
 ];
+const pluginsById = Object.fromEntries(pluginIds.map(({id, tabs}) => [id, Object.fromEntries(tabs.map(({id, ...rest}) => [id, rest]))]));
+
 const RequestPluginsContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
   const pageUid = useServicePageUid();
@@ -1062,8 +1073,8 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
   );
   const [values, setValues] = useState<
     Record<string, Record<string, string[]>>
-  >(
-    () => pluginUid
+  >(() =>
+    pluginUid
       ? Object.fromEntries(
           getShallowTreeByParentUid(pluginUid).map(({ uid, text }) => [
             text,
@@ -1114,6 +1125,16 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
         vertical
         onChange={(k) => {
           const t = k as string;
+          const plugin = pluginsById[outerKey][innerKey]
+          if (plugin && !plugin.multi && plugin.options.length) {
+            setValues({
+              ...values,
+              [outerKey]: {
+                ...values[outerKey],
+                [innerKey]: [activeValue],
+              },
+            });
+          }
           setOuterKey(t);
           setInnerKey(t);
           setActiveValue("");
@@ -1129,6 +1150,16 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
               <Tabs
                 vertical
                 onChange={(k) => {
+                  const plugin = pluginsById[outerKey][innerKey]
+                  if (plugin && !plugin.multi && plugin.options.length) {
+                    setValues({
+                      ...values,
+                      [outerKey]: {
+                        ...values[outerKey],
+                        [innerKey]: [activeValue],
+                      },
+                    });
+                  }
                   setInnerKey(k as string);
                   setActiveValue("");
                 }}
@@ -1154,102 +1185,110 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
                     />
                   }
                 />
-                {outerTabSelected.tabs.map(({ id: subtabId, options }) => {
-                  const onConfirm = () => {
-                    const { [subtabId]: activeValues = [], ...rest } =
-                      values[tabId];
-                    setValues({
-                      ...values,
-                      [tabId]: {
-                        ...rest,
-                        [subtabId]: [...activeValues, activeValue],
-                      },
-                    });
-                    setActiveValue("");
-                  };
-                  return (
-                    <Tab
-                      id={subtabId}
-                      key={subtabId}
-                      title={subtabId}
-                      disabled={!values[tabId]}
-                      panel={
-                        <>
-                          <Label>
-                            {innerKey}
-                            {options.includes("{page}") ? (
-                              <PageInput
-                                value={activeValue}
-                                setValue={setActiveValue}
-                                showButton
-                                onConfirm={onConfirm}
-                              />
-                            ) : options.length ? (
-                              <div style={{ display: "flex" }}>
-                                <MenuItemSelect
-                                  activeItem={activeValue}
-                                  items={options.filter(
-                                    (o) =>
-                                      !(
-                                        values[tabId]?.[subtabId] || []
-                                      ).includes(o)
-                                  )}
-                                  onItemSelect={(e) => setActiveValue(e)}
+                {outerTabSelected.tabs.map(
+                  ({ id: subtabId, options, multi }) => {
+                    const onConfirm = () => {
+                      const { [subtabId]: activeValues = [], ...rest } =
+                        values[tabId];
+                      setValues({
+                        ...values,
+                        [tabId]: {
+                          ...rest,
+                          [subtabId]: [...activeValues, activeValue],
+                        },
+                      });
+                      setActiveValue("");
+                    };
+                    return (
+                      <Tab
+                        id={subtabId}
+                        key={subtabId}
+                        title={subtabId}
+                        disabled={!values[tabId]}
+                        panel={
+                          <>
+                            <Label>
+                              {innerKey}
+                              {options.includes("{page}") ? (
+                                <PageInput
+                                  value={activeValue}
+                                  setValue={setActiveValue}
+                                  showButton={multi}
+                                  onConfirm={multi && onConfirm}
                                 />
-                                <Button
-                                  icon={"add"}
-                                  minimal
-                                  onClick={onConfirm}
-                                />
-                              </div>
-                            ) : (
-                              <InputGroup
-                                value={activeValue}
-                                onChange={(e) => setActiveValue(e.target.value)}
-                                rightElement={
-                                  <Button
-                                    icon={"add"}
-                                    minimal
-                                    onClick={onConfirm}
+                              ) : options.length ? (
+                                <div style={{ display: "flex" }}>
+                                  <MenuItemSelect
+                                    activeItem={activeValue}
+                                    items={options.filter(
+                                      (o) =>
+                                        !(
+                                          values[tabId]?.[subtabId] || []
+                                        ).includes(o)
+                                    )}
+                                    onItemSelect={(e) => setActiveValue(e)}
                                   />
-                                }
-                              />
-                            )}
-                          </Label>
-                          <ul style={{ listStyle: "none", paddingLeft: 4 }}>
-                            {(values[tabId]?.[subtabId] || []).map((p) => (
-                              <li
-                                key={p}
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  alignItems: "center",
-                                }}
-                              >
-                                <span>{p}</span>
-                                <Button
-                                  icon={"trash"}
-                                  minimal
-                                  onClick={() =>
-                                    setValues({
-                                      ...values,
-                                      [tabId]: {
-                                        ...values[tabId],
-                                        [subtabId]: values[tabId][
-                                          subtabId
-                                        ].filter((v) => v !== p),
-                                      },
-                                    })
+                                  {multi && (
+                                    <Button
+                                      icon={"add"}
+                                      minimal
+                                      onClick={onConfirm}
+                                    />
+                                  )}
+                                </div>
+                              ) : (
+                                <InputGroup
+                                  value={activeValue}
+                                  onChange={(e) =>
+                                    setActiveValue(e.target.value)
+                                  }
+                                  rightElement={
+                                    multi && (
+                                      <Button
+                                        icon={"add"}
+                                        minimal
+                                        onClick={onConfirm}
+                                      />
+                                    )
                                   }
                                 />
-                              </li>
-                            ))}
-                          </ul>
-                        </>
-                      }
-                    />
-                  );
-                })}
+                              )}
+                            </Label>
+                            <ul style={{ listStyle: "none", paddingLeft: 4 }}>
+                              {(values[tabId]?.[subtabId] || []).map((p) => (
+                                <li
+                                  key={p}
+                                  style={{
+                                    display: "flex",
+                                    justifyContent: "space-between",
+                                    alignItems: "center",
+                                  }}
+                                >
+                                  <span>{p}</span>
+                                  <Button
+                                    icon={"trash"}
+                                    minimal
+                                    onClick={() =>
+                                      setValues({
+                                        ...values,
+                                        [tabId]: {
+                                          ...values[tabId],
+                                          [subtabId]: values[tabId][
+                                            subtabId
+                                          ].filter((v) => v !== p),
+                                        },
+                                      })
+                                    }
+                                  />
+                                </li>
+                              ))}
+                            </ul>
+                          </>
+                        }
+                      />
+                    );
+                  }
+                )}
               </Tabs>
             }
           />

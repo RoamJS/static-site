@@ -28,6 +28,8 @@ import { render as renderHeader } from "../components/Header";
 import { render as renderSidebar } from "../components/Sidebar";
 import { render as renderImagePreview } from "../components/ImagePreview";
 
+const transformIfTrue = (s: string, f: boolean, t: (s: string) => string) =>
+  f ? t(s) : s;
 const CONFIG_PAGE_NAMES = ["roam/js/static-site", "roam/js/public-garden"];
 const IGNORE_BLOCKS = CONFIG_PAGE_NAMES.map((c) => `${c}/ignore`);
 const TITLE_REGEX = new RegExp(
@@ -423,15 +425,22 @@ export const renderHtmlFromPage = ({
   const preparedContent = prepareContent({
     content,
   });
-  const useUid = !!config.plugins["uid-paths"];
+  const pathConfigType = config.plugins["paths"]?.["type"] || [];
+  const useLowercase = pathConfigType.includes("lowercase");
+  const useUid =
+    pathConfigType.includes("uid") || !!config.plugins["uid-paths"];
   const convertPageNameToPath = (name: string): string =>
     name === config.index
       ? "/"
       : useUid
       ? pageMetadata[name]
-      : `${encodeURIComponent(
-          name.replace(/ /g, "_").replace(/[",?#:$;/@&=+']/g, "")
-        )}`;
+      : transformIfTrue(
+          `${encodeURIComponent(
+            name.replace(/ /g, "_").replace(/[",?#:$;/@&=+']/g, "")
+          )}`,
+          useLowercase,
+          (s) => s.toLowerCase()
+        );
   const htmlFileName = convertPageNameToPath(p);
   const pagesToHrefs = (name: string) =>
     pageNameSet.has(name)
