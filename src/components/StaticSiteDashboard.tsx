@@ -1250,35 +1250,37 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
                                 />
                               )}
                             </Label>
-                            <ul style={{ listStyle: "none", paddingLeft: 4 }}>
-                              {(values[tabId]?.[subtabId] || []).map((p) => (
-                                <li
-                                  key={p}
-                                  style={{
-                                    display: "flex",
-                                    justifyContent: "space-between",
-                                    alignItems: "center",
-                                  }}
-                                >
-                                  <span>{p}</span>
-                                  <Button
-                                    icon={"trash"}
-                                    minimal
-                                    onClick={() =>
-                                      setValues({
-                                        ...values,
-                                        [tabId]: {
-                                          ...values[tabId],
-                                          [subtabId]: values[tabId][
-                                            subtabId
-                                          ].filter((v) => v !== p),
-                                        },
-                                      })
-                                    }
-                                  />
-                                </li>
-                              ))}
-                            </ul>
+                            {multi && (
+                              <ul style={{ listStyle: "none", paddingLeft: 4 }}>
+                                {(values[tabId]?.[subtabId] || []).map((p) => (
+                                  <li
+                                    key={p}
+                                    style={{
+                                      display: "flex",
+                                      justifyContent: "space-between",
+                                      alignItems: "center",
+                                    }}
+                                  >
+                                    <span>{p}</span>
+                                    <Button
+                                      icon={"trash"}
+                                      minimal
+                                      onClick={() =>
+                                        setValues({
+                                          ...values,
+                                          [tabId]: {
+                                            ...values[tabId],
+                                            [subtabId]: values[tabId][
+                                              subtabId
+                                            ].filter((v) => v !== p),
+                                          },
+                                        })
+                                      }
+                                    />
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
                           </>
                         }
                       />
