@@ -47,11 +47,7 @@ const DESCRIPTION_REGEX = new RegExp(
     (c) => `${c.replace("/", "\\/")}/description`
   ).join("|")})::(.*)`
 );
-const METADATA_REGEX = new RegExp(
-  `(?:${CONFIG_PAGE_NAMES.map((c) => `${c.replace("/", "\\/")}/([a-z-]+)`).join(
-    "|"
-  )})::(.*)`
-);
+const METADATA_REGEX = /roam\/js\/static-site\/([a-z-]+)::(.*)/
 const HTML_REGEX = new RegExp("```html\n(.*)```", "s");
 const DAILY_NOTE_PAGE_REGEX =
   /(January|February|March|April|May|June|July|August|September|October|November|December) [0-3]?[0-9](st|nd|rd|th), [0-9][0-9][0-9][0-9]/;
@@ -132,6 +128,9 @@ td {
 table {
   border-spacing: 0;
   border-collapse: collapse;
+}
+#content {
+  box-sizing: border-box;
 }
 </style>
 `;
@@ -558,13 +557,13 @@ export const renderHtmlFromPage = ({
     (e) => `<div>Failed to render page: ${title}</div><div>${e.message}</div>`
   );
   const hydratedHtml = config.template
+    .replace(/\${PAGE_CONTENT}/g, markedContent)
     .replace(
       "</head>",
       `${DEFAULT_STYLE.replace(/<\/style>/, theme)}${head}</head>`
     )
     .replace(/\${PAGE_NAME}/g, title.split("/").slice(-1)[0])
     .replace(/\${PAGE_DESCRIPTION}/g, description)
-    .replace(/\${PAGE_CONTENT}/g, markedContent)
     .replace(
       /\${PAGE_([A-Z_]+)}/g,
       (_, k: string) => metadata[k.toLowerCase().replace(/_/g, "-")] || ""
