@@ -47,6 +47,11 @@ const DESCRIPTION_REGEX = new RegExp(
     (c) => `${c.replace("/", "\\/")}/description`
   ).join("|")})::(.*)`
 );
+const METADATA_REGEX = new RegExp(
+  `(?:${CONFIG_PAGE_NAMES.map((c) => `${c.replace("/", "\\/")}/([a-z-]+)`).join(
+    "|"
+  )})::(.*)`
+);
 const HTML_REGEX = new RegExp("```html\n(.*)```", "s");
 const DAILY_NOTE_PAGE_REGEX =
   /(January|February|March|April|May|June|July|August|September|October|November|December) [0-3]?[0-9](st|nd|rd|th), [0-9][0-9][0-9][0-9]/;
@@ -386,6 +391,7 @@ type PageContent = {
   head: string;
   viewType: ViewType;
   uid: string;
+  metadata: Record<string, string>;
 };
 
 const PLUGIN_RENDER: {
@@ -420,7 +426,14 @@ export const renderHtmlFromPage = ({
   pageMetadata: Record<string, string>;
   theme: string;
 } & Pick<Required<RoamContext>, "blockReferences">): void => {
-  const { content, references = [], title, head, description } = pageContent;
+  const {
+    content,
+    references = [],
+    title,
+    head,
+    description,
+    metadata,
+  } = pageContent;
   const pageNameSet = new Set(Object.keys(pageMetadata));
   const preparedContent = prepareContent({
     content,
@@ -549,9 +562,10 @@ export const renderHtmlFromPage = ({
       "</head>",
       `${DEFAULT_STYLE.replace(/<\/style>/, theme)}${head}</head>`
     )
-    .replace(/\${PAGE_NAME}/g, title.split('/').slice(-1)[0])
+    .replace(/\${PAGE_NAME}/g, title.split("/").slice(-1)[0])
     .replace(/\${PAGE_DESCRIPTION}/g, description)
     .replace(/\${PAGE_CONTENT}/g, markedContent)
+    .replace(/\${PAGE_([A-Z_]+)}/g, (_, k) => metadata[k] || "")
     .replace(
       /\${REFERENCES}/g,
       Array.from(new Set(references.map((r) => r.title)))
@@ -956,6 +970,13 @@ export const run = async ({
             const description = descriptionMatch
               ? descriptionMatch[1].trim()
               : "";
+            const metadata = Object.fromEntries(
+              allBlocks
+                .filter((s) => METADATA_REGEX.test(s.text))
+                .map((s) => s.text.match(METADATA_REGEX))
+                .filter((m) => !!m && m.length >= 3)
+                .map((m) => [m[1], extractTag(m[2].trim())])
+            );
             return [
               pageName,
               {
@@ -963,6 +984,7 @@ export const run = async ({
                 title,
                 head,
                 description,
+                metadata,
                 ...props,
               },
             ];
