@@ -565,7 +565,10 @@ export const renderHtmlFromPage = ({
     .replace(/\${PAGE_NAME}/g, title.split("/").slice(-1)[0])
     .replace(/\${PAGE_DESCRIPTION}/g, description)
     .replace(/\${PAGE_CONTENT}/g, markedContent)
-    .replace(/\${PAGE_([A-Z_]+)}/g, (_, k) => metadata[k] || "")
+    .replace(
+      /\${PAGE_([A-Z_]+)}/g,
+      (_, k: string) => metadata[k.toLowerCase().replace(/_/g, "-")] || ""
+    )
     .replace(
       /\${REFERENCES}/g,
       Array.from(new Set(references.map((r) => r.title)))
