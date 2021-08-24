@@ -436,7 +436,7 @@ export const renderHtmlFromPage = ({
       ? pageMetadata[name]
       : transformIfTrue(
           `${encodeURIComponent(
-            name.replace(/ /g, "_").replace(/[",?#:$;/@&=+']/g, "")
+            name.replace(/ /g, "_").replace(/[",?#:$;@&=+']/g, "")
           )}`,
           useLowercase,
           (s) => s.toLowerCase()
@@ -549,7 +549,7 @@ export const renderHtmlFromPage = ({
       "</head>",
       `${DEFAULT_STYLE.replace(/<\/style>/, theme)}${head}</head>`
     )
-    .replace(/\${PAGE_NAME}/g, title)
+    .replace(/\${PAGE_NAME}/g, title.split('/').slice(-1)[0])
     .replace(/\${PAGE_DESCRIPTION}/g, description)
     .replace(/\${PAGE_CONTENT}/g, markedContent)
     .replace(
@@ -1101,6 +1101,7 @@ export const handler = async (event: {
         finished = !IsTruncated;
         ContinuationToken = NextContinuationToken;
       }
+      const filesToInvalidate = new Set<string>(keysToDelete);
       if (keysToDelete.size) {
         console.log("Files to Delete", keysToDelete.size);
         const DeleteObjects = Array.from(keysToDelete).map((Key) => ({ Key }));
@@ -1115,7 +1116,6 @@ export const handler = async (event: {
       }
 
       await logStatus("UPLOADING");
-      const filesToInvalidate = new Set<string>();
       console.log("Files to Upload", filesToUpload.length);
       for (const key of filesToUpload) {
         const Body = fs.createReadStream(path.join("/tmp", "out", key));
