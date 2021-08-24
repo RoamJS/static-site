@@ -337,6 +337,7 @@ type Filter = { rule: string; values: string[] };
 const TITLE_REGEX = new RegExp(`roam/js/static-site/title::(.*)`);
 const HEAD_REGEX = new RegExp(`roam/js/static-stite/head::`);
 const DESCRIPTION_REGEX = new RegExp(`roam/js/static-site/title::(.*)`);
+const METADATA_REGEX = /roam\/js\/static-site\/([a-z-]+)::(.*)/;
 const HTML_REGEX = new RegExp("```html\n(.*)```", "s");
 const pageReferences: { current: { [p: string]: string[] } } = { current: {} };
 const getTitleRuleFromNode = ({ rule: text, values: children }: Filter) => {
@@ -513,6 +514,20 @@ const getDeployBody = () => {
       const title = titleMatch ? titleMatch[1].trim() : pageName;
       const head = headMatch ? headMatch[1] : "";
       const description = descriptionMatch ? descriptionMatch[1].trim() : "";
+      const metadata = Object.fromEntries(
+        allBlocks
+          .filter((s) => METADATA_REGEX.test(s.text))
+          .map((node) => ({
+            match: node.text.match(METADATA_REGEX),
+            node,
+          }))
+          .filter(({ match }) => !!match && match.length >= 3)
+          .map(({ match, node }) => ({
+            key: match[1],
+            value: match[2].trim() || node.children[0]?.text || "",
+          }))
+          .map(({ key, value }) => [key, extractTag(value.trim())])
+      );
       return [
         pageName,
         {
@@ -520,6 +535,7 @@ const getDeployBody = () => {
           title,
           description,
           head,
+          metadata,
           ...props,
         },
       ];

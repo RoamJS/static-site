@@ -47,7 +47,7 @@ const DESCRIPTION_REGEX = new RegExp(
     (c) => `${c.replace("/", "\\/")}/description`
   ).join("|")})::(.*)`
 );
-const METADATA_REGEX = /roam\/js\/static-site\/([a-z-]+)::(.*)/
+const METADATA_REGEX = /roam\/js\/static-site\/([a-z-]+)::(.*)/;
 const HTML_REGEX = new RegExp("```html\n(.*)```", "s");
 const DAILY_NOTE_PAGE_REGEX =
   /(January|February|March|April|May|June|July|August|September|October|November|December) [0-3]?[0-9](st|nd|rd|th), [0-9][0-9][0-9][0-9]/;
@@ -431,7 +431,7 @@ export const renderHtmlFromPage = ({
     title,
     head,
     description,
-    metadata,
+    metadata = {},
   } = pageContent;
   const pageNameSet = new Set(Object.keys(pageMetadata));
   const preparedContent = prepareContent({
@@ -975,9 +975,16 @@ export const run = async ({
             const metadata = Object.fromEntries(
               allBlocks
                 .filter((s) => METADATA_REGEX.test(s.text))
-                .map((s) => s.text.match(METADATA_REGEX))
-                .filter((m) => !!m && m.length >= 3)
-                .map((m) => [m[1], extractTag(m[2].trim())])
+                .map((node) => ({
+                  match: node.text.match(METADATA_REGEX),
+                  node,
+                }))
+                .filter(({ match }) => !!match && match.length >= 3)
+                .map(({ match, node }) => ({
+                  key: match[1],
+                  value: match[2].trim() || node.children[0]?.text || "",
+                }))
+                .map(({ key, value }) => [key, extractTag(value.trim())])
             );
             return [
               pageName,
