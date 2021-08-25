@@ -10,7 +10,7 @@ import {
   RenderFunction,
 } from "./common/common";
 import chromium from "chrome-aws-lambda";
-import { parseInline, RoamContext } from "roam-marked";
+import { RoamContext } from "roam-marked";
 import {
   parseRoamDate,
   RoamBlock,
@@ -18,6 +18,7 @@ import {
   ViewType,
   extractTag,
   DAILY_NOTE_PAGE_TITLE_REGEX,
+  parseInline,
 } from "roam-client";
 import React from "react";
 import ReactDOMServer from "react-dom/server";
