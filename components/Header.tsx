@@ -79,7 +79,7 @@ const Header = ({ links }: Props): React.ReactElement => {
           <div>
             <div className="roamjs-links-container">
               {links.map((l) => (
-                <a href={l.href} className={"roamjs-nav-link"} key={l.title}>
+                <a href={`/${l.href}`} className={"roamjs-nav-link"} key={l.title}>
                   {l.title}
                 </a>
               ))}

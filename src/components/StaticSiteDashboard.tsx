@@ -230,7 +230,10 @@ const FilterLayout = ({
         canOutsideClickClose
         canEscapeKeyClose
       >
-        <div className={Classes.DIALOG_BODY}>
+        <div
+          className={Classes.DIALOG_BODY}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
           <Label>
             HTML Layout
             <CodeMirror
@@ -249,6 +252,7 @@ const FilterLayout = ({
             <Button text={"Cancel"} onClick={closeFilterLayout} />
             <Button
               text={"Save"}
+              intent={Intent.PRIMARY}
               onClick={() => {
                 saveValue(value);
                 closeFilterLayout();
@@ -497,7 +501,7 @@ const getDeployBody = () => {
         filter: filterNode.children.map((t) => ({
           rule: t.text,
           values: t.children.map((c) => c.text),
-          layout: t.children[0]?.children?.[0]?.text,
+          layout: getCode(t.children[0]),
         })),
       }
     : {};

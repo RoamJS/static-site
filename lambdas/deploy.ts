@@ -224,7 +224,7 @@ const getConfigFromPage = (parsedTree: TreeNode[]) => {
         filter: filterNode.children.map((t) => ({
           rule: t.text,
           values: t.children.map((c) => c.text),
-          layout: t.children[0]?.children?.[0]?.text,
+          layout: getCode(t.children[0]),
         })),
       }
     : {};
