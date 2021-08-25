@@ -220,8 +220,10 @@ const FilterLayout = ({
     [setValue]
   );
   return (
-    <Tooltip content={"Edit Filter Layout"}>
-      <Button icon={"layout-grid"} minimal onClick={openFilterLayout} />
+    <>
+      <Tooltip content={"Edit Filter Layout"}>
+        <Button icon={"layout-grid"} minimal onClick={openFilterLayout} />
+      </Tooltip>
       <Dialog
         isOpen={filterLayoutOpen}
         title={`Layout for ${filterText}`}
@@ -257,7 +259,7 @@ const FilterLayout = ({
           </div>
         </div>
       </Dialog>
-    </Tooltip>
+    </>
   );
 };
 
