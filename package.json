@@ -29,7 +29,6 @@
     "chrome-aws-lambda": "^5.5.0",
     "codemirror": "^5.61.1",
     "cytoscape": "^3.19.1",
-    "fs-extra": "^10.0.0",
     "jsdom": "^16.6.0",
     "namor": "^2.0.2",
     "puppeteer-core": "^5.5.0",
@@ -43,7 +42,6 @@
   "devDependencies": {
     "@types/aws-lambda": "^8.10.70",
     "@types/cytoscape": "^3.14.17",
-    "@types/fs-extra": "^9.0.12",
     "@types/jest": "^27.0.1",
     "@types/jsdom": "^16.2.13",
     "@types/puppeteer": "^5.4.4",

@@ -28,7 +28,6 @@ import InlineBlockReference from "../components/InlineBlockReference";
 import { render as renderHeader } from "../components/Header";
 import { render as renderSidebar } from "../components/Sidebar";
 import { render as renderImagePreview } from "../components/ImagePreview";
-import fse from 'fs-extra';
 
 const transformIfTrue = (s: string, f: boolean, t: (s: string) => string) =>
   f ? t(s) : s;
@@ -58,6 +57,14 @@ const allBlockMapper = (t: TreeNode): TreeNode[] => [
   t,
   ...t.children.flatMap(allBlockMapper),
 ];
+
+const ensureDirectoryExistence = (filePath: string) => {
+  var dirname = path.dirname(filePath);
+  if (!fs.existsSync(dirname)) {
+    fs.mkdirSync(dirname, {recursive: true});
+    return true;
+  }
+}
 
 type Filter = { rule: string; values: string[]; layout: string };
 
@@ -602,7 +609,9 @@ export const renderHtmlFromPage = ({
   );
   const newHtml = dom.serialize();
   const fileName = htmlFileName === "/" ? "index.html" : `${htmlFileName}.html`;
-  fse.outputFileSync(path.join(outputPath, fileName), newHtml);
+  const filePath = path.join(outputPath, fileName);
+  ensureDirectoryExistence(filePath);
+  fs.writeFileSync(filePath, newHtml);
 };
 
 export const processSiteData = ({
@@ -1115,7 +1124,7 @@ export const handler = async (event: {
     .getObject({ Bucket: "roamjs-static-site-data", Key: event.key })
     .promise()
     .then((data) => {
-      const { pages, config, layouts } = JSON.parse(data.Body.toString());
+      const { pages, config, layouts = [] } = JSON.parse(data.Body.toString());
       const outputPath = path.join(pathRoot, "out");
       fs.mkdirSync(outputPath, { recursive: true });
       return processSiteData({
