@@ -1153,6 +1153,7 @@ export const handler = async (event: {
       const filesToUpload = readDir(path.join("/tmp", "out")).map((s) =>
         s.replace(/^\/tmp\/out\//, "")
       );
+      console.log(filesToUpload.slice(10));
 
       const fileSet = new Set(filesToUpload);
       const eTags: { [key: string]: string } = {};
@@ -1189,7 +1190,8 @@ export const handler = async (event: {
       await logStatus("UPLOADING");
       console.log("Files to Upload", filesToUpload.length);
       for (const key of filesToUpload) {
-        const Body = fs.createReadStream(path.join("/tmp", "out", key));
+        console.log("Uploading", key);
+        const Body = fs.createReadStream(path.join(pathRoot, "out", key));
         const Key = `${Prefix}${key}`;
         const { ETag } = await s3
           .upload({ Bucket, Key, Body, ContentType })
