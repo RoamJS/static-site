@@ -231,15 +231,18 @@ const FilterLayout = ({
         canEscapeKeyClose
       >
         <div className={Classes.DIALOG_BODY}>
-          <CodeMirror
-            value={value}
-            options={{
-              mode: { name: "xml", htmlMode: true },
-              lineNumbers: true,
-              lineWrapping: true,
-            }}
-            onBeforeChange={onBeforeChange}
-          />
+          <Label>
+            HTML Layout
+            <CodeMirror
+              value={value}
+              options={{
+                mode: { name: "xml", htmlMode: true },
+                lineNumbers: true,
+                lineWrapping: true,
+              }}
+              onBeforeChange={onBeforeChange}
+            />
+          </Label>
         </div>
         <div className={Classes.DIALOG_FOOTER}>
           <div className={Classes.DIALOG_FOOTER_ACTIONS}>
