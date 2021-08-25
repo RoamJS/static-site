@@ -261,6 +261,11 @@ const FilterLayout = ({
   );
 };
 
+const removeUidFromNodes = (nodes: InputTextNode[]): InputTextNode[] =>
+  nodes.map(({ uid: _, ...node }) => ({
+    ...node,
+    children: removeUidFromNodes(node.children),
+  }));
 const RequestFiltersContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
   const pageUid = useServicePageUid();
@@ -275,16 +280,17 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
   const onSubmit = useCallback(() => {
     const tree = getTreeByBlockUid(pageUid);
     const keyNode = tree.children.find((t) => /filter/i.test(t.text));
+    const cleanFilters = removeUidFromNodes(filters);
     if (keyNode) {
       keyNode.children.forEach(({ uid }) =>
         window.roamAlphaAPI.deleteBlock({ block: { uid } })
       );
-      filters.forEach(({uid:_, ...node}, order) =>
+      cleanFilters.forEach((node, order) =>
         createBlock({ node, order, parentUid: keyNode.uid })
       );
     } else if (!keyNode) {
       createBlock({
-        node: { text: "Filter", children: filters },
+        node: { text: "Filter", children: cleanFilters },
         order: 2,
         parentUid: pageUid,
       });
