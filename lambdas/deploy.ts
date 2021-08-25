@@ -224,7 +224,7 @@ const getConfigFromPage = (parsedTree: TreeNode[]) => {
         filter: filterNode.children.map((t) => ({
           rule: t.text,
           values: t.children.map((c) => c.text),
-          layout: t.children[0]?.text,
+          layout: t.children[0]?.children?.[0]?.text,
         })),
       }
     : {};
@@ -1150,10 +1150,9 @@ export const handler = async (event: {
       const Bucket = `roamjs-static-sites`;
       const ContentType = "text/html;charset=UTF-8";
       const Prefix = `${event.roamGraph}/`;
-      const filesToUpload = readDir(path.join("/tmp", "out")).map((s) =>
+      const filesToUpload = readDir(path.join(pathRoot, "out")).map((s) =>
         s.replace(/^\/tmp\/out\//, "")
       );
-      console.log(filesToUpload.slice(10));
 
       const fileSet = new Set(filesToUpload);
       const eTags: { [key: string]: string } = {};
@@ -1190,7 +1189,6 @@ export const handler = async (event: {
       await logStatus("UPLOADING");
       console.log("Files to Upload", filesToUpload.length);
       for (const key of filesToUpload) {
-        console.log("Uploading", key);
         const Body = fs.createReadStream(path.join(pathRoot, "out", key));
         const Key = `${Prefix}${key}`;
         const { ETag } = await s3
