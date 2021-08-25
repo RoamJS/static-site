@@ -18,6 +18,7 @@ import {
   extractTag,
   DAILY_NOTE_PAGE_TITLE_REGEX,
   parseInline,
+  RoamMarkedContext
 } from "roam-client";
 import React from "react";
 import ReactDOMServer from "react-dom/server";
@@ -291,7 +292,7 @@ const convertContentToHtml = ({
   pageNameSet,
 }: {
   level: number;
-  context: Required<RoamContext>;
+  context: Required<RoamMarkedContext>;
   useInlineBlockReferences: boolean;
   pageNameSet: Set<string>;
 } & Pick<PageContent, "content" | "viewType">): string => {
@@ -424,7 +425,7 @@ export const renderHtmlFromPage = ({
   config: Required<InputConfig>;
   pageMetadata: Record<string, string>;
   theme: string;
-} & Pick<Required<RoamContext>, "blockReferences">): void => {
+} & Pick<Required<RoamMarkedContext>, "blockReferences">): void => {
   const {
     content,
     references = [],
