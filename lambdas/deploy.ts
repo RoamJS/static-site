@@ -28,6 +28,7 @@ import InlineBlockReference from "../components/InlineBlockReference";
 import { render as renderHeader } from "../components/Header";
 import { render as renderSidebar } from "../components/Sidebar";
 import { render as renderImagePreview } from "../components/ImagePreview";
+import fse from 'fs-extra';
 
 const transformIfTrue = (s: string, f: boolean, t: (s: string) => string) =>
   f ? t(s) : s;
@@ -601,7 +602,7 @@ export const renderHtmlFromPage = ({
   );
   const newHtml = dom.serialize();
   const fileName = htmlFileName === "/" ? "index.html" : `${htmlFileName}.html`;
-  fs.writeFileSync(path.join(outputPath, fileName), newHtml);
+  fse.outputFileSync(path.join(outputPath, fileName), newHtml);
 };
 
 export const processSiteData = ({
