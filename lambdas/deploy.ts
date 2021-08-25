@@ -10,7 +10,6 @@ import {
   RenderFunction,
 } from "./common/common";
 import chromium from "chrome-aws-lambda";
-import { RoamContext } from "roam-marked";
 import {
   parseRoamDate,
   RoamBlock,
@@ -448,9 +447,14 @@ export const renderHtmlFromPage = ({
       : useUid
       ? pageMetadata[name]
       : transformIfTrue(
-          `${encodeURIComponent(
-            name.replace(/ /g, "_").replace(/[",?#:$;@&=+']/g, "")
-          )}`,
+          `${name
+            .split(/\//)
+            .map((s) =>
+              encodeURIComponent(
+                s.replace(/ /g, "_").replace(/[",?#:$;@&=+']/g, "")
+              )
+            )
+            .join("/")}`,
           useLowercase,
           (s) => s.toLowerCase()
         );
