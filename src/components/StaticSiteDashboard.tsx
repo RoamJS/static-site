@@ -264,7 +264,7 @@ const FilterLayout = ({
 const removeUidFromNodes = (nodes: InputTextNode[]): InputTextNode[] =>
   nodes.map(({ uid: _, ...node }) => ({
     ...node,
-    children: removeUidFromNodes(node.children),
+    children: removeUidFromNodes(node.children || []),
   }));
 const RequestFiltersContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
@@ -347,7 +347,7 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
             />
             {f.text === "TAGGED WITH" ? (
               <PageInput
-                value={f.children[0].text}
+                value={f.children[0]?.text}
                 setValue={(text) =>
                   setFilters(
                     filters.map((filter) =>
@@ -364,7 +364,7 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
             ) : (
               f.text === "STARTS WITH" && (
                 <InputGroup
-                  value={f.children[0].text}
+                  value={f.children[0]?.text}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setFilters(
                       filters.map((filter) =>
@@ -383,7 +383,7 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
               )
             )}
             <FilterLayout
-              filterText={`${f.text} ${f.children[0].text}`}
+              filterText={`${f.text} ${f.children[0]?.text}`}
               initialValue={
                 HTML_REGEX.exec(f.children[0]?.children?.[0]?.text)?.[1] ||
                 "${PAGE_CONTENT}"
