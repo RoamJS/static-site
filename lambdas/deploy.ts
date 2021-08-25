@@ -18,7 +18,7 @@ import {
   extractTag,
   DAILY_NOTE_PAGE_TITLE_REGEX,
   parseInline,
-  RoamMarkedContext
+  RoamMarkedContext,
 } from "roam-client";
 import React from "react";
 import ReactDOMServer from "react-dom/server";
@@ -58,7 +58,7 @@ const allBlockMapper = (t: TreeNode): TreeNode[] => [
   ...t.children.flatMap(allBlockMapper),
 ];
 
-type Filter = { rule: string; values: string[] };
+type Filter = { rule: string; values: string[]; layout: string };
 
 type InputConfig = {
   index?: string;
@@ -216,6 +216,7 @@ const getConfigFromPage = (parsedTree: TreeNode[]) => {
         filter: filterNode.children.map((t) => ({
           rule: t.text,
           values: t.children.map((c) => c.text),
+          layout: t.children[0]?.text,
         })),
       }
     : {};
@@ -392,6 +393,7 @@ type PageContent = {
   viewType: ViewType;
   uid: string;
   metadata: Record<string, string>;
+  layout: number;
 };
 
 const PLUGIN_RENDER: {
@@ -420,7 +422,7 @@ export const renderHtmlFromPage = ({
   theme,
 }: {
   outputPath: string;
-  pageContent: PageContent;
+  pageContent: Omit<PageContent, "layout"> & { layout: string };
   p: string;
   config: Required<InputConfig>;
   pageMetadata: Record<string, string>;
@@ -433,6 +435,7 @@ export const renderHtmlFromPage = ({
     head,
     description,
     metadata = {},
+    layout,
   } = pageContent;
   const pageNameSet = new Set(Object.keys(pageMetadata));
   const preparedContent = prepareContent({
@@ -563,7 +566,10 @@ export const renderHtmlFromPage = ({
     (e) => `<div>Failed to render page: ${title}</div><div>${e.message}</div>`
   );
   const hydratedHtml = config.template
-    .replace(/\${PAGE_CONTENT}/g, markedContent)
+    .replace(
+      /\${PAGE_CONTENT}/g,
+      layout.replace(/\${PAGE_CONTENT}/g, markedContent)
+    )
     .replace(
       "</head>",
       `${DEFAULT_STYLE.replace(/<\/style>/, theme)}${head}</head>`
@@ -602,6 +608,7 @@ export const processSiteData = ({
   pages,
   outputPath,
   config,
+  layouts,
   info,
 }: {
   info: (s: string) => void;
@@ -610,6 +617,7 @@ export const processSiteData = ({
   pages: {
     [k: string]: PageContent;
   };
+  layouts: string[];
 }): InputConfig => {
   const pageNames = Object.keys(pages).sort();
   info(
@@ -648,7 +656,10 @@ export const processSiteData = ({
     renderHtmlFromPage({
       outputPath,
       config,
-      pageContent: pages[p],
+      pageContent: {
+        ...pages[p],
+        layout: layouts[pages[p].layout] || "${PAGE_CONTENT}",
+      },
       p,
       pageMetadata,
       blockReferences: (t: string) => blockReferencesCache[t],
@@ -871,11 +882,12 @@ export const run = async ({
           children: t.children.map(getReferences),
         });
 
+        const layouts = config.filter.map((f) => f.layout);
         const titleFilters = config.filter
-          .map(getTitleRuleFromNode)
-          .filter((f) => !!f);
+          .map((f, layout) => ({ fcn: getTitleRuleFromNode(f), layout }))
+          .filter((f) => !!f.fcn);
         const titleFilter = (t: string) =>
-          !titleFilters.length || titleFilters.some((r) => r && r(t));
+          !titleFilters.length || titleFilters.some((r) => r.fcn(t));
 
         info(`querying data ${new Date().toLocaleTimeString()}`);
         const pageNamesWithContent = await Promise.all(
@@ -892,6 +904,7 @@ export const run = async ({
                 (content) => ({
                   pageName,
                   content,
+                  layout: titleFilters.find((r) => r.fcn(pageName))?.layout,
                 })
               );
             })
@@ -902,7 +915,7 @@ export const run = async ({
           } pages ${new Date().toLocaleTimeString()}`
         );
         const entries = await Promise.all(
-          pageNamesWithContent.map(({ pageName, content }) => {
+          pageNamesWithContent.map(({ pageName, content, layout }) => {
             return Promise.all([
               page.evaluate(
                 (pageName: string) =>
@@ -949,6 +962,7 @@ export const run = async ({
                 content: content.map(getReferences),
                 viewType,
                 uid,
+                layout,
               }))
               .catch((e) => {
                 console.error("Failed to find references for page", pageName);
@@ -1007,7 +1021,7 @@ export const run = async ({
         );
         await page.close();
         browser.close();
-        return { pages, outputPath, config };
+        return { pages, outputPath, config, layouts };
       } catch (e) {
         await page.screenshot({ path: path.join(pathRoot, "error.png") });
         error("took screenshot");
@@ -1100,7 +1114,7 @@ export const handler = async (event: {
     .getObject({ Bucket: "roamjs-static-site-data", Key: event.key })
     .promise()
     .then((data) => {
-      const { pages, config } = JSON.parse(data.Body.toString());
+      const { pages, config, layouts } = JSON.parse(data.Body.toString());
       const outputPath = path.join(pathRoot, "out");
       fs.mkdirSync(outputPath, { recursive: true });
       return processSiteData({
@@ -1109,6 +1123,7 @@ export const handler = async (event: {
           ...defaultConfig,
           ...config,
         },
+        layouts,
         outputPath,
         info: console.log,
       });

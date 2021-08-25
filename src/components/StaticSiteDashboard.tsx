@@ -1,6 +1,8 @@
 import {
   Alert,
   Button,
+  Classes,
+  Dialog,
   IAlertProps,
   Icon,
   InputGroup,
@@ -194,6 +196,61 @@ const RequestIndexContent: StageContent = ({ openPanel }) => {
   );
 };
 
+const FilterLayout = ({
+  filterText,
+  initialValue,
+  saveValue,
+}: {
+  filterText: string;
+  initialValue: string;
+  saveValue: (s: string) => void;
+}) => {
+  const [filterLayoutOpen, setFilterLayoutOpen] = useState(false);
+  const openFilterLayout = useCallback(
+    () => setFilterLayoutOpen(true),
+    [setFilterLayoutOpen]
+  );
+  const closeFilterLayout = useCallback(
+    () => setFilterLayoutOpen(false),
+    [setFilterLayoutOpen]
+  );
+  const [value, setValue] = useState(initialValue);
+  const onBeforeChange = useCallback(
+    (_, __, value) => setValue(value),
+    [setValue]
+  );
+  return (
+    <Tooltip>
+      <Button icon={"layout-grid"} minimal onClick={openFilterLayout} />
+      <Dialog isOpen={filterLayoutOpen} title={`Layout for ${filterText}`}>
+        <div className={Classes.DIALOG_BODY}>
+          <CodeMirror
+            value={value}
+            options={{
+              mode: { name: "xml", htmlMode: true },
+              lineNumbers: true,
+              lineWrapping: true,
+            }}
+            onBeforeChange={onBeforeChange}
+          />
+        </div>
+        <div className={Classes.DIALOG_FOOTER}>
+          <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+            <Button text={"Cancel"} onClick={closeFilterLayout} />
+            <Button
+              text={"Save"}
+              onClick={() => {
+                saveValue(value);
+                closeFilterLayout();
+              }}
+            />
+          </div>
+        </div>
+      </Dialog>
+    </Tooltip>
+  );
+};
+
 const RequestFiltersContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
   const pageUid = useServicePageUid();
@@ -229,7 +286,12 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
       ...filters,
       {
         text: "TAGGED WITH",
-        children: [{ text: "Website", children: [] }],
+        children: [
+          {
+            text: "Website",
+            children: [{ text: "${PAGE_CONTENT}", children: [] }],
+          },
+        ],
         key,
       },
     ]);
@@ -276,7 +338,7 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
                       f.key === filter.key
                         ? {
                             ...filter,
-                            children: [{ text, children: [] }],
+                            children: [{ ...f.children[0], text }],
                           }
                         : filter
                     )
@@ -294,7 +356,7 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
                           ? {
                               ...filter,
                               children: [
-                                { text: e.target.value, children: [] },
+                                { ...filter.children[0], text: e.target.value },
                               ],
                             }
                           : filter
@@ -304,6 +366,35 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
                 />
               )
             )}
+            <FilterLayout
+              filterText={`${f.text} ${f.children[0].text}`}
+              initialValue={
+                HTML_REGEX.exec(f.children[0]?.children?.[0]?.text)?.[1] ||
+                "${PAGE_CONTENT}"
+              }
+              saveValue={(v) =>
+                setFilters(
+                  filters.map((filter) =>
+                    f.key === filter.key
+                      ? {
+                          ...filter,
+                          children: [
+                            {
+                              ...filter.children[0],
+                              children: [
+                                {
+                                  text: `\`\`\`html\n${v}\`\`\``,
+                                  children: [],
+                                },
+                              ],
+                            },
+                          ],
+                        }
+                      : filter
+                  )
+                )
+              }
+            />
             <Button
               icon={"trash"}
               minimal
@@ -333,7 +424,7 @@ const getLaunchBody = () => {
   };
 };
 
-type Filter = { rule: string; values: string[] };
+type Filter = { rule: string; values: string[]; layout: string };
 const TITLE_REGEX = new RegExp(`roam/js/static-site/title::(.*)`);
 const HEAD_REGEX = new RegExp(`roam/js/static-stite/head::`);
 const DESCRIPTION_REGEX = new RegExp(`roam/js/static-site/title::(.*)`);
@@ -391,6 +482,7 @@ const getDeployBody = () => {
         filter: filterNode.children.map((t) => ({
           rule: t.text,
           values: t.children.map((c) => c.text),
+          layout: t.children[0]?.text,
         })),
       }
     : {};
@@ -450,11 +542,12 @@ const getDeployBody = () => {
       }),
       {} as { [p: string]: string[] }
     );
+  const layouts = config.filter.map((f) => f.layout);
   const titleFilters = config.filter
-    .map(getTitleRuleFromNode)
-    .filter((f) => !!f);
+    .map((f, layout) => ({ fcn: getTitleRuleFromNode(f), layout }))
+    .filter((f) => !!f.fcn);
   const titleFilter = (t: string) =>
-    !titleFilters.length || titleFilters.some((r) => r && r(t));
+    !titleFilters.length || titleFilters.some((r) => r.fcn(t));
 
   const blockReferences = config.plugins?.["inline-block-references"]
     ? window.roamAlphaAPI
@@ -482,8 +575,9 @@ const getDeployBody = () => {
     .map((pageName) => ({
       pageName,
       content: getTreeByPageName(pageName),
+      layout: titleFilters.find((r) => r.fcn(pageName))?.layout,
     }));
-  const entries = pageNamesWithContent.map(({ pageName, content }) => {
+  const entries = pageNamesWithContent.map(({ pageName, content, layout }) => {
     const references = getPageTitlesAndBlockUidsReferencingPage(pageName).map(
       ({ title, uid }) => ({
         title,
@@ -497,6 +591,7 @@ const getDeployBody = () => {
       content: content.map(getReferences),
       viewType,
       uid: getPageUidByPageTitle(pageName),
+      layout,
     };
   });
   const pages = Object.fromEntries(
@@ -541,7 +636,7 @@ const getDeployBody = () => {
       ];
     })
   );
-  return { data: JSON.stringify({ pages, config }) };
+  return { data: JSON.stringify({ pages, config, layouts }) };
 };
 
 const getNameServers = (statusProps: string): string[] => {
