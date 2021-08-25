@@ -220,9 +220,16 @@ const FilterLayout = ({
     [setValue]
   );
   return (
-    <Tooltip>
+    <Tooltip content={"Edit Filter Layout"}>
       <Button icon={"layout-grid"} minimal onClick={openFilterLayout} />
-      <Dialog isOpen={filterLayoutOpen} title={`Layout for ${filterText}`}>
+      <Dialog
+        isOpen={filterLayoutOpen}
+        title={`Layout for ${filterText}`}
+        onClose={closeFilterLayout}
+        isCloseButtonShown
+        canOutsideClickClose
+        canEscapeKeyClose
+      >
         <div className={Classes.DIALOG_BODY}>
           <CodeMirror
             value={value}

@@ -1151,7 +1151,7 @@ export const handler = async (event: {
       const ContentType = "text/html;charset=UTF-8";
       const Prefix = `${event.roamGraph}/`;
       const filesToUpload = readDir(path.join("/tmp", "out")).map((s) =>
-        s.replace(/$\/tmp\/out\//, "")
+        s.replace(/^\/tmp\/out\//, "")
       );
 
       const fileSet = new Set(filesToUpload);
