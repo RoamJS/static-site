@@ -30,7 +30,6 @@ import {
   getTreeByBlockUid,
   getTreeByPageName,
   createBlock,
-  TextNode,
   TreeNode,
   getPageTitlesAndBlockUidsReferencingPage,
   getPageViewType,
@@ -39,6 +38,7 @@ import {
   getFirstChildTextByBlockUid,
   DAILY_NOTE_PAGE_TITLE_REGEX,
   getPageUidByPageTitle,
+  InputTextNode,
 } from "roam-client";
 import {
   Description,
@@ -47,8 +47,6 @@ import {
   setInputSetting,
   toFlexRegex,
   useServiceField,
-  SERVICE_GUIDE_HIGHLIGHT,
-  useServiceIsFieldSet,
   WrapServiceMainStage,
   ServiceNextButton,
   ServiceDashboard,
@@ -266,7 +264,7 @@ const FilterLayout = ({
 const RequestFiltersContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
   const pageUid = useServicePageUid();
-  const [filters, setFilters] = useState<(TextNode & { key: number })[]>(
+  const [filters, setFilters] = useState<(InputTextNode & { key: number })[]>(
     (
       getTreeByPageName("roam/js/static-site").find((t) =>
         /filter/i.test(t.text)
@@ -281,7 +279,7 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
       keyNode.children.forEach(({ uid }) =>
         window.roamAlphaAPI.deleteBlock({ block: { uid } })
       );
-      filters.forEach((node, order) =>
+      filters.forEach(({uid:_, ...node}, order) =>
         createBlock({ node, order, parentUid: keyNode.uid })
       );
     } else if (!keyNode) {
@@ -301,7 +299,7 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
         children: [
           {
             text: "Website",
-            children: [{ text: "${PAGE_CONTENT}", children: [] }],
+            children: [{ text: "${PAGE_CONTENT}" }],
           },
         ],
         key,
@@ -396,7 +394,6 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
                               children: [
                                 {
                                   text: `\`\`\`html\n${v}\`\`\``,
-                                  children: [],
                                 },
                               ],
                             },
