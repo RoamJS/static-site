@@ -61,10 +61,10 @@ const allBlockMapper = (t: TreeNode): TreeNode[] => [
 const ensureDirectoryExistence = (filePath: string) => {
   var dirname = path.dirname(filePath);
   if (!fs.existsSync(dirname)) {
-    fs.mkdirSync(dirname, {recursive: true});
+    fs.mkdirSync(dirname, { recursive: true });
     return true;
   }
-}
+};
 
 type Filter = { rule: string; values: string[]; layout: string };
 
@@ -1106,6 +1106,13 @@ const waitForCloudfront = (props: {
     });
 };
 
+export const readDir = (s: string): string[] =>
+  fs
+    .readdirSync(s, { withFileTypes: true })
+    .flatMap((f) =>
+      f.isDirectory() ? readDir(path.join(s, f.name)) : [path.join(s, f.name)]
+    );
+
 export const handler = async (event: {
   roamGraph: string;
   key?: string;
@@ -1143,7 +1150,9 @@ export const handler = async (event: {
       const Bucket = `roamjs-static-sites`;
       const ContentType = "text/html;charset=UTF-8";
       const Prefix = `${event.roamGraph}/`;
-      const filesToUpload = fs.readdirSync(path.join("/tmp", "out"));
+      const filesToUpload = readDir(path.join("/tmp", "out")).map((s) =>
+        s.replace(/$\/tmp\/out\//, "")
+      );
 
       const fileSet = new Set(filesToUpload);
       const eTags: { [key: string]: string } = {};
