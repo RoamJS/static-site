@@ -476,6 +476,26 @@ module "roamjs_lambda" {
     { 
       path = "deploy", 
       method = "post"
+    },
+    {
+      path = "launch-website",
+      method = "post"
+    },
+    {
+      path = "shutdown-website",
+      method = "post"
+    },
+    {
+      path = "update-website",
+      method = "post"
+    },
+    {
+      path = "website-status",
+      method = "get"
+    },
+    {
+      path = "website-variables",
+      method = "get"
     }
   ]
   aws_access_token = var.aws_access_token
