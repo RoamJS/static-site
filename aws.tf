@@ -474,7 +474,7 @@ module "roamjs_lambda" {
   name = "service-static-site"
   lambdas = [
     { 
-      path = "deploy", 
+      path = "deploy-website", 
       method = "post"
     },
     {
@@ -506,18 +506,7 @@ module "roamjs_lambda" {
 
 provider "github" {
     owner = "dvargas92495"
-}
-
-resource "github_actions_secret" "deploy_aws_access_key" {
-  repository       = "roamjs-static-site"
-  secret_name      = "DEPLOY_AWS_ACCESS_KEY"
-  plaintext_value  = var.aws_access_token
-}
-
-resource "github_actions_secret" "deploy_aws_access_secret" {
-  repository       = "roamjs-static-site"
-  secret_name      = "DEPLOY_AWS_ACCESS_SECRET"
-  plaintext_value  = var.aws_secret_token
+    token = var.github_token
 }
 
 resource "github_actions_secret" "cloudfront_secret" {
