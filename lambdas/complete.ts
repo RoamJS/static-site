@@ -9,6 +9,7 @@ import {
   dynamo,
   getStackParameter,
   getStackSummaries,
+  ses,
   SHUTDOWN_CALLBACK_STATUS,
 } from "./common/common";
 
@@ -17,7 +18,6 @@ const credentials = {
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
 };
 
-const ses = new AWS.SES({ apiVersion: "2010-12-01", credentials });
 const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
 const ACM_START_TEXT = "Content of DNS Record is: ";
 
@@ -52,11 +52,9 @@ const getHostedZone = async (domain: string) => {
   let finished = false;
   let Marker: string = undefined;
   while (!finished) {
-    const {
-      HostedZones,
-      IsTruncated,
-      NextMarker,
-    } = await route53.listHostedZones({ Marker }).promise();
+    const { HostedZones, IsTruncated, NextMarker } = await route53
+      .listHostedZones({ Marker })
+      .promise();
     const zone = HostedZones.find((i) => i.Name === `${domain}.`);
     if (zone) {
       return zone;

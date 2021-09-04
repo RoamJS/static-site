@@ -836,7 +836,7 @@ const LiveContent: StageContent = () => {
     [setError, setLoading, getWebsite, authenticatedAxiosPost]
   );
   const manualDeploy = useCallback(
-    () => wrapPost("deploy", getDeployBody),
+    () => wrapPost(process.env.DEPLOY_ENDPOINT, getDeployBody),
     [wrapPost]
   );
   const launchWebsite = useCallback(

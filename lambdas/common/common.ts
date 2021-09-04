@@ -1,7 +1,32 @@
 import AWS from "aws-sdk";
+import axios from "axios";
 import { v4 } from "uuid";
 import { JSDOM } from "jsdom";
 import { TreeNode } from "roam-client";
+import { APIGatewayProxyEvent } from "aws-lambda";
+
+export const headers = {
+  "Access-Control-Allow-Origin": "https://roamresearch.com",
+  "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE",
+};
+
+export const getRoamJSUser = (event: APIGatewayProxyEvent) =>
+  axios.get(`${process.env.ROAMJS_API_URL}/user`, {
+    headers: {
+      Authorization: process.env.ROAMJS_DEVELOPER_TOKEN,
+      "x-roamjs-token": event.headers.Authorization || event.headers.authorization,
+      "x-roamjs-service": "staticSite",
+    },
+  });
+
+export const putRoamJSUser = (event: APIGatewayProxyEvent, data: {websiteGraph?: string, websiteToken?: string}) =>
+  axios.put(`${process.env.ROAMJS_API_URL}/user`, data, {
+    headers: {
+      Authorization: process.env.ROAMJS_DEVELOPER_TOKEN,
+      "x-roamjs-token": event.headers.Authorization || event.headers.authorization,
+      "x-roamjs-service": "staticSite",
+    },
+  });
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -23,6 +48,9 @@ export const cloudfront = new AWS.CloudFront({
   apiVersion: "2020-05-31",
   credentials,
 });
+export const lambda = new AWS.Lambda({ apiVersion: "2015-03-31", credentials });
+export const s3 = new AWS.S3({ apiVersion: "2006-03-01", credentials });
+export const ses = new AWS.SES({ apiVersion: "2010-12-01", credentials });
 
 export const SHUTDOWN_CALLBACK_STATUS = "PREPARING TO DELETE STACK";
 

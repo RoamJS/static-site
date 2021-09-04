@@ -10,6 +10,14 @@ on:
 env:
   AWS_ACCESS_KEY_ID: ${{ secrets.DEPLOY_AWS_ACCESS_KEY }}
   AWS_SECRET_ACCESS_KEY: ${{ secrets.DEPLOY_AWS_ACCESS_SECRET }}
+  ROAMJS_DEVELOPER_TOKEN: ${{ secrets.ROAMJS_DEVELOPER_TOKEN }}
+  CLOUDFRONT_SECRET: ${{ secrets.CLOUDFRONT_SECRET }}
+  CLOUDFORMATION_ROLE_ARN: ${{ secrets.CLOUDFORMATION_ROLE_ARN }}
+  ORIGIN_LAMBDA_ARN: ${{ secrets.ORIGIN_LAMBDA_ARN }}
+  SNS_TOPIC_ARN: ${{ secrets.SNS_TOPIC_ARN }}
+  S3_WEBSITE_ENDPOINT: ${{ secrets.S3_WEBSITE_ENDPOINT }}
+  ROAMJS_ZONE_ID: ${{ secrets.ROAMJS_ZONE_ID }}
+  ROAMJS_API_URL: https://api.roamjs.com
 
 jobs:
   deploy:
@@ -22,15 +30,5 @@ jobs:
           node-version: 12.16.1
       - name: install
         run: npm install
-      - name: Setup env
-        run: |
-          echo "AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID" >> .env.local
-          echo "AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY" >> .env.local
-          echo "CLOUDFRONT_SECRET=${{ secrets.CLOUDFRONT_SECRET }}" >> .env.local
-          echo "CLOUDFORMATION_ROLE_ARN=${{ secrets.CLOUDFORMATION_ROLE_ARN }}" >> .env.local
-          echo "ORIGIN_LAMBDA_ARN=${{ secrets.ORIGIN_LAMBDA_ARN }}" >> .env.local
-          echo "SNS_TOPIC_ARN=${{ secrets.SNS_TOPIC_ARN }}" >> .env.local
-          echo "S3_WEBSITE_ENDPOINT=${{ secrets.S3_WEBSITE_ENDPOINT }}" >> .env.local
-          echo "ROAMJS_ZONE_ID=${{ secrets.ROAMJS_ZONE_ID }}" >> .env.local
       - name: Deploy
         run: npm run lambdas
