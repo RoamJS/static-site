@@ -4,7 +4,7 @@ import {
   dynamo,
   getRoamJSUser,
   headers,
-  lambda,
+  invokeLambda,
   putRoamJSUser,
 } from "./common/common";
 
@@ -61,17 +61,14 @@ export const handler: APIGatewayProxyHandler = (event) => {
       })
       .promise();
 
-    await lambda
-      .invoke({
-        FunctionName: "RoamJS_launch",
-        InvocationType: "Event",
-        Payload: JSON.stringify({
-          roamGraph: graph,
-          domain: domain.toLowerCase(),
-          email,
-        }),
-      })
-      .promise();
+    await invokeLambda({
+      path: "launch",
+      data: {
+        roamGraph: graph,
+        domain: domain.toLowerCase(),
+        email,
+      },
+    });
 
     return {
       statusCode: 200,

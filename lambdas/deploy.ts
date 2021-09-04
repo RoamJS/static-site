@@ -49,6 +49,7 @@ const DESCRIPTION_REGEX = new RegExp(
   ).join("|")})::(.*)`
 );
 const METADATA_REGEX = /roam\/js\/static-site\/([a-z-]+)::(.*)/;
+const CODE_REGEX = new RegExp("```[a-z]*\n(.*)```", "s");
 const HTML_REGEX = new RegExp("```html\n(.*)```", "s");
 const DAILY_NOTE_PAGE_REGEX =
   /(January|February|March|April|May|June|July|August|September|October|November|December) [0-3]?[0-9](st|nd|rd|th), [0-9][0-9][0-9][0-9]/;
@@ -124,6 +125,21 @@ const DEFAULT_STYLE = `<style>
 .rm-bold {
   font-weight: bold;
 }
+.rm-iframe-container {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  padding-top: 56.25%;
+}
+.rm-iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+}
 .document-bullet {
   list-style: none;
 }
@@ -140,6 +156,9 @@ table {
 }
 #content {
   box-sizing: border-box;
+}
+p {
+  white-space: pre-wrap;
 }
 </style>
 `;
@@ -292,6 +311,13 @@ const VIEW_CONTAINER = {
 
 const HEADINGS = ["p", "h1", "h2", "h3"];
 
+const cleanText = (s: string) => {
+  if (CODE_REGEX.test(s)) {
+    return s;
+  }
+  return s.replace(/([^\n])\n([^\n])/g, "$1\n\n$2");
+};
+
 const convertContentToHtml = ({
   content,
   viewType,
@@ -323,7 +349,7 @@ const convertContentToHtml = ({
               `<tr>${[row, ...row.children.flatMap(allBlockMapper)]
                 .map(
                   (td) =>
-                    `<td>${parseInline(td.text, {
+                    `<td>${parseInline(cleanText(td.text), {
                       ...context,
                       components: componentsWithChildren,
                     })}</td>`
@@ -565,6 +591,7 @@ export const renderHtmlFromPage = ({
                   },
                 })}`;
               }
+            } else if (/embed/i.test(s)) {
             }
             return "";
           },
@@ -1089,7 +1116,7 @@ const waitForCloudfront = (props: {
     .then((status) => {
       if (status === "Completed") {
         resolve("Done!");
-      } else if (trial === 60) {
+      } else if (trial === 100) {
         resolve("Ran out of time waiting for cloudfront...");
       } else {
         console.log(
@@ -1100,7 +1127,7 @@ const waitForCloudfront = (props: {
         );
         setTimeout(
           () => waitForCloudfront({ ...args, trial: trial + 1, resolve }),
-          1000
+          5000
         );
       }
     });
@@ -1113,6 +1140,11 @@ export const readDir = (s: string): string[] =>
       f.isDirectory() ? readDir(path.join(s, f.name)) : [path.join(s, f.name)]
     );
 
+const outputPath =
+  process.env.NODE_ENV === "production"
+    ? path.join("/tmp", "path")
+    : path.resolve("dist");
+
 export const handler = async (event: {
   roamGraph: string;
   key?: string;
@@ -1124,7 +1156,6 @@ export const handler = async (event: {
     await logStatus("SUCCESS");
     return;
   }
-  const pathRoot = "/tmp";
 
   await logStatus("BUILDING SITE");
   return s3
@@ -1132,7 +1163,6 @@ export const handler = async (event: {
     .promise()
     .then((data) => {
       const { pages, config, layouts = [] } = JSON.parse(data.Body.toString());
-      const outputPath = path.join(pathRoot, "out");
       fs.mkdirSync(outputPath, { recursive: true });
       return processSiteData({
         pages,
@@ -1150,9 +1180,10 @@ export const handler = async (event: {
       const Bucket = `roamjs-static-sites`;
       const ContentType = "text/html;charset=UTF-8";
       const Prefix = `${event.roamGraph}/`;
-      const filesToUpload = readDir(path.join(pathRoot, "out")).map((s) =>
-        s.replace(/^\/tmp\/out\//, "")
+      const filesToUpload = readDir(outputPath).map((s) =>
+        s.replace(new RegExp(`^${outputPath.replace(/\\/g, '\\\\')}`), "").replace(/^(\/|\\)/, '')
       );
+      console.log('uploading', filesToUpload);
 
       const fileSet = new Set(filesToUpload);
       const eTags: { [key: string]: string } = {};
@@ -1189,7 +1220,7 @@ export const handler = async (event: {
       await logStatus("UPLOADING");
       console.log("Files to Upload", filesToUpload.length);
       for (const key of filesToUpload) {
-        const Body = fs.createReadStream(path.join(pathRoot, "out", key));
+        const Body = fs.createReadStream(path.join(outputPath, key));
         const Key = `${Prefix}${key}`;
         const { ETag } = await s3
           .upload({ Bucket, Key, Body, ContentType })

@@ -3,3 +3,4 @@ out
 build
 .env.local
 error.png
+dist

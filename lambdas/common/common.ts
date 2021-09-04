@@ -9,25 +9,6 @@ export const headers = {
   "Access-Control-Allow-Origin": "https://roamresearch.com",
   "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE",
 };
-
-export const getRoamJSUser = (event: APIGatewayProxyEvent) =>
-  axios.get(`${process.env.ROAMJS_API_URL}/user`, {
-    headers: {
-      Authorization: process.env.ROAMJS_DEVELOPER_TOKEN,
-      "x-roamjs-token": event.headers.Authorization || event.headers.authorization,
-      "x-roamjs-service": "staticSite",
-    },
-  });
-
-export const putRoamJSUser = (event: APIGatewayProxyEvent, data: {websiteGraph?: string, websiteToken?: string}) =>
-  axios.put(`${process.env.ROAMJS_API_URL}/user`, data, {
-    headers: {
-      Authorization: process.env.ROAMJS_DEVELOPER_TOKEN,
-      "x-roamjs-token": event.headers.Authorization || event.headers.authorization,
-      "x-roamjs-service": "staticSite",
-    },
-  });
-
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -51,6 +32,43 @@ export const cloudfront = new AWS.CloudFront({
 export const lambda = new AWS.Lambda({ apiVersion: "2015-03-31", credentials });
 export const s3 = new AWS.S3({ apiVersion: "2006-03-01", credentials });
 export const ses = new AWS.SES({ apiVersion: "2010-12-01", credentials });
+
+export const getRoamJSUser = (event: APIGatewayProxyEvent) =>
+  axios.get(`${process.env.ROAMJS_API_URL}/user`, {
+    headers: {
+      Authorization: process.env.ROAMJS_DEVELOPER_TOKEN,
+      "x-roamjs-token":
+        event.headers.Authorization || event.headers.authorization,
+      "x-roamjs-service": "staticSite",
+    },
+  });
+
+export const putRoamJSUser = (
+  event: APIGatewayProxyEvent,
+  data: { websiteGraph?: string; websiteToken?: string }
+) =>
+  axios.put(`${process.env.ROAMJS_API_URL}/user`, data, {
+    headers: {
+      Authorization: process.env.ROAMJS_DEVELOPER_TOKEN,
+      "x-roamjs-token":
+        event.headers.Authorization || event.headers.authorization,
+      "x-roamjs-service": "staticSite",
+    },
+  });
+
+type InvokeLambdaProps = { path: string; data: Record<string, unknown> };
+export const invokeLambda =
+  process.env.NODE_ENV === "production"
+    ? ({ path, data }: InvokeLambdaProps) =>
+        lambda
+          .invoke({
+            FunctionName: `RoamJS_${path}`,
+            InvocationType: "Event",
+            Payload: JSON.stringify(data),
+          })
+          .promise()
+    : ({ path, data }: InvokeLambdaProps) =>
+        axios.post(`${process.env.API_URL}/${path}`, data);
 
 export const SHUTDOWN_CALLBACK_STATUS = "PREPARING TO DELETE STACK";
 
