@@ -486,6 +486,10 @@ module "roamjs_lambda" {
       method = "post"
     },
     {
+      path = "finish-shutdown-website",
+      method = "post"
+    },
+    {
       path = "update-website",
       method = "post"
     },
