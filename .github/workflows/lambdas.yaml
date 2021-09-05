@@ -19,7 +19,6 @@ env:
   S3_WEBSITE_ENDPOINT: ${{ secrets.S3_WEBSITE_ENDPOINT }}
   ROAMJS_ZONE_ID: ${{ secrets.ROAMJS_ZONE_ID }}
   ROAMJS_API_URL: https://api.roamjs.com
-  NODE_ENV: production
 
 jobs:
   deploy:

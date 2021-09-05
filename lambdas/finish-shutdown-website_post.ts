@@ -11,7 +11,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  const { websiteToken, websiteGraph, email, ...rest } = await getRoamJSUser(
+  const { websiteToken, websiteGraph, email } = await getRoamJSUser(
     event
   ).then((r) => r.data);
   if (!websiteToken) {
