@@ -39,6 +39,7 @@ import {
   DAILY_NOTE_PAGE_TITLE_REGEX,
   getPageUidByPageTitle,
   InputTextNode,
+  getBasicTreeByParentUid,
 } from "roam-client";
 import {
   Description,
@@ -57,6 +58,7 @@ import {
   useAuthenticatedPost,
   useServiceNextStage,
   useServicePageUid,
+  useSubTree,
 } from "roamjs-components";
 
 const allBlockMapper = (t: TreeNode): TreeNode[] => [
@@ -1430,31 +1432,25 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
 
 const tabIds = {
   text: ["font"],
-  layout: ["width"],
+  layout: ["width", "favicon"],
 };
 
 const RequestThemeContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
   const pageUid = useServicePageUid();
-  const themeUid = useMemo(
-    () =>
-      getShallowTreeByParentUid(pageUid).find((t) =>
-        toFlexRegex("theme").test(t.text)
-      )?.uid ||
-      createBlock({ parentUid: pageUid, node: { text: "theme" }, order: 1 }),
-    [pageUid]
-  );
+  const { uid: themeUid, children: themeChildren } = useSubTree({
+    parentUid: pageUid,
+    key: "theme",
+    order: 1,
+  });
   const [values, setValues] = useState<Record<string, Record<string, string>>>(
     () =>
       themeUid
         ? Object.fromEntries(
-            getShallowTreeByParentUid(themeUid).map(({ uid, text }) => [
+            themeChildren.map(({ text, children }) => [
               text,
               Object.fromEntries(
-                getShallowTreeByParentUid(uid).map((c) => [
-                  c.text,
-                  getFirstChildTextByBlockUid(c.uid),
-                ])
+                children.map((c) => [c.text, c.children[0]?.text])
               ),
             ])
           )

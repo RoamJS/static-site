@@ -67,7 +67,10 @@ export const handler: APIGatewayProxyHandler = async (event) => {
           IndexName: "primary-index",
         })
         .promise()
-        .catch(() => ({ Items: [] }));
+        .catch((e) => {
+          console.error(e);
+          return { Items: [] };
+        });
       if (!statuses.Items.length) {
         return {
           statusCode: 204,

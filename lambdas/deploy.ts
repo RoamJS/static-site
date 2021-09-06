@@ -28,6 +28,8 @@ import InlineBlockReference from "../components/InlineBlockReference";
 import { render as renderHeader } from "../components/Header";
 import { render as renderSidebar } from "../components/Sidebar";
 import { render as renderImagePreview } from "../components/ImagePreview";
+import axios from "axios";
+import mime from "mime-types";
 
 const transformIfTrue = (s: string, f: boolean, t: (s: string) => string) =>
   f ? t(s) : s;
@@ -641,7 +643,7 @@ export const renderHtmlFromPage = ({
   fs.writeFileSync(filePath, newHtml);
 };
 
-export const processSiteData = ({
+export const processSiteData = async ({
   pages,
   outputPath,
   config,
@@ -655,7 +657,7 @@ export const processSiteData = ({
     [k: string]: PageContent;
   };
   layouts: string[];
-}): InputConfig => {
+}): Promise<InputConfig> => {
   const pageNames = Object.keys(pages).sort();
   info(
     `resolving ${pageNames.length} pages ${new Date().toLocaleTimeString()}`
@@ -703,6 +705,20 @@ export const processSiteData = ({
       theme,
     });
   });
+
+  if (config.theme?.layout?.favicon) {
+    const url =
+      /^\s*!\[.*\]\((.*)\)\s*$/.exec(config.theme.layout.favicon)?.[1] ||
+      config.theme.layout.favicon;
+    await axios
+      .get(url, { responseType: "stream" })
+      .then((r) => {
+        r.data.pipe(
+          fs.createWriteStream(path.join(outputPath, "./favicon.ico"))
+        );
+      })
+      .catch(() => console.warn("invalid favicon"));
+  }
   return config;
 };
 
@@ -1178,12 +1194,12 @@ export const handler = async (event: {
     .then(async () => {
       await logStatus("DELETING STALE FILES");
       const Bucket = `roamjs-static-sites`;
-      const ContentType = "text/html;charset=UTF-8";
       const Prefix = `${event.roamGraph}/`;
       const filesToUpload = readDir(outputPath).map((s) =>
-        s.replace(new RegExp(`^${outputPath.replace(/\\/g, '\\\\')}`), "").replace(/^(\/|\\)/, '')
+        s
+          .replace(new RegExp(`^${outputPath.replace(/\\/g, "\\\\")}`), "")
+          .replace(/^(\/|\\)/, "")
       );
-      console.log('uploading', filesToUpload);
 
       const fileSet = new Set(filesToUpload);
       const eTags: { [key: string]: string } = {};
@@ -1222,6 +1238,11 @@ export const handler = async (event: {
       for (const key of filesToUpload) {
         const Body = fs.createReadStream(path.join(outputPath, key));
         const Key = `${Prefix}${key}`;
+        const justType = mime.lookup(Key);
+        const ContentType =
+          justType && justType === "text/html"
+            ? "text/html;charset=UTF-8"
+            : justType || "text/plain";
         const { ETag } = await s3
           .upload({ Bucket, Key, Body, ContentType })
           .promise();
