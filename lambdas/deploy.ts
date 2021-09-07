@@ -145,6 +145,20 @@ const DEFAULT_STYLE = `<style>
 .document-bullet {
   list-style: none;
 }
+.rm-block-ref {
+  padding: 2px 2px;
+  margin: -2px 0;
+  display: inline;
+  border-bottom: .5px solid #D8E1E8;
+  cursor: alias;
+  color: #202B33;
+}
+.rm-block-ref:hover {
+  cursor: alias;
+  color: #202B33;
+  background-color: #F5F8FA;
+  text-decoration: none;
+}
 td {
   font-size: 12px;
   min-width: 100px;
