@@ -19,6 +19,7 @@ import {
   DAILY_NOTE_PAGE_TITLE_REGEX,
   parseInline,
   RoamMarkedContext,
+  BLOCK_REF_REGEX,
 } from "roam-client";
 import React from "react";
 import ReactDOMServer from "react-dom/server";
@@ -158,6 +159,18 @@ const DEFAULT_STYLE = `<style>
   color: #202B33;
   background-color: #F5F8FA;
   text-decoration: none;
+}
+.rm-embed-container {
+  position: relative;
+  display: flex;
+  padding-left: 8px;
+  background-color: #EBF1F5;
+}
+.rm-embed-link {
+  position: absolute;
+  right: 8px;
+  display: inline-block;
+  font-size: 1.5em;
 }
 td {
   font-size: 12px;
@@ -306,17 +319,6 @@ const getConfigFromPage = (parsedTree: TreeNode[]) => {
     ...withPlugins,
     ...withTheme,
   };
-};
-
-const prepareContent = ({ content }: { content: HydratedTreeNode[] }) => {
-  const filterIgnore = (t: HydratedTreeNode) => {
-    if (IGNORE_BLOCKS.some((ib) => t.text.trim().includes(ib))) {
-      return false;
-    }
-    t.children = t.children.filter(filterIgnore);
-    return true;
-  };
-  return content.filter(filterIgnore);
 };
 
 const VIEW_CONTAINER = {
@@ -468,7 +470,7 @@ export const renderHtmlFromPage = ({
   p,
   config,
   pageMetadata,
-  blockReferences,
+  blockReferencesCache,
   theme,
 }: {
   outputPath: string;
@@ -477,7 +479,11 @@ export const renderHtmlFromPage = ({
   config: Required<InputConfig>;
   pageMetadata: Record<string, string>;
   theme: string;
-} & Pick<Required<RoamMarkedContext>, "blockReferences">): void => {
+  blockReferencesCache: Record<
+    string,
+    { node: HydratedTreeNode; page: string }
+  >;
+}): void => {
   const {
     content,
     references = [],
@@ -488,9 +494,6 @@ export const renderHtmlFromPage = ({
     layout,
   } = pageContent;
   const pageNameSet = new Set(Object.keys(pageMetadata));
-  const preparedContent = prepareContent({
-    content,
-  });
   const pathConfigType = config.plugins["paths"]?.["type"] || [];
   const useLowercase = pathConfigType.includes("lowercase");
   const useUid =
@@ -522,98 +525,110 @@ export const renderHtmlFromPage = ({
     "inline-block-references"
   );
 
-  const markedContent = inlineTryCatch(
-    () =>
-      convertContentToHtml({
-        content: preparedContent,
-        viewType: pageContent.viewType,
-        useInlineBlockReferences,
-        pageNameSet,
-        level: 0,
-        context: {
-          pagesToHrefs,
-          components: (s, ac) => {
-            if (/static site/i.test(s)) {
-              if (ac && /daily log/i.test(ac)) {
-                const referenceContent = references
-                  .filter(({ title }) => DAILY_NOTE_PAGE_REGEX.test(title))
-                  .sort(
-                    ({ title: a }, { title: b }) =>
-                      parseRoamDate(b).valueOf() - parseRoamDate(a).valueOf()
-                  )
-                  .map(({ node, title }) => ({
-                    ...node,
-                    text: node.text.replace(p, title),
-                  }));
-                const preparedReferenceContent = prepareContent({
-                  content: referenceContent,
-                });
-                const firstNode = preparedReferenceContent[0];
-                const firstDate = parseRoamDate(
-                  firstNode?.text?.match?.(DAILY_NOTE_PAGE_REGEX)?.[0] || ""
-                );
-                const allContent = preparedReferenceContent.slice(1).reduce(
-                  (prev, cur) => {
-                    const lastNode = prev[prev.length - 1];
-                    const curDate = parseRoamDate(
-                      cur.text.match(DAILY_NOTE_PAGE_REGEX)?.[0] || ""
-                    );
-                    if (
-                      lastNode.month === curDate.getMonth() &&
-                      lastNode.year === curDate.getFullYear()
-                    ) {
-                      lastNode.nodes.push(cur);
-                      return prev;
-                    } else {
-                      return [
-                        ...prev,
-                        {
-                          nodes: [cur],
-                          month: curDate.getMonth(),
-                          year: curDate.getFullYear(),
-                        },
-                      ];
-                    }
-                  },
-                  firstNode
-                    ? [
-                        {
-                          nodes: [firstNode],
-                          month: firstDate.getMonth(),
-                          year: firstDate.getFullYear(),
-                        },
-                      ]
-                    : []
-                );
-                return `${renderComponent({
-                  Component: DailyLog,
-                  id: `${p}-daily-log`,
-                  props: {
-                    allContent: allContent.map(({ nodes, ...p }) => ({
-                      ...p,
-                      html: convertContentToHtml({
-                        content: nodes,
-                        viewType: pageContent.viewType,
-                        useInlineBlockReferences,
-                        pageNameSet,
-                        level: 0,
-                        context: {
-                          pagesToHrefs,
-                          components: () => "",
-                          blockReferences,
-                        },
-                      }),
-                    })),
-                  },
-                })}`;
-              }
-            } else if (/embed/i.test(s)) {
+  const blockReferences = (u: string) => ({
+    text: blockReferencesCache[u]?.node?.text,
+    page: blockReferencesCache[u]?.page,
+  });
+  const converter = ({ content }: { content: HydratedTreeNode[] }): string => {
+    const filterIgnore = (t: TreeNode) => {
+      if (IGNORE_BLOCKS.some((ib) => t.text.trim().includes(ib))) {
+        return false;
+      }
+      t.children = t.children.filter(filterIgnore);
+      return true;
+    };
+    const preparedContent = content.filter(filterIgnore);
+    return convertContentToHtml({
+      content: preparedContent,
+      viewType: pageContent.viewType,
+      useInlineBlockReferences,
+      pageNameSet,
+      level: 0,
+      context: {
+        pagesToHrefs,
+        components: (s, ac) => {
+          if (/static site/i.test(s)) {
+            if (ac && /daily log/i.test(ac)) {
+              const referenceContent = references
+                .filter(({ title }) => DAILY_NOTE_PAGE_REGEX.test(title))
+                .sort(
+                  ({ title: a }, { title: b }) =>
+                    parseRoamDate(b).valueOf() - parseRoamDate(a).valueOf()
+                )
+                .map(({ node, title }) => ({
+                  ...node,
+                  text: node.text.replace(p, title),
+                }));
+              const firstNode = referenceContent[0];
+              const firstDate = parseRoamDate(
+                firstNode?.text?.match?.(DAILY_NOTE_PAGE_REGEX)?.[0] || ""
+              );
+              const allContent = referenceContent.slice(1).reduce(
+                (prev, cur) => {
+                  const lastNode = prev[prev.length - 1];
+                  const curDate = parseRoamDate(
+                    cur.text.match(DAILY_NOTE_PAGE_REGEX)?.[0] || ""
+                  );
+                  if (
+                    lastNode.month === curDate.getMonth() &&
+                    lastNode.year === curDate.getFullYear()
+                  ) {
+                    lastNode.nodes.push(cur);
+                    return prev;
+                  } else {
+                    return [
+                      ...prev,
+                      {
+                        nodes: [cur],
+                        month: curDate.getMonth(),
+                        year: curDate.getFullYear(),
+                      },
+                    ];
+                  }
+                },
+                firstNode
+                  ? [
+                      {
+                        nodes: [firstNode],
+                        month: firstDate.getMonth(),
+                        year: firstDate.getFullYear(),
+                      },
+                    ]
+                  : []
+              );
+              return `${renderComponent({
+                Component: DailyLog,
+                id: `${p}-daily-log`,
+                props: {
+                  allContent: allContent.map(({ nodes, ...p }) => ({
+                    ...p,
+                    html: converter({
+                      content: nodes,
+                    }),
+                  })),
+                },
+              })}`;
             }
-            return "";
-          },
-          blockReferences,
+          } else if (/embed/i.test(s)) {
+            const uid = BLOCK_REF_REGEX.exec(ac.trim())?.[1] || "";
+            return (
+              uid &&
+              blockReferencesCache[uid] &&
+              `<div class="rm-embed-container">${converter({
+                content: [blockReferencesCache[uid].node],
+              })}<a class="rm-embed-link" href="${pagesToHrefs(
+                blockReferencesCache[uid].page
+              )}#${uid}"> ↗ </a></div>`
+            );
+          }
+          return "";
         },
-      }),
+        blockReferences,
+      },
+    });
+  };
+  const markedContent = inlineTryCatch(
+    () => converter({ content }),
     (e) => `<div>Failed to render page: ${title}</div><div>${e.message}</div>`
   );
   const hydratedHtml = config.template
@@ -678,13 +693,13 @@ export const processSiteData = async ({
   );
   info(`Here are some: ${pageNames.slice(0, 5)}`);
   const blockReferencesCache: {
-    [p: string]: { text: string; page: string };
+    [p: string]: { node: HydratedTreeNode; page: string };
   } = {};
   pageNames.forEach((page) => {
     const { content } = pages[page];
-    const forEach = (t: TreeNode) => {
-      blockReferencesCache[t.uid] = { text: t.text, page };
-      t.children.forEach(forEach);
+    const forEach = (node: HydratedTreeNode) => {
+      blockReferencesCache[node.uid] = { node, page };
+      node.children.forEach(forEach);
     };
     content.forEach(forEach);
   });
@@ -715,7 +730,7 @@ export const processSiteData = async ({
       },
       p,
       pageMetadata,
-      blockReferences: (t: string) => blockReferencesCache[t],
+      blockReferencesCache,
       theme,
     });
   });
