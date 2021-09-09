@@ -21,19 +21,16 @@ const credentials = {
 const route53 = new AWS.Route53({ apiVersion: "2013-04-01", credentials });
 const ACM_START_TEXT = "Content of DNS Record is: ";
 
-type Status = {
-  CREATE_IN_PROGRESS: string;
-  CREATE_COMPLETE: string;
-  DELETE_IN_PROGRESS: string;
-  DELETE_COMPLETE: string;
-};
-
 const factory = (resource: string) => ({
   CREATE_IN_PROGRESS: `CREATING ${resource}`,
   CREATE_COMPLETE: `${resource} CREATED`,
   DELETE_IN_PROGRESS: `DELETING ${resource}`,
   DELETE_COMPLETE: `${resource} DELETED`,
+  UPDATE_IN_PROGRESS: `UPDATING ${resource}`,
+  UPDATE_COMPLETE: `${resource} UPDATED`,
 });
+
+type Status = ReturnType<typeof factory>;
 
 const STATUSES = {
   HostedZone: factory("ZONE"),
