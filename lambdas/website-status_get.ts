@@ -1,6 +1,11 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
 import AWS from "aws-sdk";
-import { dynamo, getRoamJSUser, headers } from "./common/common";
+import {
+  dynamo,
+  getActionGraph,
+  getRoamJSUser,
+  headers,
+} from "./common/common";
 
 const getProgressProps = (
   items?: AWS.DynamoDB.ItemList,
@@ -59,7 +64,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
           KeyConditionExpression: "action_graph = :a",
           ExpressionAttributeValues: {
             ":a": {
-              S: `launch_${graph}`,
+              S: getActionGraph(graph),
             },
           },
           Limit: 100,
@@ -109,13 +114,11 @@ export const handler: APIGatewayProxyHandler = async (event) => {
           statusProps: statuses.Items
             ? statuses.Items[0].status_props?.S
             : "{}",
-          deploys: deploys
-            .slice(0, 10)
-            .map((d) => ({
-              date: d.date.S,
-              status: d.status.S,
-              uuid: d.uuid.S,
-            })),
+          deploys: deploys.slice(0, 10).map((d) => ({
+            date: d.date.S,
+            status: d.status.S,
+            uuid: d.uuid.S,
+          })),
           ...getProgressProps(statuses.Items, deployStatuses.Items),
         }),
         headers,

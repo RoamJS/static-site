@@ -1,6 +1,6 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
 import { v4 } from "uuid";
-import { dynamo, getRoamJSUser, headers, lambda } from "./common/common";
+import { createLogStatus, dynamo, getRoamJSUser, headers, lambda } from "./common/common";
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   const { graph, diffs } = JSON.parse(event.body);
@@ -29,25 +29,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  await dynamo
-    .putItem({
-      TableName: "RoamJSWebsiteStatuses",
-      Item: {
-        uuid: {
-          S: v4(),
-        },
-        action_graph: {
-          S: `launch_${graph}`,
-        },
-        date: {
-          S: new Date().toJSON(),
-        },
-        status: {
-          S: "UPDATING",
-        },
-      },
-    })
-    .promise();
+  await createLogStatus(graph)("UPDATING");
 
   await lambda
     .invoke({

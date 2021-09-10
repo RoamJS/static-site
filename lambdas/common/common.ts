@@ -72,6 +72,9 @@ export const invokeLambda =
 
 export const SHUTDOWN_CALLBACK_STATUS = "PREPARING TO DELETE STACK";
 
+export const getActionGraph = (graph: string, type = "launch") =>
+  `${type}_${graphToStackName(graph).replace(/^roamjs-/, "")}`;
+
 export const createLogStatus =
   (roamGraph: string, type = "launch") =>
   async (S: string, props?: string) =>
@@ -83,7 +86,7 @@ export const createLogStatus =
             S: v4(),
           },
           action_graph: {
-            S: `${type}_${roamGraph}`,
+            S: getActionGraph(roamGraph, type),
           },
           date: {
             S: new Date().toJSON(),

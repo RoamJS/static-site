@@ -2,7 +2,7 @@ import AWS from "aws-sdk";
 import { v4 } from "uuid";
 import randomstring from "randomstring";
 import { APIGatewayProxyHandler } from "aws-lambda";
-import { getRoamJSUser, headers, putRoamJSUser } from "./common/common";
+import { createLogStatus, getRoamJSUser, headers, putRoamJSUser } from "./common/common";
 
 const lambda = new AWS.Lambda({ apiVersion: "2015-03-31" });
 const dynamo = new AWS.DynamoDB({ apiVersion: "2012-08-10" });
@@ -11,25 +11,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
   const { graph } = JSON.parse(event.body || "{}");
   const user = await getRoamJSUser(event).then((r) => r.data);
 
-  await dynamo
-    .putItem({
-      TableName: "RoamJSWebsiteStatuses",
-      Item: {
-        uuid: {
-          S: v4(),
-        },
-        action_graph: {
-          S: `launch_${graph}`,
-        },
-        date: {
-          S: new Date().toJSON(),
-        },
-        status: {
-          S: "SHUTTING DOWN",
-        },
-      },
-    })
-    .promise();
+  await createLogStatus(graph)("SHUTTING DOWN");
 
   const callbackToken = randomstring.generate();
   await putRoamJSUser(event, {

@@ -1,6 +1,7 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
 import { v4 } from "uuid";
 import {
+  createLogStatus,
   dynamo,
   getRoamJSUser,
   headers,
@@ -41,25 +42,7 @@ export const handler: APIGatewayProxyHandler = (event) => {
 
     await putRoamJSUser(event, { websiteGraph: graph });
 
-    await dynamo
-      .putItem({
-        TableName: "RoamJSWebsiteStatuses",
-        Item: {
-          uuid: {
-            S: v4(),
-          },
-          action_graph: {
-            S: `launch_${graph}`,
-          },
-          date: {
-            S: new Date().toJSON(),
-          },
-          status: {
-            S: "INITIALIZING",
-          },
-        },
-      })
-      .promise();
+    await createLogStatus(graph)("INITIALIZING");
 
     await invokeLambda({
       path: "launch",

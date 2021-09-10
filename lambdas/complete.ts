@@ -7,11 +7,13 @@ import {
   cloudfront,
   createLogStatus,
   dynamo,
+  getActionGraph,
   getStackParameter,
   getStackSummaries,
   ses,
   SHUTDOWN_CALLBACK_STATUS,
 } from "./common/common";
+import { CloudFormation } from "aws-sdk";
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -82,7 +84,7 @@ export const handler = async (event: SNSEvent) => {
     PhysicalResourceId,
   } = messageObject;
 
-  const roamGraph = await getStackParameter("RoamGraph", StackName);
+  const roamGraph = StackName.replace(/^roamjs-/, '');
   const logStatus = createLogStatus(roamGraph);
 
   if (LogicalResourceId === StackName) {
@@ -94,7 +96,11 @@ export const handler = async (event: SNSEvent) => {
 
       await logStatus("LIVE");
       const email = await getStackParameter("Email", StackName);
-      if (domain.split(".").length > 2 && !domain.endsWith(".roamjs.com")) {
+      if (
+        ResourceStatus === "CREATE_COMPLETE" &&
+        domain.split(".").length > 2 &&
+        !domain.endsWith(".roamjs.com")
+      ) {
         const Id = await getStackSummaries(StackName).then(
           (summaries) =>
             summaries.find(
@@ -155,7 +161,7 @@ export const handler = async (event: SNSEvent) => {
           KeyConditionExpression: "action_graph = :a",
           ExpressionAttributeValues: {
             ":a": {
-              S: `launch_${roamGraph}`,
+              S: getActionGraph(roamGraph),
             },
           },
           ScanIndexForward: false,
