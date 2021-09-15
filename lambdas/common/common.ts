@@ -32,14 +32,20 @@ export const cloudfront = new AWS.CloudFront({
 export const lambda = new AWS.Lambda({ apiVersion: "2015-03-31", credentials });
 export const s3 = new AWS.S3({ apiVersion: "2006-03-01", credentials });
 export const ses = new AWS.SES({ apiVersion: "2010-12-01", credentials });
+const roamjsHeaders: Record<string, string> = {
+  Authorization: process.env.ROAMJS_DEVELOPER_TOKEN,
+  "x-roamjs-service": "staticSite",
+};
+if (process.env.NODE_ENV === "development") {
+  roamjsHeaders["x-roamjs-dev"] = "true";
+}
 
 export const getRoamJSUser = (event: APIGatewayProxyEvent) =>
-  axios.get(`${process.env.ROAMJS_API_URL}/user`, {
+  axios.get(`https://api.roamjs.com/user`, {
     headers: {
-      Authorization: process.env.ROAMJS_DEVELOPER_TOKEN,
       "x-roamjs-token":
         event.headers.Authorization || event.headers.authorization,
-      "x-roamjs-service": "staticSite",
+      ...roamjsHeaders,
     },
   });
 
@@ -47,12 +53,11 @@ export const putRoamJSUser = (
   event: APIGatewayProxyEvent,
   data: { websiteGraph?: string; websiteToken?: string }
 ) =>
-  axios.put(`${process.env.ROAMJS_API_URL}/user`, data, {
+  axios.put(`https://api.roamjs.com/user`, data, {
     headers: {
-      Authorization: process.env.ROAMJS_DEVELOPER_TOKEN,
       "x-roamjs-token":
         event.headers.Authorization || event.headers.authorization,
-      "x-roamjs-service": "staticSite",
+      ...roamjsHeaders,
     },
   });
 
