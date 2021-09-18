@@ -25,10 +25,6 @@ export const handler: Handler<{
     },
   };
   const DomainName = { Ref: "DomainName" };
-  const Input = JSON.stringify({
-    roamGraph,
-    domain,
-  });
 
   await cf
     .createStack({

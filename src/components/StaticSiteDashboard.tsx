@@ -17,6 +17,7 @@ import {
 } from "@blueprintjs/core";
 import { Controlled as CodeMirror } from "react-codemirror2";
 import "codemirror/mode/xml/xml";
+import "codemirror/mode/css/css";
 import React, {
   useCallback,
   useEffect,
@@ -64,6 +65,7 @@ const allBlockMapper = (t: TreeNode): TreeNode[] => [
   ...t.children.flatMap(allBlockMapper),
 ];
 
+const CSS_REGEX = new RegExp("```css\n(.*)```", "s");
 const SUBDOMAIN_REGEX = /^((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])$/;
 const DOMAIN_REGEX =
   /^(\*\.)?(((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])\.)+((?!-)[A-Za-z0-9-]{1,62}[A-Za-z0-9])$/;
@@ -1437,9 +1439,49 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
   );
 };
 
-const tabIds = {
-  text: ["font"],
-  layout: ["width", "favicon"],
+const ThemeInput = ({
+  value,
+  setValue,
+}: {
+  value: string;
+  setValue: (s: string) => void;
+}) => <InputGroup value={value} onChange={(e) => setValue(e.target.value)} />;
+
+const tabIds: Record<
+  string,
+  {
+    id: string;
+    component: (props: {
+      value: string;
+      setValue: (s: string) => void;
+    }) => React.ReactElement;
+  }[]
+> = {
+  text: [{ id: "font", component: ThemeInput }],
+  layout: [
+    { id: "width", component: ThemeInput },
+    { id: "favicon", component: ThemeInput },
+    {
+      id: "css",
+      component: ({ value, setValue }) => (
+        <div
+          className={'roamjs-codemirror-wrapper'}
+          style={{ border: "1px solid lightgray", position: "relative" }}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <CodeMirror
+            value={CSS_REGEX.exec(value)?.[1] || ''}
+            options={{
+              mode: { name: "css" },
+              lineNumbers: true,
+              lineWrapping: true,
+            }}
+            onBeforeChange={(_, __, v) => setValue(`\`\`\`css\n${v}\`\`\``)}
+          />
+        </div>
+      ),
+    },
+  ],
 };
 
 const RequestThemeContent: StageContent = ({ openPanel }) => {
@@ -1468,8 +1510,7 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
     []
   );
   const [outerKey, setOuterKey] = useState(outerKeys[0]);
-  const innerKeys = useMemo(() => tabIds[outerKey], [outerKey]);
-  const [innerKey, setInnerKey] = useState(innerKeys[0]);
+  const [innerKey, setInnerKey] = useState(tabIds[outerKey][0].id);
   const onSubmit = useCallback(() => {
     getShallowTreeByParentUid(themeUid).forEach(({ uid }) => deleteBlock(uid));
     Object.entries(values)
@@ -1498,7 +1539,7 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
         onChange={(k) => {
           const t = k as keyof typeof tabIds;
           setOuterKey(t);
-          setInnerKey(tabIds[t][0]);
+          setInnerKey(tabIds[t][0].id);
         }}
         selectedTabId={outerKey}
       >
@@ -1513,22 +1554,22 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
                 onChange={(k) => setInnerKey(k as string)}
                 selectedTabId={innerKey}
               >
-                {innerKeys.map((subtabId) => (
+                {tabIds[outerKey].map((subtab) => (
                   <Tab
-                    id={subtabId}
-                    key={subtabId}
-                    title={subtabId}
+                    id={subtab.id}
+                    key={subtab.id}
+                    title={subtab.id}
                     panel={
                       <Label>
-                        {subtabId}
-                        <InputGroup
-                          value={values?.[tabId]?.[subtabId] || ""}
-                          onChange={(e) =>
+                        {subtab.id}
+                        <subtab.component
+                          value={values?.[tabId]?.[subtab.id] || ""}
+                          setValue={(v) =>
                             setValues({
                               ...values,
                               [tabId]: {
                                 ...values[tabId],
-                                [subtabId]: e.target.value,
+                                [subtab.id]: v,
                               },
                             })
                           }
