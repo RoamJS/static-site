@@ -831,11 +831,13 @@ const LiveContent: StageContent = () => {
       )
         .then((data) => authenticatedAxiosPost(path, data))
         .then(getWebsite)
-        .catch((e) =>
+        .then(() => true)
+        .catch((e) => {
           setError(
             e.response?.data?.errorMessage || e.response?.data || e.message
-          )
-        )
+          );
+          return false;
+        })
         .finally(() => setLoading(false));
     },
     [setError, setLoading, getWebsite, authenticatedAxiosPost]
@@ -846,8 +848,10 @@ const LiveContent: StageContent = () => {
   );
   const launchWebsite = useCallback(
     () =>
-      wrapPost("launch-website", getLaunchBody).then(() =>
-        authenticatedAxiosPost("deploy", getDeployBody())
+      wrapPost("launch-website", getLaunchBody).then(
+        (success) =>
+          success &&
+          authenticatedAxiosPost(process.env.DEPLOY_ENDPOINT, getDeployBody())
       ),
     [wrapPost]
   );
