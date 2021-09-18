@@ -35,11 +35,9 @@ import {
   getPageViewType,
   getShallowTreeByParentUid,
   deleteBlock,
-  getFirstChildTextByBlockUid,
   DAILY_NOTE_PAGE_TITLE_REGEX,
   getPageUidByPageTitle,
   InputTextNode,
-  getBasicTreeByParentUid,
 } from "roam-client";
 import {
   Description,
@@ -730,6 +728,7 @@ const WebsiteButton: React.FunctionComponent<
         onConfirm={onConfirm}
         confirmButtonText={"Confirm"}
         style={{ maxWidth: 600, width: 600 }}
+        intent={intent}
       >
         {children}
       </Alert>
@@ -832,7 +831,11 @@ const LiveContent: StageContent = () => {
       )
         .then((data) => authenticatedAxiosPost(path, data))
         .then(getWebsite)
-        .catch((e) => setError(e.response?.data || e.message))
+        .catch((e) =>
+          setError(
+            e.response?.data?.errorMessage || e.response?.data || e.message
+          )
+        )
         .finally(() => setLoading(false));
     },
     [setError, setLoading, getWebsite, authenticatedAxiosPost]

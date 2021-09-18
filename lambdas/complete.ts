@@ -8,8 +8,10 @@ import {
   createLogStatus,
   dynamo,
   getActionGraph,
+  getRoamJSUser,
   getStackParameter,
   getStackSummaries,
+  putRoamJSUser,
   ses,
   SHUTDOWN_CALLBACK_STATUS,
 } from "./common/common";
@@ -84,7 +86,7 @@ export const handler = async (event: SNSEvent) => {
     PhysicalResourceId,
   } = messageObject;
 
-  const roamGraph = StackName.replace(/^roamjs-/, '');
+  const roamGraph = StackName.replace(/^roamjs-/, "");
   const logStatus = createLogStatus(roamGraph);
 
   if (LogicalResourceId === StackName) {
@@ -174,15 +176,34 @@ export const handler = async (event: SNSEvent) => {
               ?.status_props?.S
         );
       if (shutdownCallback) {
-        const { url, ...data } = JSON.parse(shutdownCallback);
-        await axios
-          .post(url, data)
-          .then(() => console.log(`successfully called ${url}`))
-          .catch((e) =>
-            console.error(
-              `failed to call ${url}: ${e.response?.data || e.message}`
-            )
-          );
+        const { userToken } = JSON.parse(shutdownCallback);
+        const event = { headers: { Authorization: userToken } };
+        const { websiteGraph, email } = await getRoamJSUser(event).then(
+          (r) => r.data
+        );
+        await putRoamJSUser(event, {
+          websiteGraph: undefined,
+        });
+        await ses
+          .sendEmail({
+            Destination: {
+              ToAddresses: [email],
+            },
+            Message: {
+              Body: {
+                Text: {
+                  Charset: "UTF-8",
+                  Data: `Your RoamJS static site is no longer live. There are no sites connected to your graph ${websiteGraph}.\n\nIf you believe you received this email in error, please reach out to support@roamjs.com.`,
+                },
+              },
+              Subject: {
+                Charset: "UTF-8",
+                Data: `Your RoamJS site has successfully shutdown.`,
+              },
+            },
+            Source: "support@roamjs.com",
+          })
+          .promise();
       } else {
         console.error("Could not find Shutdown Callback Status");
       }

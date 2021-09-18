@@ -8,8 +8,8 @@ on:
       - ".github/workflows/main.yaml"
 
 env:
-  API_URL: https://api.roamjs.com
-  DEPLOY_ENDPOINT: deploy
+  API_URL: https://lambda.roamjs.com
+  DEPLOY_ENDPOINT: deploy-website
 
 jobs:
   deploy:
