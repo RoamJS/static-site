@@ -551,7 +551,10 @@ export const renderHtmlFromPage = ({
           if (/static site/i.test(s)) {
             if (ac && /daily log/i.test(ac)) {
               const referenceContent = references
-                .filter(({ title }) => DAILY_NOTE_PAGE_REGEX.test(title))
+                .filter(
+                  ({ title, node: { children = [] } }) =>
+                    DAILY_NOTE_PAGE_REGEX.test(title) && children.length
+                )
                 .sort(
                   ({ title: a }, { title: b }) =>
                     parseRoamDate(b).valueOf() - parseRoamDate(a).valueOf()
