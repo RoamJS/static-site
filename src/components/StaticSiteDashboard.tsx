@@ -451,7 +451,9 @@ const HEAD_REGEX = new RegExp(`roam/js/static-stite/head::`);
 const DESCRIPTION_REGEX = new RegExp(`roam/js/static-site/title::(.*)`);
 const METADATA_REGEX = /roam\/js\/static-site\/([a-z-]+)::(.*)/;
 const HTML_REGEX = new RegExp("```html\n(.*)```", "s");
-const pageReferences: { current: { [p: string]: string[] } } = { current: {} };
+const pageReferences: {
+  current: Record<string, { title: string; uid: string }[]>;
+} = { current: {} };
 const getTitleRuleFromNode = ({ rule: text, values: children }: Filter) => {
   const ruleType = text.trim().toUpperCase();
   if (ruleType === "STARTS WITH" && children.length) {
@@ -465,7 +467,8 @@ const getTitleRuleFromNode = ({ rule: text, values: children }: Filter) => {
     return () => true;
   } else if (ruleType === "TAGGED WITH" && children.length) {
     const tag = extractTag(children[0]);
-    const references = pageReferences.current[tag] || [];
+    const references =
+      pageReferences.current[tag].map(({ title }) => title) || [];
     return (title: string) => !!references && references.includes(title);
   }
   return undefined;
@@ -554,15 +557,17 @@ const getDeployBody = () => {
   };
   pageReferences.current = window.roamAlphaAPI
     .q(
-      "[:find ?t ?title :where [?parent :node/title ?title] [?b :block/page ?parent] [?b :block/refs ?p] [?p :node/title ?t]]"
+      `[:find (pull ?pr [:node/title]) (pull ?r [:block/uid]) (pull ?p [:node/title]) :where [?p :node/title] [?r :block/refs ?p] [?r :block/page ?pr]]`
     )
-    .reduce(
-      (prev, cur: string[]) => ({
-        ...prev,
-        [cur[0]]: [...(prev[cur[0]] || []), cur[1]],
-      }),
-      {} as { [p: string]: string[] }
-    );
+    .reduce((prev, cur: Record<string, string>[]) => {
+      const [{ title }, { uid }, { title: key }] = cur;
+      if (prev[key]) {
+        prev[key].push({ title, uid });
+      } else {
+        prev[key] = [{ title, uid }];
+      }
+      return prev;
+    }, {} as Record<string, { title: string; uid: string }[]>);
   const layouts = config.filter.map((f) => f.layout);
   const titleFilters = config.filter
     .map((f, layout) => ({ fcn: getTitleRuleFromNode(f), layout }))
@@ -599,7 +604,7 @@ const getDeployBody = () => {
       layout: titleFilters.find((r) => r.fcn(pageName))?.layout,
     }));
   const entries = pageNamesWithContent.map(({ pageName, content, layout }) => {
-    const references = getPageTitlesAndBlockUidsReferencingPage(pageName).map(
+    const references = pageReferences.current[pageName].map(
       ({ title, uid }) => ({
         title,
         node: getReferences(getTreeByBlockUid(uid)),
@@ -1465,12 +1470,12 @@ const tabIds: Record<
       id: "css",
       component: ({ value, setValue }) => (
         <div
-          className={'roamjs-codemirror-wrapper'}
+          className={"roamjs-codemirror-wrapper"}
           style={{ border: "1px solid lightgray", position: "relative" }}
           onKeyDown={(e) => e.stopPropagation()}
         >
           <CodeMirror
-            value={CSS_REGEX.exec(value)?.[1] || ''}
+            value={CSS_REGEX.exec(value)?.[1] || ""}
             options={{
               mode: { name: "css" },
               lineNumbers: true,

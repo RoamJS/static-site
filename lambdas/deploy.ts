@@ -509,7 +509,7 @@ export const renderHtmlFromPage = ({
             .split(/\//)
             .map((s) =>
               encodeURIComponent(
-                s.replace(/ /g, "_").replace(/[",?#:$;@&=+']/g, "")
+                s.replace(/ /g, "_").replace(/[",?#:$;@&=+'.]/g, "")
               )
             )
             .join("/")}`,
