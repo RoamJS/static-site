@@ -551,6 +551,15 @@ export const renderHtmlFromPage = ({
           if (/static site/i.test(s)) {
             if (ac && /daily log/i.test(ac)) {
               const referenceContent = references
+                .map(({ node: { children = [], ...nodeRest }, ...rest }) => ({
+                  ...rest,
+                  node: {
+                    ...nodeRest,
+                    children: children.filter(
+                      (c) => !!c.text || !!c.children?.length
+                    ),
+                  },
+                }))
                 .filter(
                   ({ title, node: { children = [] } }) =>
                     DAILY_NOTE_PAGE_REGEX.test(title) && children.length
