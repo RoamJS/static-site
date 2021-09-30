@@ -122,7 +122,7 @@ export const render: RenderFunction = (dom) => {
       img.classList.add("roamjs-image-preview-img");
       img.parentElement.classList.add("roamjs-image-container");
       if (img.alt) {
-        const caption = document.createElement("figcaption");
+        const caption = document.createElement("div");
         caption.innerHTML = parseInline(img.alt);
         img.parentElement.appendChild(caption);
       }
