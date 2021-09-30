@@ -8,6 +8,7 @@ import {
   ensureScript,
   RenderFunction,
 } from "../lambdas/common/common";
+import { parseInline } from "roam-client";
 
 const ImagePreview = (): React.ReactElement => {
   const [src, setSrc] = useState("");
@@ -29,8 +30,8 @@ const ImagePreview = (): React.ReactElement => {
   }, [onRootClick]);
 
   const imageRef = useRef<HTMLImageElement>(null);
-  const [height, setHeight] = useState<string | number>('100%');
-  const [width, setWidth] = useState<string | number>('100%');
+  const [height, setHeight] = useState<string | number>("100%");
+  const [width, setWidth] = useState<string | number>("100%");
   useEffect(() => {
     const dummyImage = new Image();
     dummyImage.src = src;
@@ -61,8 +62,15 @@ const ImagePreview = (): React.ReactElement => {
   }, [imageRef, setHeight, src, setWidth]);
   return (
     <>
-      <style>{`.roamjs-image-preview-img {
+      <style>{`.roamjs-image-container {
+  margin: 64px auto;
+}
+      
+.roamjs-image-preview-img {
   cursor: pointer;
+  width: 100%;
+  box-shadow: rgb(0 0 0 / 50%) 0px 4px 8px;
+  border-radius: 8px
 }
 
 .roamjs-image-preview-portal {
@@ -89,6 +97,9 @@ const ImagePreview = (): React.ReactElement => {
         onClose={onDialogClose}
         portalClassName={"roamjs-image-preview-portal"}
         style={{ paddingBottom: 0 }}
+        canOutsideClickClose
+        canEscapeKeyClose
+        backdropProps={{}}
       >
         <img src={src} ref={imageRef} style={{ height, width }} />
       </Dialog>
@@ -105,9 +116,17 @@ if (process.env.CLIENT_SIDE) {
 export const render: RenderFunction = (dom) => {
   const { document } = dom.window;
   const { head, body } = document;
-  const imgs = document.querySelectorAll(".roam-block img");
+  const imgs = document.querySelectorAll<HTMLImageElement>(".roam-block img");
   if (imgs.length) {
-    imgs.forEach((img) => img.classList.add("roamjs-image-preview-img"));
+    imgs.forEach((img) => {
+      img.classList.add("roamjs-image-preview-img");
+      img.parentElement.classList.add("roamjs-image-container");
+      if (img.alt) {
+        const caption = document.createElement("figcaption");
+        caption.innerHTML = parseInline(img.alt);
+        img.parentElement.appendChild(caption);
+      }
+    });
     const container = document.createElement("div");
     container.id = ID;
     container.innerHTML = ReactDOMServer.renderToString(<ImagePreview />);

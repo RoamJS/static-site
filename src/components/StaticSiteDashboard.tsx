@@ -604,7 +604,7 @@ const getDeployBody = () => {
       layout: titleFilters.find((r) => r.fcn(pageName))?.layout,
     }));
   const entries = pageNamesWithContent.map(({ pageName, content, layout }) => {
-    const references = (pageReferences.current[pageName]|| []).map(
+    const references = (pageReferences.current[pageName] || []).map(
       ({ title, uid }) => ({
         title,
         node: getReferences(getTreeByBlockUid(uid)),
