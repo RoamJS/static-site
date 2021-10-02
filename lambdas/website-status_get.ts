@@ -90,7 +90,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
           KeyConditionExpression: "action_graph = :a",
           ExpressionAttributeValues: {
             ":a": {
-              S: `deploy_${graph}`,
+              S: getActionGraph(graph, 'deploy'),
             },
           },
           ScanIndexForward: false,
