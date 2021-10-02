@@ -467,8 +467,9 @@ const getTitleRuleFromNode = ({ rule: text, values: children }: Filter) => {
     return () => true;
   } else if (ruleType === "TAGGED WITH" && children.length) {
     const tag = extractTag(children[0]);
-    const references =
-      pageReferences.current[tag].map(({ title }) => title) || [];
+    const references = (pageReferences.current[tag] || []).map(
+      ({ title }) => title
+    );
     return (title: string) => !!references && references.includes(title);
   }
   return undefined;
