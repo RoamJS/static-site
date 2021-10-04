@@ -1,5 +1,6 @@
 import run, { defaultConfig, processSiteData } from "../lambdas/deploy";
 import fs from "fs";
+import { JSDOM } from "jsdom";
 import dotenv from "dotenv";
 dotenv.config();
 

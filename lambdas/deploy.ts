@@ -411,9 +411,11 @@ const convertContentToHtml = ({
           context,
           pageNameSet,
         });
-    const innerHtml = `<${HEADINGS[t.heading]}>${inlineMarked}</${
-      HEADINGS[t.heading]
-    }>${
+    const rawHeading = HEADINGS[t.heading];
+    const headingTag =
+      // p tags cannot contain divs
+      rawHeading === "p" && /<div/.test(inlineMarked) ? "div" : rawHeading;
+    const innerHtml = `<${headingTag}>${inlineMarked}</${headingTag}>${
       useInlineBlockReferences
         ? renderComponent({
             Component: InlineBlockReference,

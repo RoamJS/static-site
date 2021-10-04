@@ -57,6 +57,9 @@ const ImagePreview = (): React.ReactElement => {
           setHeight(containerHeight);
           setWidth(containerWidth);
         }
+        const dialog = imageRef.current.closest<HTMLDivElement>('.bp3-dialog');
+        dialog.onclick = onDialogClose;
+        imageRef.current.onclick = (e) => e.stopPropagation();
       }
     };
   }, [imageRef, setHeight, src, setWidth]);
@@ -68,6 +71,7 @@ const ImagePreview = (): React.ReactElement => {
 
 .roamjs-image-caption {
   text-align: center;
+  margin-top: 4px;
 }
       
 .roamjs-image-preview-img {
@@ -120,15 +124,19 @@ export const render: RenderFunction = (dom) => {
   if (imgs.length) {
     imgs.forEach((img) => {
       img.classList.add("roamjs-image-preview-img");
+      if (img.parentElement.tagName === 'P') {
+        const parent = img.parentElement;
+        const newParent = document.createElement('div');
+        parent.parentElement.appendChild(newParent);
+        parent.childNodes.forEach(n => newParent.appendChild(n));
+        parent.remove();
+      }
       img.parentElement.classList.add("roamjs-image-container");
       if (img.alt) {
         const caption = document.createElement("div");
         caption.innerHTML = parseInline(img.alt);
         caption.classList.add("roamjs-image-caption");
         img.parentElement.appendChild(caption);
-        console.log(img);
-        console.log(img.parentElement);
-        console.log(img.parentElement.parentElement);
       }
     });
     const container = document.createElement("div");

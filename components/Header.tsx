@@ -13,7 +13,6 @@ const Header = ({ links }: Props): React.ReactElement => {
     <>
       <style>
         {`#roamjs-header {
-  margin: -8px;
   margin-bottom: 8px;
 }
 
