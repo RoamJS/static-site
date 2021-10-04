@@ -65,12 +65,13 @@ const ImagePreview = (): React.ReactElement => {
       <style>{`.roamjs-image-container {
   margin: 64px auto;
 }
+
+.roamjs-image-caption {
+  text-align: center;
+}
       
 .roamjs-image-preview-img {
   cursor: pointer;
-  width: 100%;
-  box-shadow: rgb(0 0 0 / 50%) 0px 4px 8px;
-  border-radius: 8px
 }
 
 .roamjs-image-preview-portal {
@@ -99,7 +100,6 @@ const ImagePreview = (): React.ReactElement => {
         style={{ paddingBottom: 0 }}
         canOutsideClickClose
         canEscapeKeyClose
-        backdropProps={{}}
       >
         <img src={src} ref={imageRef} style={{ height, width }} />
       </Dialog>
@@ -124,7 +124,11 @@ export const render: RenderFunction = (dom) => {
       if (img.alt) {
         const caption = document.createElement("div");
         caption.innerHTML = parseInline(img.alt);
+        caption.classList.add("roamjs-image-caption");
         img.parentElement.appendChild(caption);
+        console.log(img);
+        console.log(img.parentElement);
+        console.log(img.parentElement.parentElement);
       }
     });
     const container = document.createElement("div");

@@ -190,6 +190,11 @@ table {
 p {
   white-space: pre-wrap;
 }
+.roam-block img {
+  width: 100%;
+  box-shadow: rgb(0 0 0 / 50%) 0px 4px 8px;
+  border-radius: 8px;
+}
 </style>
 `;
 
