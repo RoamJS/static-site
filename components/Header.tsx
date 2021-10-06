@@ -2,7 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom";
 import ReactDOMServer from "react-dom/server";
 import { extractTag } from "roam-client";
-import { ensureReact, RenderFunction } from "../lambdas/common/common";
+import { ensureReact, ensureScript, RenderFunction } from "../lambdas/common/common";
 
 type Props = {
   links: { title: string; href: string }[];
@@ -72,7 +72,7 @@ const Header = ({ links }: Props): React.ReactElement => {
         <div className="roamjs-nav-root">
           <h6 className="roamjs-home-header">
             <a href="/" className="roamjs-home-link">
-              Home
+              Home In Development
             </a>
           </h6>
           <div>
@@ -118,17 +118,7 @@ export const render: RenderFunction = (dom, props, context) => {
   body.insertBefore(container, body.firstElementChild);
   container.innerHTML = innerHtml;
   ensureReact(document);
-  const propScript = document.createElement("script");
-  propScript.innerHTML = `window.roamjsProps = {
-    ...window.roamjsProps,
-    header: ${JSON.stringify(componentProps)}
-}`;
-  propScript.type = 'text/javascript'
-  head.appendChild(propScript);
-  const componentScript = document.createElement("script");
-  componentScript.src = "https://roamjs.com/static-site/header.js";
-  componentScript.defer = true;
-  head.appendChild(componentScript);
+  ensureScript("header", componentProps, document, head);
 };
 
 export default Header;

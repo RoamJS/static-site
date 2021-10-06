@@ -211,7 +211,7 @@ export const ensureScript = (
   propScript.type = "text/javascript";
   head.appendChild(propScript);
   const componentScript = document.createElement("script");
-  componentScript.src = `https://roamjs.com/static-site/${id}.js`;
+  componentScript.src = `${process.env.COMPONENTS_URL}/${id}.js`;
   componentScript.defer = true;
   head.appendChild(componentScript);
 };
