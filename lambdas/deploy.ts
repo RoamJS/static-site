@@ -164,8 +164,12 @@ const DEFAULT_STYLE = `<style>
 .rm-embed-container {
   position: relative;
   display: flex;
-  padding-left: 8px;
+  padding: 1px 16px;
   background-color: #EBF1F5;
+  margin-bottom: 8px;
+}
+.rm-embed-container>div>div {
+  padding-left: 16px;
 }
 .rm-embed-link {
   position: absolute;
@@ -187,13 +191,16 @@ table {
 #content {
   box-sizing: border-box;
 }
-p {
+h1, h2, h3, p {
   white-space: pre-wrap;
 }
 .roam-block img {
   width: 100%;
-  box-shadow: rgb(0 0 0 / 50%) 0px 4px 8px;
-  border-radius: 8px;
+}
+.rm-bq {
+  background-color: #F5F8FA;
+  border-left: 5px solid #30404D;
+  padding: 10px 20px;
 }
 </style>
 `;
@@ -474,15 +481,17 @@ const inlineTryCatch = <T>(tryFcn: () => T, catchFcn: (e: Error) => T): T => {
 
 export const renderHtmlFromPage = ({
   outputPath,
-  pageContent,
+  pages,
   p,
+  layout,
   config,
   pageMetadata,
   blockReferencesCache,
   theme,
 }: {
   outputPath: string;
-  pageContent: Omit<PageContent, "layout"> & { layout: string };
+  pages: Record<string, PageContent>;
+  layout: string;
   p: string;
   config: Required<InputConfig>;
   pageMetadata: Record<string, string>;
@@ -499,8 +508,8 @@ export const renderHtmlFromPage = ({
     head,
     description,
     metadata = {},
-    layout,
-  } = pageContent;
+    viewType,
+  } = pages[p];
   const pageNameSet = new Set(Object.keys(pageMetadata));
   const pathConfigType = config.plugins["paths"]?.["type"] || [];
   const useLowercase = pathConfigType.includes("lowercase");
@@ -524,9 +533,9 @@ export const renderHtmlFromPage = ({
           (s) => s.toLowerCase()
         );
   const htmlFileName = convertPageNameToPath(p);
-  const pagesToHrefs = (name: string) =>
+  const pagesToHrefs = (name: string, r?: string) =>
     pageNameSet.has(name)
-      ? `/${convertPageNameToPath(name).replace(/^\/$/, "")}`
+      ? `/${convertPageNameToPath(name).replace(/^\/$/, "")}${r ? `#${r}` : ""}`
       : "";
   const pluginKeys = Object.keys(config.plugins);
   const useInlineBlockReferences = pluginKeys.includes(
@@ -548,7 +557,7 @@ export const renderHtmlFromPage = ({
     const preparedContent = content.filter(filterIgnore);
     return convertContentToHtml({
       content: preparedContent,
-      viewType: pageContent.viewType,
+      viewType,
       useInlineBlockReferences,
       pageNameSet,
       level: 0,
@@ -630,16 +639,27 @@ export const renderHtmlFromPage = ({
               })}`;
             }
           } else if (/embed/i.test(s)) {
-            const uid = BLOCK_REF_REGEX.exec(ac.trim())?.[1] || "";
-            return (
-              uid &&
-              blockReferencesCache[uid] &&
-              `<div class="rm-embed-container">${converter({
-                content: [blockReferencesCache[uid].node],
-              })}<a class="rm-embed-link" href="${pagesToHrefs(
-                blockReferencesCache[uid].page
-              )}#${uid}"> ↗ </a></div>`
-            );
+            const uid = BLOCK_REF_REGEX.exec(ac.trim())?.[1];
+            if (uid) {
+              return (
+                blockReferencesCache[uid] &&
+                `<div class="rm-embed-container">${converter({
+                  content: [blockReferencesCache[uid].node],
+                })}<a class="rm-embed-link" href="${pagesToHrefs(
+                  blockReferencesCache[uid].page,
+                  uid
+                )}"> ↗ </a></div>`
+              );
+            }
+            const tag = extractTag(ac.trim());
+            if (tag) {
+              return `<div class="rm-embed-container"><div><h3><a href="${pagesToHrefs(
+                tag
+              )}">${tag}</a></h3><div>${converter({
+                content: pages[tag]?.content || [],
+              })}</div></div></div>`;
+            }
+            return `Failed to embed ${ac}`;
           }
           return "";
         },
@@ -753,10 +773,8 @@ export const processSiteData = async ({
     renderHtmlFromPage({
       outputPath,
       config,
-      pageContent: {
-        ...pages[p],
-        layout: layouts[pages[p].layout] || "${PAGE_CONTENT}",
-      },
+      pages,
+      layout: layouts[pages[p].layout] || "${PAGE_CONTENT}",
       p,
       pageMetadata,
       blockReferencesCache,

@@ -127,7 +127,7 @@ export const render: RenderFunction = (dom) => {
       if (img.parentElement.tagName === 'P') {
         const parent = img.parentElement;
         const newParent = document.createElement('div');
-        parent.parentElement.appendChild(newParent);
+        parent.parentElement.insertBefore(newParent, parent);
         parent.childNodes.forEach(n => newParent.appendChild(n));
         parent.remove();
       }
