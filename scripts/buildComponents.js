@@ -21,7 +21,7 @@ esbuild
     outdir: "build",
     define: {
       "process.env.CLIENT_SIDE": "true",
-      "process.env.BLUEPRINT_NAMESPACE": "bp3",
+      "process.env.BLUEPRINT_NAMESPACE": "\"bp3\"",
     },
   })
   .then((e) => console.log("done", e));

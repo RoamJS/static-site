@@ -1,9 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import ReactDOMServer from "react-dom/server";
-import { extractTag } from "roam-client";
+//import { extractTag } from "roam-client"; Why is tree shaking not working?
 import {
-  ensureBlueprint,
   ensureReact,
   ensureScript,
 } from "../lambdas/common/components";
@@ -12,6 +11,17 @@ import { RenderFunction } from "../lambdas/common/types";
 type Props = {
   links: { title: string; href: string }[];
 };
+
+const extractTag = (tag: string): string =>
+  tag.startsWith("#[[") && tag.endsWith("]]")
+    ? tag.substring(3, tag.length - 2)
+    : tag.startsWith("[[") && tag.endsWith("]]")
+    ? tag.substring(2, tag.length - 2)
+    : tag.startsWith("#")
+    ? tag.substring(1)
+    : tag.endsWith("::")
+    ? tag.substring(0, tag.length - 2)
+    : tag;
 
 const Header = ({ links }: Props): React.ReactElement => {
   return (
@@ -112,7 +122,9 @@ let cache = "";
 
 export const render: RenderFunction = (dom, props, context) => {
   const componentProps = {
-    links: (props["links"] || []).map(extractTag).map((title) => ({
+    links: (props["links"] || [])
+    .map(extractTag)
+    .map((title) => ({
       title,
       href: context.convertPageNameToPath(title),
     })),
