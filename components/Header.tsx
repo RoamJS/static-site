@@ -72,7 +72,7 @@ const Header = ({ links }: Props): React.ReactElement => {
         <div className="roamjs-nav-root">
           <h6 className="roamjs-home-header">
             <a href="/" className="roamjs-home-link">
-              Home In Development
+              Home
             </a>
           </h6>
           <div>
