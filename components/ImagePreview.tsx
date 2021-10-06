@@ -6,8 +6,8 @@ import {
   ensureBlueprint,
   ensureReact,
   ensureScript,
-  RenderFunction,
-} from "../lambdas/common/common";
+} from "../lambdas/common/components";
+import { RenderFunction } from "../lambdas/common/types";
 import { parseInline } from "roam-client";
 
 const ImagePreview = (): React.ReactElement => {
@@ -57,7 +57,7 @@ const ImagePreview = (): React.ReactElement => {
           setHeight(containerHeight);
           setWidth(containerWidth);
         }
-        const dialog = imageRef.current.closest<HTMLDivElement>('.bp3-dialog');
+        const dialog = imageRef.current.closest<HTMLDivElement>(".bp3-dialog");
         dialog.onclick = onDialogClose;
         imageRef.current.onclick = (e) => e.stopPropagation();
       }
@@ -124,11 +124,11 @@ export const render: RenderFunction = (dom) => {
   if (imgs.length) {
     imgs.forEach((img) => {
       img.classList.add("roamjs-image-preview-img");
-      if (img.parentElement.tagName === 'P') {
+      if (img.parentElement.tagName === "P") {
         const parent = img.parentElement;
-        const newParent = document.createElement('div');
+        const newParent = document.createElement("div");
         parent.parentElement.insertBefore(newParent, parent);
-        parent.childNodes.forEach(n => newParent.appendChild(n));
+        parent.childNodes.forEach((n) => newParent.appendChild(n));
         parent.remove();
       }
       img.parentElement.classList.add("roamjs-image-container");

@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 import ReactDOMServer from "react-dom/server";
-import { ensureReact, ensureScript, RenderFunction } from "../lambdas/common/common";
+import { ensureReact, ensureScript } from "../lambdas/common/components";
+import { RenderFunction } from "../lambdas/common/types";
 import cytoscape from "cytoscape";
 
 type Props = {

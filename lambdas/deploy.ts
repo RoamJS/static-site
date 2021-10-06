@@ -6,9 +6,8 @@ import {
   createLogStatus,
   getStackParameter,
   graphToStackName,
-  HydratedTreeNode,
-  RenderFunction,
 } from "./common/common";
+import { RenderFunction, HydratedTreeNode } from "./common/types";
 import chromium from "chrome-aws-lambda";
 import {
   parseRoamDate,

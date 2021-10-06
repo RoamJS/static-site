@@ -2,7 +2,12 @@ import React from "react";
 import ReactDOM from "react-dom";
 import ReactDOMServer from "react-dom/server";
 import { extractTag } from "roam-client";
-import { ensureReact, ensureScript, RenderFunction } from "../lambdas/common/common";
+import {
+  ensureBlueprint,
+  ensureReact,
+  ensureScript,
+} from "../lambdas/common/components";
+import { RenderFunction } from "../lambdas/common/types";
 
 type Props = {
   links: { title: string; href: string }[];
@@ -78,7 +83,11 @@ const Header = ({ links }: Props): React.ReactElement => {
           <div>
             <div className="roamjs-links-container">
               {links.map((l) => (
-                <a href={`/${l.href}`} className={"roamjs-nav-link"} key={l.title}>
+                <a
+                  href={`/${l.href}`}
+                  className={"roamjs-nav-link"}
+                  key={l.title}
+                >
                   {l.title}
                 </a>
               ))}
