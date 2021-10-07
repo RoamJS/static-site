@@ -720,7 +720,7 @@ export const renderHtmlFromPage = ({
     .querySelectorAll<HTMLImageElement>(".roam-block img")
     .forEach((img) => {
       if (img.alt) {
-        const caption = document.createElement("div");
+        const caption = dom.window.document.createElement("div");
         caption.innerHTML = parseInline(img.alt);
         caption.classList.add("roamjs-image-caption");
         img.parentElement.appendChild(caption);
