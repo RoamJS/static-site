@@ -716,7 +716,7 @@ export const renderHtmlFromPage = ({
   // temporary until we figure out a better option:
   // 1. include this in marked
   // 2. figure out tree shaking so that it goes back in image caption
-  document
+  dom.window.document
     .querySelectorAll<HTMLImageElement>(".roam-block img")
     .forEach((img) => {
       if (img.alt) {
