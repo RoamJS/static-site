@@ -8,7 +8,6 @@ import {
   ensureScript,
 } from "../lambdas/common/components";
 import { RenderFunction } from "../lambdas/common/types";
-import { parseInline } from "roam-client";
 
 const ImagePreview = (): React.ReactElement => {
   const [src, setSrc] = useState("");
@@ -132,12 +131,6 @@ export const render: RenderFunction = (dom) => {
         parent.remove();
       }
       img.parentElement.classList.add("roamjs-image-container");
-      if (img.alt) {
-        const caption = document.createElement("div");
-        caption.innerHTML = parseInline(img.alt);
-        caption.classList.add("roamjs-image-caption");
-        img.parentElement.appendChild(caption);
-      }
     });
     const container = document.createElement("div");
     container.id = ID;

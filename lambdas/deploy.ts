@@ -713,6 +713,20 @@ export const renderHtmlFromPage = ({
     link.href = "/theme.css";
     dom.window.document.head.appendChild(link);
   }
+  // temporary until we figure out a better option:
+  // 1. include this in marked
+  // 2. figure out tree shaking so that it goes back in image caption
+  document
+    .querySelectorAll<HTMLImageElement>(".roam-block img")
+    .forEach((img) => {
+      if (img.alt) {
+        const caption = document.createElement("div");
+        caption.innerHTML = parseInline(img.alt);
+        caption.classList.add("roamjs-image-caption");
+        img.parentElement.appendChild(caption);
+      }
+    });
+
   const newHtml = dom.serialize();
   const fileName = htmlFileName === "/" ? "index.html" : `${htmlFileName}.html`;
   const filePath = path.join(outputPath, fileName);
