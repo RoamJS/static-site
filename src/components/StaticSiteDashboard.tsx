@@ -32,7 +32,6 @@ import {
   getTreeByPageName,
   createBlock,
   TreeNode,
-  getPageTitlesAndBlockUidsReferencingPage,
   getPageViewType,
   getShallowTreeByParentUid,
   deleteBlock,
@@ -445,19 +444,24 @@ const getLaunchBody = () => {
   };
 };
 
-type Filter = { rule: string; values: string[]; layout: string };
+type Filter = {
+  rule: string;
+  value: string;
+  layout: string;
+  variables: Record<string, string>;
+};
 const TITLE_REGEX = new RegExp(`roam/js/static-site/title::(.*)`);
 const HEAD_REGEX = new RegExp(`roam/js/static-stite/head::`);
-const DESCRIPTION_REGEX = new RegExp(`roam/js/static-site/title::(.*)`);
 const METADATA_REGEX = /roam\/js\/static-site\/([a-z-]+)::(.*)/;
 const HTML_REGEX = new RegExp("```html\n(.*)```", "s");
+const JS_REGEX = new RegExp("```javascript\n(.*)```", "s");
 const pageReferences: {
   current: Record<string, { title: string; uid: string }[]>;
 } = { current: {} };
-const getTitleRuleFromNode = ({ rule: text, values: children }: Filter) => {
+const getTitleRuleFromNode = ({ rule: text, value }: Filter) => {
   const ruleType = text.trim().toUpperCase();
-  if (ruleType === "STARTS WITH" && children.length) {
-    const tag = extractTag(children[0]);
+  if (ruleType === "STARTS WITH" && value) {
+    const tag = extractTag(value);
     return (title: string) => {
       return title.startsWith(tag);
     };
@@ -465,8 +469,8 @@ const getTitleRuleFromNode = ({ rule: text, values: children }: Filter) => {
     return (title: string) => DAILY_NOTE_PAGE_TITLE_REGEX.test(title);
   } else if (ruleType === "ALL") {
     return () => true;
-  } else if (ruleType === "TAGGED WITH" && children.length) {
-    const tag = extractTag(children[0]);
+  } else if (ruleType === "TAGGED WITH" && value) {
+    const tag = extractTag(value);
     const references = (pageReferences.current[tag] || []).map(
       ({ title }) => title
     );
@@ -478,6 +482,17 @@ const getTitleRuleFromNode = ({ rule: text, values: children }: Filter) => {
 type HydratedTreeNode = Omit<TreeNode, "children"> & {
   references: { title: string; uid: string }[];
   children: HydratedTreeNode[];
+};
+
+const inlineTryCatch = (
+  tryFcn: Function,
+  catchFcn: (e: Error) => string
+): string => {
+  try {
+    return tryFcn();
+  } catch (e) {
+    return catchFcn(e);
+  }
 };
 
 const getDeployBody = () => {
@@ -506,8 +521,11 @@ const getDeployBody = () => {
     ? {
         filter: filterNode.children.map((t) => ({
           rule: t.text,
-          values: t.children.map((c) => c.text),
+          value: t.children[0]?.text,
           layout: getCode(t.children[0]),
+          variables: Object.fromEntries(
+            t.children.slice(1).map((t) => [t.text, t.children[0]?.text])
+          ),
         })),
       }
     : {};
@@ -569,7 +587,6 @@ const getDeployBody = () => {
       }
       return prev;
     }, {} as Record<string, { title: string; uid: string }[]>);
-  const layouts = config.filter.map((f) => f.layout);
   const titleFilters = config.filter
     .map((f, layout) => ({ fcn: getTitleRuleFromNode(f), layout }))
     .filter((f) => !!f.fcn);
@@ -622,7 +639,7 @@ const getDeployBody = () => {
     };
   });
   const pages = Object.fromEntries(
-    entries.map(({ content, pageName, ...props }) => {
+    entries.map(({ content, pageName, layout, uid, ...props }) => {
       const allBlocks = content.flatMap(allBlockMapper);
       const titleMatch = allBlocks
         .find((s) => TITLE_REGEX.test(s.text))
@@ -630,40 +647,50 @@ const getDeployBody = () => {
       const headMatch = allBlocks
         .find((s) => HEAD_REGEX.test(s.text))
         ?.children?.[0]?.text?.match?.(HTML_REGEX);
-      const descriptionMatch = allBlocks
-        .find((s) => DESCRIPTION_REGEX.test(s.text))
-        ?.text?.match?.(DESCRIPTION_REGEX);
       const title = titleMatch ? titleMatch[1].trim() : pageName;
       const head = headMatch ? headMatch[1] : "";
-      const description = descriptionMatch ? descriptionMatch[1].trim() : "";
-      const metadata = Object.fromEntries(
-        allBlocks
-          .filter((s) => METADATA_REGEX.test(s.text))
-          .map((node) => ({
-            match: node.text.match(METADATA_REGEX),
-            node,
-          }))
-          .filter(({ match }) => !!match && match.length >= 3)
-          .map(({ match, node }) => ({
-            key: match[1],
-            value: match[2].trim() || node.children[0]?.text || "",
-          }))
-          .map(({ key, value }) => [key, extractTag(value.trim())])
-      );
+      const metadata = {
+        ...Object.fromEntries(
+          allBlocks
+            .filter((s) => METADATA_REGEX.test(s.text))
+            .map((node) => ({
+              match: node.text.match(METADATA_REGEX),
+              node,
+            }))
+            .filter(({ match }) => !!match && match.length >= 3)
+            .map(({ match, node }) => ({
+              key: match[1],
+              value: match[2].trim() || node.children[0]?.text || "",
+            }))
+            .map(({ key, value }) => [key, extractTag(value.trim())])
+            .concat([["name", title.split("/").slice(-1)[0]]])
+        ),
+        ...Object.fromEntries(
+          Object.entries(config.filter[layout]?.variables || {}).map(
+            ([k, v]) => [
+              k,
+              inlineTryCatch(
+                () => new Function("uid", JS_REGEX.exec(v)?.[1] || v)(uid),
+                () => ""
+              ),
+            ]
+          )
+        ),
+      };
       return [
         pageName,
         {
           content,
-          title,
-          description,
           head,
           metadata,
+          layout,
+          uid,
           ...props,
         },
       ];
     })
   );
-  return { data: JSON.stringify({ pages, config, layouts }) };
+  return { data: JSON.stringify({ pages, config }) };
 };
 
 const getNameServers = (statusProps: string): string[] => {

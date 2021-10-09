@@ -45,11 +45,6 @@ const HEAD_REGEX = new RegExp(
     "|"
   )})::`
 );
-const DESCRIPTION_REGEX = new RegExp(
-  `(?:${CONFIG_PAGE_NAMES.map(
-    (c) => `${c.replace("/", "\\/")}/description`
-  ).join("|")})::(.*)`
-);
 const METADATA_REGEX = /roam\/js\/static-site\/([a-z-]+)::(.*)/;
 const CODE_REGEX = new RegExp("```[a-z]*\n(.*)```", "s");
 const HTML_REGEX = new RegExp("```html\n(.*)```", "s");
@@ -70,7 +65,12 @@ const ensureDirectoryExistence = (filePath: string) => {
   }
 };
 
-type Filter = { rule: string; values: string[]; layout: string };
+type Filter = {
+  rule: string;
+  value: string;
+  layout: string;
+  variables: Record<string, string>;
+};
 
 type InputConfig = {
   index?: string;
@@ -119,8 +119,7 @@ $\{REFERENCES}
   theme: {},
 } as Required<InputConfig>;
 
-const DEFAULT_STYLE = `<style>
-.rm-highlight {
+const DEFAULT_STYLE = `.rm-highlight {
   background-color: hsl(51, 98%, 81%);
   margin: -2px;
   padding: 2px;
@@ -201,7 +200,6 @@ h1, h2, h3, p {
   border-left: 5px solid #30404D;
   padding: 10px 20px;
 }
-</style>
 `;
 
 const renderComponent = <T extends Record<string, unknown>>({
@@ -224,10 +222,10 @@ const renderComponent = <T extends Record<string, unknown>>({
 };
 
 const pageReferences: { current: { [p: string]: string[] } } = { current: {} };
-const getTitleRuleFromNode = ({ rule: text, values: children }: Filter) => {
+const getTitleRuleFromNode = ({ rule: text, value }: Filter) => {
   const ruleType = text.trim().toUpperCase();
-  if (ruleType === "STARTS WITH" && children.length) {
-    const tag = extractTag(children[0]);
+  if (ruleType === "STARTS WITH" && value) {
+    const tag = extractTag(value);
     return (title: string) => {
       return title.startsWith(tag);
     };
@@ -235,8 +233,8 @@ const getTitleRuleFromNode = ({ rule: text, values: children }: Filter) => {
     return (title: string) => DAILY_NOTE_PAGE_TITLE_REGEX.test(title);
   } else if (ruleType === "ALL") {
     return () => true;
-  } else if (ruleType === "TAGGED WITH" && children.length) {
-    const tag = extractTag(children[0]);
+  } else if (ruleType === "TAGGED WITH" && value) {
+    const tag = extractTag(value);
     const references = pageReferences.current[tag] || [];
     return (title: string) => references.includes(title);
   }
@@ -283,8 +281,11 @@ const getConfigFromPage = (parsedTree: TreeNode[]) => {
     ? {
         filter: filterNode.children.map((t) => ({
           rule: t.text,
-          values: t.children.map((c) => c.text),
+          value: t.children[0]?.text,
           layout: getCode(t.children[0]),
+          variables: Object.fromEntries(
+            t.children.slice(1).map((t) => [t.text, t.children[0]?.text])
+          ),
         })),
       }
     : {};
@@ -453,8 +454,6 @@ const convertContentToHtml = ({
 type PageContent = {
   content: HydratedTreeNode[];
   references: { title: string; node: HydratedTreeNode }[];
-  title: string;
-  description: string;
   head: string;
   viewType: ViewType;
   uid: string;
@@ -484,7 +483,6 @@ export const renderHtmlFromPage = ({
   p,
   layout,
   config,
-  pageMetadata,
   blockReferencesCache,
   theme,
 }: {
@@ -493,23 +491,17 @@ export const renderHtmlFromPage = ({
   layout: string;
   p: string;
   config: Required<InputConfig>;
-  pageMetadata: Record<string, string>;
   theme: string;
   blockReferencesCache: Record<
     string,
     { node: HydratedTreeNode; page: string }
   >;
 }): void => {
-  const {
-    content,
-    references = [],
-    title,
-    head,
-    description,
-    metadata = {},
-    viewType,
-  } = pages[p];
-  const pageNameSet = new Set(Object.keys(pageMetadata));
+  const { content, references = [], head, metadata = {}, viewType } = pages[p];
+  const pageNameSet = new Set(Object.keys(pages));
+  const uidByName = Object.fromEntries(
+    Object.entries(pages).map(([name, { uid }]) => [name, uid])
+  );
   const pathConfigType = config.plugins["paths"]?.["type"] || [];
   const useLowercase = pathConfigType.includes("lowercase");
   const useUid =
@@ -518,7 +510,7 @@ export const renderHtmlFromPage = ({
     name === config.index
       ? "/"
       : useUid
-      ? pageMetadata[name]
+      ? uidByName[name]
       : transformIfTrue(
           `${name
             .split(/\//)
@@ -668,19 +660,13 @@ export const renderHtmlFromPage = ({
   };
   const markedContent = inlineTryCatch(
     () => converter({ content }),
-    (e) => `<div>Failed to render page: ${title}</div><div>${e.message}</div>`
+    (e) => `<div>Failed to render page: ${p}</div><div>${e.message}</div>`
   );
   const hydratedHtml = config.template
     .replace(
       /\${PAGE_CONTENT}/g,
       layout.replace(/\${PAGE_CONTENT}/g, markedContent)
     )
-    .replace(
-      "</head>",
-      `${DEFAULT_STYLE.replace(/<\/style>/, theme)}${head}</head>`
-    )
-    .replace(/\${PAGE_NAME}/g, title.split("/").slice(-1)[0])
-    .replace(/\${PAGE_DESCRIPTION}/g, description)
     .replace(
       /\${PAGE_([A-Z_]+)}/g,
       (_, k: string) => metadata[k.toLowerCase().replace(/_/g, "-")] || ""
@@ -697,6 +683,10 @@ export const renderHtmlFromPage = ({
         .join("\n")
     );
   const dom = new JSDOM(hydratedHtml);
+  const defaultStyle = dom.window.document.createElement("style");
+  defaultStyle.innerText = `${DEFAULT_STYLE}\n${theme}`;
+  dom.window.document.head.appendChild(defaultStyle);
+  dom.window.document.head.innerHTML = `${dom.window.document.head.innerHTML}${head}`;
   pluginKeys.forEach((k) =>
     PLUGIN_RENDER[k]?.(dom, config.plugins[k], {
       convertPageNameToPath,
@@ -738,7 +728,6 @@ export const processSiteData = async ({
   pages,
   outputPath,
   config,
-  layouts,
   info,
 }: {
   info: (s: string) => void;
@@ -747,7 +736,6 @@ export const processSiteData = async ({
   pages: {
     [k: string]: PageContent;
   };
-  layouts: string[];
 }): Promise<InputConfig> => {
   const pageNames = Object.keys(pages).sort();
   info(
@@ -765,10 +753,7 @@ export const processSiteData = async ({
     };
     content.forEach(forEach);
   });
-  const pageMetadata = Object.fromEntries(
-    pageNames.map((p) => [p, pages[p].uid])
-  );
-  let theme = "</style>\n";
+  let theme = "";
   if (config.theme.text) {
     if (config.theme.text.font) {
       theme = `body {\n  font-family: ${config.theme.text.font};\n}\n${theme}`;
@@ -787,9 +772,8 @@ export const processSiteData = async ({
       outputPath,
       config,
       pages,
-      layout: layouts[pages[p].layout] || "${PAGE_CONTENT}",
+      layout: config.filter[pages[p].layout].layout || "${PAGE_CONTENT}",
       p,
-      pageMetadata,
       blockReferencesCache,
       theme,
     });
@@ -1126,14 +1110,8 @@ export const run = async ({
             const headMatch = allBlocks
               .find((s) => HEAD_REGEX.test(s.text))
               ?.children?.[0]?.text?.match?.(HTML_REGEX);
-            const descriptionMatch = allBlocks
-              .find((s) => DESCRIPTION_REGEX.test(s.text))
-              ?.text?.match?.(DESCRIPTION_REGEX);
             const title = titleMatch ? titleMatch[1].trim() : pageName;
             const head = headMatch ? headMatch[1] : "";
-            const description = descriptionMatch
-              ? descriptionMatch[1].trim()
-              : "";
             const metadata = Object.fromEntries(
               allBlocks
                 .filter((s) => METADATA_REGEX.test(s.text))
@@ -1147,14 +1125,13 @@ export const run = async ({
                   value: match[2].trim() || node.children[0]?.text || "",
                 }))
                 .map(({ key, value }) => [key, extractTag(value.trim())])
+                .concat([["name", title.split("/").slice(-1)[0]]])
             );
             return [
               pageName,
               {
                 content,
-                title,
                 head,
-                description,
                 metadata,
                 ...props,
               },
@@ -1275,7 +1252,6 @@ export const handler = async (event: {
           ...defaultConfig,
           ...config,
         },
-        layouts,
         outputPath,
         info: console.log,
       });
