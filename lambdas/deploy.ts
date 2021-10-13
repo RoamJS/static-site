@@ -684,7 +684,7 @@ export const renderHtmlFromPage = ({
     );
   const dom = new JSDOM(hydratedHtml);
   const defaultStyle = dom.window.document.createElement("style");
-  defaultStyle.innerText = `${DEFAULT_STYLE}\n${theme}`;
+  defaultStyle.innerHTML = `${DEFAULT_STYLE}\n${theme}`;
   dom.window.document.head.appendChild(defaultStyle);
   dom.window.document.head.innerHTML = `${dom.window.document.head.innerHTML}${head}`;
   pluginKeys.forEach((k) =>
