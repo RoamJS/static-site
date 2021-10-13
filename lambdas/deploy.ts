@@ -759,7 +759,7 @@ export const processSiteData = async ({
       theme = `body {\n  font-family: ${config.theme.text.font};\n}\n${theme}`;
     }
   }
-  if (config.theme.layout) {
+  if (config.theme?.layout) {
     const { width } = config.theme.layout;
     if (width) {
       const widthStyle = /\d$/.test(width) ? `${width}px` : width;
@@ -772,7 +772,7 @@ export const processSiteData = async ({
       outputPath,
       config,
       pages,
-      layout: config.filter[pages[p].layout].layout || "${PAGE_CONTENT}",
+      layout: config.filter[pages[p].layout]?.layout || "${PAGE_CONTENT}",
       p,
       blockReferencesCache,
       theme,
@@ -1244,7 +1244,7 @@ export const handler = async (event: {
     .getObject({ Bucket: "roamjs-static-site-data", Key: event.key })
     .promise()
     .then((data) => {
-      const { pages, config, layouts = [] } = JSON.parse(data.Body.toString());
+      const { pages, config } = JSON.parse(data.Body.toString());
       fs.mkdirSync(outputPath, { recursive: true });
       return processSiteData({
         pages,
