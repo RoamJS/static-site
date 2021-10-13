@@ -491,6 +491,7 @@ const inlineTryCatch = (
   try {
     return tryFcn();
   } catch (e) {
+    console.error(e);
     return catchFcn(e);
   }
 };
