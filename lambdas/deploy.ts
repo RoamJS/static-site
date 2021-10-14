@@ -30,6 +30,7 @@ import { render as renderSidebar } from "../components/Sidebar";
 import { render as renderImagePreview } from "../components/ImagePreview";
 import axios from "axios";
 import mime from "mime-types";
+import Mustache from "mustache";
 
 const transformIfTrue = (s: string, f: boolean, t: (s: string) => string) =>
   f ? t(s) : s;
@@ -119,7 +120,10 @@ $\{REFERENCES}
   theme: {},
 } as Required<InputConfig>;
 
-const DEFAULT_STYLE = `.rm-highlight {
+const DEFAULT_STYLE = `body {
+  margin: 0;
+}
+.rm-highlight {
   background-color: hsl(51, 98%, 81%);
   margin: -2px;
   padding: 2px;
@@ -355,12 +359,12 @@ const convertContentToHtml = ({
   level,
   context,
   useInlineBlockReferences,
-  pageNameSet,
+  pages,
 }: {
   level: number;
   context: Required<RoamMarkedContext>;
   useInlineBlockReferences: boolean;
-  pageNameSet: Set<string>;
+  pages: Record<string, PageContent>;
 } & Pick<PageContent, "content" | "viewType">): string => {
   if (content.length === 0) {
     return "";
@@ -393,7 +397,19 @@ const convertContentToHtml = ({
           const node = t.children.find((c) => HTML_REGEX.test(c.text))?.text;
           if (node) {
             skipChildren = true;
-            return node.match(HTML_REGEX)?.[1] || false;
+            const template = node.match(HTML_REGEX)?.[1];
+            if (!template) return false;
+            return Mustache.render(
+              template,
+              {
+                PAGES: Object.entries(pages).map(([name, { layout }]) => ({
+                  name,
+                  filter: layout,
+                })),
+              },
+              {},
+              ["${", "}"]
+            );
           }
         }
       }
@@ -416,12 +432,13 @@ const convertContentToHtml = ({
           useInlineBlockReferences,
           level: level + 1,
           context,
-          pageNameSet,
+          pages,
         });
     const rawHeading = HEADINGS[t.heading];
     const headingTag =
       // p tags cannot contain divs
       rawHeading === "p" && /<div/.test(inlineMarked) ? "div" : rawHeading;
+    const pageNameSet = new Set(Object.keys(pages));
     const innerHtml = `<${headingTag}>${inlineMarked}</${headingTag}>${
       useInlineBlockReferences
         ? renderComponent({
@@ -550,7 +567,7 @@ export const renderHtmlFromPage = ({
       content: preparedContent,
       viewType,
       useInlineBlockReferences,
-      pageNameSet,
+      pages,
       level: 0,
       context: {
         pagesToHrefs,
@@ -683,9 +700,6 @@ export const renderHtmlFromPage = ({
         .join("\n")
     );
   const dom = new JSDOM(hydratedHtml);
-  const defaultStyle = dom.window.document.createElement("style");
-  defaultStyle.innerHTML = `${DEFAULT_STYLE}\n${theme}`;
-  dom.window.document.head.appendChild(defaultStyle);
   dom.window.document.head.innerHTML = `${dom.window.document.head.innerHTML}${head}`;
   pluginKeys.forEach((k) =>
     PLUGIN_RENDER[k]?.(dom, config.plugins[k], {
@@ -694,15 +708,16 @@ export const renderHtmlFromPage = ({
       pageName: p,
     })
   );
-  if (config.theme?.layout?.css) {
-    const cssContent = CSS_REGEX.exec(config.theme?.layout?.css)?.[1];
-    fs.writeFileSync(path.join(outputPath, "theme.css"), cssContent);
-    const link = dom.window.document.createElement("link");
-    link.rel = "stylesheet";
-    link.type = "text/css";
-    link.href = "/theme.css";
-    dom.window.document.head.appendChild(link);
-  }
+  const cssContent = `${DEFAULT_STYLE}\n${theme}\n${
+    CSS_REGEX.exec(config.theme?.layout?.css)?.[1] || ""
+  }`;
+  fs.writeFileSync(path.join(outputPath, "theme.css"), cssContent);
+  const link = dom.window.document.createElement("link");
+  link.rel = "stylesheet";
+  link.type = "text/css";
+  link.href = "/theme.css";
+  dom.window.document.head.appendChild(link);
+  
   // temporary until we figure out a better option:
   // 1. include this in marked
   // 2. figure out tree shaking so that it goes back in image caption
