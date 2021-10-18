@@ -43,7 +43,6 @@
     "react-codemirror2": "^7.2.1",
     "react-dom": "^17.0.2",
     "roamjs-components": "^0.25.6",
-    "url-regex-safe": "^2.0.2",
     "uuid": "^8.3.2"
   },
   "devDependencies": {

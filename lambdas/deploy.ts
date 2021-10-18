@@ -32,7 +32,6 @@ import { render as renderImagePreview } from "../components/ImagePreview";
 import axios from "axios";
 import mime from "mime-types";
 import Mustache from "mustache";
-import urlRegex from "url-regex-safe";
 
 const transformIfTrue = (s: string, f: boolean, t: (s: string) => string) =>
   f ? t(s) : s;
@@ -52,7 +51,7 @@ const METADATA_REGEX = /roam\/js\/static-site\/([a-z-]+)::(.*)/;
 const CODE_REGEX = new RegExp("```[a-z]*\n(.*)```", "s");
 const HTML_REGEX = new RegExp("```html\n(.*)```", "s");
 const CSS_REGEX = new RegExp("```css\n(.*)```", "s");
-const UPLOAD_REGEX = urlRegex({ strict: true });
+const UPLOAD_REGEX = /(https?:\/\/[^\)]*)(?:$|\)|\s)/;
 const DAILY_NOTE_PAGE_REGEX =
   /(January|February|March|April|May|June|July|August|September|October|November|December) [0-3]?[0-9](st|nd|rd|th), [0-9][0-9][0-9][0-9]/;
 

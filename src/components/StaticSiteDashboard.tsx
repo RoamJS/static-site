@@ -70,7 +70,7 @@ const allBlockMapper = (t: TreeNode): TreeNode[] => [
 
 const CSS_REGEX = new RegExp("```css\n(.*)```", "s");
 const SUBDOMAIN_REGEX = /^((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])$/;
-const UPLOAD_REGEX = urlRegex({ strict: true });
+const UPLOAD_REGEX = /(https?:\/\/[^\)]*)(?:$|\)|\s)/;
 const DOMAIN_REGEX =
   /^(\*\.)?(((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])\.)+((?!-)[A-Za-z0-9-]{1,62}[A-Za-z0-9])$/;
 const RequestDomainContent: StageContent = ({ openPanel }) => {
@@ -1652,8 +1652,8 @@ const RequestFilesContent: StageContent = ({ openPanel }) => {
             uid,
             {
               path: text,
-              uid: extractTag(children[0]?.text || ""),
-              url: getTextByBlockUid(extractTag(children[0]?.text || "")),
+              uid: extractRef(children[0]?.text || ""),
+              url: getTextByBlockUid(extractRef(children[0]?.text || "")),
             },
           ])
         )
