@@ -1,6 +1,5 @@
-import run, { defaultConfig, processSiteData } from "../lambdas/deploy";
+import run, { defaultConfig, handler, processSiteData } from "../lambdas/deploy";
 import fs from "fs";
-import { JSDOM } from "jsdom";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -15,17 +14,22 @@ test.skip("Run Action", async (done) => {
     .catch(({ message }) => fail(message));
 });
 
-test("Based on JSON", () => {
+test("Based on JSON", (done) => {
   jest.setTimeout(600000);
   const { pages, config } = JSON.parse(
-    fs.readFileSync("../../../Downloads/20210825040834.json").toString()
+    fs.readFileSync("../../../Downloads/20211018082117.json").toString()
   );
-  const outConfig = processSiteData({
+  processSiteData({
     pages,
     config: { ...defaultConfig, ...config },
     info: console.log,
     outputPath: "out",
-    layouts: [],
+  }).then((outConfig) => {
+    expect(outConfig).toBeTruthy();
+   /* handler({
+      roamGraph: '',
+      key: ''
+    }).then(done) */
+    done();
   });
-  expect(outConfig).toBeTruthy();
 });

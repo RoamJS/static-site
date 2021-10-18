@@ -811,14 +811,17 @@ export const processSiteData = async ({
   });
 
   await Promise.all(
-    Object.entries(config.files).map(([p, url]) =>
-      axios.get(url, { responseType: "stream" }).then((r) => {
-        const filename = path.join(outputPath, p);
-        const dirname = path.dirname(filename);
-        if (!fs.existsSync(dirname)) fs.mkdirSync(dirname, { recursive: true });
-        return r.data.pipe(fs.createWriteStream(filename));
-      })
-    )
+    Object.entries(config.files)
+      .filter(([, url]) => !!url)
+      .map(([p, url]) =>
+        axios.get(url, { responseType: "stream" }).then((r) => {
+          const filename = path.join(outputPath, p);
+          const dirname = path.dirname(filename);
+          if (!fs.existsSync(dirname))
+            fs.mkdirSync(dirname, { recursive: true });
+          return r.data.pipe(fs.createWriteStream(filename));
+        })
+      )
   );
 
   if (config.theme?.layout?.favicon) {
@@ -1319,7 +1322,7 @@ export const handler = async (event: {
         s
           .replace(new RegExp(`^${outputPath.replace(/\\/g, "\\\\")}`), "")
           .replace(/^(\/|\\)/, "")
-          .replace(/\\/g, '/')
+          .replace(/\\/g, "/")
       );
 
       const fileSet = new Set(filesToUpload);
