@@ -26,8 +26,10 @@ import React, {
   useState,
 } from "react";
 import {
+  extractRef,
   extractTag,
   getAllPageNames,
+  getTextByBlockUid,
   getTreeByBlockUid,
   getTreeByPageName,
   createBlock,
@@ -57,6 +59,7 @@ import {
   useServiceNextStage,
   useServicePageUid,
   useSubTree,
+  BlockInput,
 } from "roamjs-components";
 
 const allBlockMapper = (t: TreeNode): TreeNode[] => [
@@ -66,6 +69,7 @@ const allBlockMapper = (t: TreeNode): TreeNode[] => [
 
 const CSS_REGEX = new RegExp("```css\n(.*)```", "s");
 const SUBDOMAIN_REGEX = /^((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])$/;
+const UPLOAD_REGEX = /!\[.*?\]\((.*?)\)/;
 const DOMAIN_REGEX =
   /^(\*\.)?(((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])\.)+((?!-)[A-Za-z0-9-]{1,62}[A-Za-z0-9])$/;
 const RequestDomainContent: StageContent = ({ openPanel }) => {
@@ -509,6 +513,7 @@ const getDeployBody = () => {
   const referenceTemplateNode = getConfigNode("reference template");
   const pluginsNode = getConfigNode("plugins");
   const themeNode = getConfigNode("theme");
+  const filesNode = getConfigNode("files");
   const getCode = (node?: TreeNode) =>
     (node?.children || [])
       .map((s) => s.text.match(HTML_REGEX))
@@ -564,6 +569,18 @@ const getDeployBody = () => {
         ),
       }
     : {};
+  const withFiles = filesNode?.children?.length
+    ? {
+        files: Object.fromEntries(
+          filesNode.children.map(({ text, children = [] }) => [
+            text,
+            UPLOAD_REGEX.exec(
+              getTextByBlockUid(extractRef(children[0]?.text || ""))
+            )?.[1] || "",
+          ])
+        ),
+      }
+    : {};
 
   const config = {
     index: "Website Index",
@@ -574,6 +591,7 @@ const getDeployBody = () => {
     ...withReferenceTemplate,
     ...withPlugins,
     ...withTheme,
+    ...withFiles,
   };
   pageReferences.current = window.roamAlphaAPI
     .q(
@@ -1233,12 +1251,6 @@ const pluginIds: Plugin[] = [
   },
   { id: "uid-paths", tabs: [] },
 ];
-const pluginsById = Object.fromEntries(
-  pluginIds.map(({ id, tabs }) => [
-    id,
-    Object.fromEntries(tabs.map(({ id, ...rest }) => [id, rest])),
-  ])
-);
 
 const RequestPluginsContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
@@ -1622,6 +1634,125 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
   );
 };
 
+const RequestFilesContent: StageContent = ({ openPanel }) => {
+  const nextStage = useServiceNextStage(openPanel);
+  const pageUid = useServicePageUid();
+  const { uid: fileUid, children: fileChildren } = useSubTree({
+    parentUid: pageUid,
+    key: "files",
+    order: 1,
+  });
+  const [values, setValues] = useState<
+    Record<string, { path: string; url: string; uid: string }>
+  >(() =>
+    fileUid
+      ? Object.fromEntries(
+          fileChildren.map(({ uid, text, children = [] }) => [
+            uid,
+            {
+              path: text,
+              uid: children[0]?.text,
+              url: getTextByBlockUid(children[0]?.text || ""),
+            },
+          ])
+        )
+      : {}
+  );
+  const onSubmit = useCallback(() => {
+    fileChildren.forEach(({ uid }) => deleteBlock(uid));
+    Object.entries(values)
+      .map(([, { path, uid }]) => ({
+        text: path,
+        children: [
+          {
+            text: `((${uid}))`,
+          },
+        ],
+      }))
+      .forEach((node, order) =>
+        createBlock({ parentUid: fileUid, node, order })
+      );
+    nextStage();
+  }, [values, nextStage, fileUid, fileChildren]);
+  const getAllBlocks = useCallback(
+    () =>
+      window.roamAlphaAPI
+        .q(
+          `[:find ?u ?contents :where [?p :block/uid ?u] [?p :block/string ?contents] [(clojure.string/includes? ?contents  "![](https")]]`
+        )
+        .map(([uid, text]: string[]) => ({ uid, text })),
+    []
+  );
+  return (
+    <div>
+      <div style={{ marginBottom: 32 }}>
+        {Object.entries(values).map(([uid, { path, url }]) => (
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+            }}
+            key={uid}
+          >
+            <Label>
+              Path
+              <InputGroup
+                value={path}
+                onChange={(e) =>
+                  setValues({
+                    ...values,
+                    [uid]: { ...values[uid], path: e.target.value },
+                  })
+                }
+              />
+            </Label>
+            <Label style={{ margin: "0 8px 15px", flexGrow: 1 }}>
+              URL
+              <BlockInput
+                value={url}
+                setValue={(val, urlUid) =>
+                  setValues({
+                    ...values,
+                    [uid]: { url: val, path, uid: urlUid },
+                  })
+                }
+                getAllBlocks={getAllBlocks}
+              />
+            </Label>
+            <Button
+              icon={"trash"}
+              minimal
+              onClick={() =>
+                setValues({
+                  ...Object.fromEntries(
+                    Object.entries(values).filter(([u]) => u !== uid)
+                  ),
+                })
+              }
+            />
+          </div>
+        ))}
+        <Button
+          text={"Add File"}
+          intent={Intent.SUCCESS}
+          onClick={() =>
+            setValues({
+              ...values,
+              [window.roamAlphaAPI.util.generateUID()]: {
+                path: "",
+                url: "",
+                uid: "",
+              },
+            })
+          }
+        />
+      </div>
+      <ServiceNextButton onClick={onSubmit} />
+    </div>
+  );
+};
+
 const StaticSiteDashboard = (): React.ReactElement => (
   <ServiceDashboard
     service={"static-site"}
@@ -1656,6 +1787,7 @@ const StaticSiteDashboard = (): React.ReactElement => (
         component: RequestReferenceTemplateContent,
         setting: "Reference Template",
       },
+      { component: RequestFilesContent, setting: "Files" },
     ]}
   />
 );

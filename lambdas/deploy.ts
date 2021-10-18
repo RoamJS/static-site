@@ -15,6 +15,7 @@ import {
   TreeNode,
   ViewType,
   extractTag,
+  extractRef,
   DAILY_NOTE_PAGE_TITLE_REGEX,
   parseInline,
   RoamMarkedContext,
@@ -50,6 +51,7 @@ const METADATA_REGEX = /roam\/js\/static-site\/([a-z-]+)::(.*)/;
 const CODE_REGEX = new RegExp("```[a-z]*\n(.*)```", "s");
 const HTML_REGEX = new RegExp("```html\n(.*)```", "s");
 const CSS_REGEX = new RegExp("```css\n(.*)```", "s");
+const UPLOAD_REGEX = /!\[.*?\]\((.*?)\)/;
 const DAILY_NOTE_PAGE_REGEX =
   /(January|February|March|April|May|June|July|August|September|October|November|December) [0-3]?[0-9](st|nd|rd|th), [0-9][0-9][0-9][0-9]/;
 
@@ -80,6 +82,7 @@ type InputConfig = {
   referenceTemplate?: string;
   plugins?: Record<string, Record<string, string[]>>;
   theme?: Record<string, Record<string, string>>;
+  files?: Record<string, string>;
 };
 
 declare global {
@@ -91,7 +94,7 @@ declare global {
   }
 }
 
-export const defaultConfig = {
+export const defaultConfig: Required<InputConfig> = {
   index: "Website Index",
   filter: [],
   template: `<!DOCTYPE html>
@@ -118,7 +121,8 @@ $\{REFERENCES}
   referenceTemplate: '<li><a href="${LINK}">${REFERENCE}</a></li>',
   plugins: {},
   theme: {},
-} as Required<InputConfig>;
+  files: {},
+};
 
 const DEFAULT_STYLE = `body {
   margin: 0;
@@ -272,6 +276,7 @@ const getConfigFromPage = (parsedTree: TreeNode[]) => {
   const referenceTemplateNode = getConfigNode("reference template");
   const pluginsNode = getConfigNode("plugins");
   const themeNode = getConfigNode("theme");
+  const filesNode = getConfigNode("files");
   const getCode = (node?: TreeNode) =>
     (node?.children || [])
       .map((s) => s.text.match(HTML_REGEX))
@@ -328,6 +333,16 @@ const getConfigFromPage = (parsedTree: TreeNode[]) => {
         ),
       }
     : {};
+  const withFiles: InputConfig = filesNode?.children?.length
+    ? {
+        files: Object.fromEntries(
+          filesNode.children.map(({ text, children = [] }) => [
+            text,
+            extractRef(children[0]?.text || ""),
+          ])
+        ),
+      }
+    : {};
   return {
     ...withIndex,
     ...withFilter,
@@ -335,6 +350,7 @@ const getConfigFromPage = (parsedTree: TreeNode[]) => {
     ...withReferenceTemplate,
     ...withPlugins,
     ...withTheme,
+    ...withFiles,
   };
 };
 
@@ -404,7 +420,7 @@ const convertContentToHtml = ({
               {
                 PAGES: Object.entries(pages).map(([name, { layout }]) => ({
                   name,
-                  filter: layout,
+                  filter: typeof layout === "undefined" ? -1 : layout,
                 })),
               },
               {},
@@ -533,7 +549,7 @@ export const renderHtmlFromPage = ({
             .split(/\//)
             .map((s) =>
               encodeURIComponent(
-                s.replace(/ /g, "_").replace(/[",?#:$;@&=+'.]/g, "")
+                s.replace(/ /g, "_").replace(/[",?#:$;@&=+'.|]/g, "")
               )
             )
             .join("/")}`,
@@ -717,7 +733,7 @@ export const renderHtmlFromPage = ({
   link.type = "text/css";
   link.href = "/theme.css";
   dom.window.document.head.appendChild(link);
-  
+
   // temporary until we figure out a better option:
   // 1. include this in marked
   // 2. figure out tree shaking so that it goes back in image caption
@@ -794,9 +810,20 @@ export const processSiteData = async ({
     });
   });
 
+  await Promise.all(
+    Object.entries(config.files).map(([p, url]) =>
+      axios.get(url, { responseType: "stream" }).then((r) => {
+        const filename = path.join(outputPath, p);
+        const dirname = path.dirname(filename);
+        if (!fs.existsSync(dirname)) fs.mkdirSync(dirname, { recursive: true });
+        return r.data.pipe(fs.createWriteStream(filename));
+      })
+    )
+  );
+
   if (config.theme?.layout?.favicon) {
     const url =
-      /^\s*!\[.*\]\((.*)\)\s*$/.exec(config.theme.layout.favicon)?.[1] ||
+      UPLOAD_REGEX.exec(config.theme.layout.favicon)?.[1] ||
       config.theme.layout.favicon;
     await axios
       .get(url, { responseType: "stream" })
@@ -986,6 +1013,19 @@ export const run = async ({
           ...userConfig,
           ...inputConfig,
         };
+        config.files = await Promise.all(
+          Object.entries(config.files).map(([u, uid]) =>
+            page
+              .evaluate(
+                () =>
+                  window.roamAlphaAPI.q(
+                    `[:find (pull ?e [:block/string]) :where [?e :block/uid "${uid}"]]`
+                  )?.[0]?.[0]?.string,
+                uid
+              )
+              .then((url) => [u, UPLOAD_REGEX.exec(url)?.[1] || ""])
+          )
+        ).then((ents) => Object.fromEntries(ents));
         const blockReferences = config.plugins["inline-block-references"]
           ? await page.evaluate(() => {
               return window.roamAlphaAPI
@@ -1279,6 +1319,7 @@ export const handler = async (event: {
         s
           .replace(new RegExp(`^${outputPath.replace(/\\/g, "\\\\")}`), "")
           .replace(/^(\/|\\)/, "")
+          .replace(/\\/g, '/')
       );
 
       const fileSet = new Set(filesToUpload);
