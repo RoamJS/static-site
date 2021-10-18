@@ -43,6 +43,7 @@
     "react-codemirror2": "^7.2.1",
     "react-dom": "^17.0.2",
     "roamjs-components": "^0.25.6",
+    "url-regex-safe": "^2.0.2",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
@@ -56,6 +57,7 @@
     "@types/randomstring": "^1.1.7",
     "@types/react": "^17.0.6",
     "@types/react-dom": "^17.0.5",
+    "@types/url-regex-safe": "^1.0.0",
     "@types/uuid": "^8.3.0",
     "babel-loader": "^8.2.2",
     "cross-env": "^7.0.3",

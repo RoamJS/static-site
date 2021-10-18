@@ -61,6 +61,7 @@ import {
   useSubTree,
   BlockInput,
 } from "roamjs-components";
+import urlRegex from "url-regex-safe";
 
 const allBlockMapper = (t: TreeNode): TreeNode[] => [
   t,
@@ -69,7 +70,7 @@ const allBlockMapper = (t: TreeNode): TreeNode[] => [
 
 const CSS_REGEX = new RegExp("```css\n(.*)```", "s");
 const SUBDOMAIN_REGEX = /^((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])$/;
-const UPLOAD_REGEX = /!\[.*?\]\((.*?)\)/;
+const UPLOAD_REGEX = urlRegex({ strict: true });
 const DOMAIN_REGEX =
   /^(\*\.)?(((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])\.)+((?!-)[A-Za-z0-9-]{1,62}[A-Za-z0-9])$/;
 const RequestDomainContent: StageContent = ({ openPanel }) => {
@@ -1678,7 +1679,7 @@ const RequestFilesContent: StageContent = ({ openPanel }) => {
     () =>
       window.roamAlphaAPI
         .q(
-          `[:find ?u ?contents :where [?p :block/uid ?u] [?p :block/string ?contents] [(clojure.string/includes? ?contents "](https")]]`
+          `[:find ?u ?contents :where [?p :block/uid ?u] [?p :block/string ?contents] [(clojure.string/includes? ?contents "https")]]`
         )
         .map(([uid, text]: string[]) => ({ uid, text })),
     []
