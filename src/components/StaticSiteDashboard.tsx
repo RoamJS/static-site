@@ -1651,8 +1651,8 @@ const RequestFilesContent: StageContent = ({ openPanel }) => {
             uid,
             {
               path: text,
-              uid: children[0]?.text,
-              url: getTextByBlockUid(children[0]?.text || ""),
+              uid: extractTag(children[0]?.text || ""),
+              url: getTextByBlockUid(extractTag(children[0]?.text || "")),
             },
           ])
         )
@@ -1678,7 +1678,7 @@ const RequestFilesContent: StageContent = ({ openPanel }) => {
     () =>
       window.roamAlphaAPI
         .q(
-          `[:find ?u ?contents :where [?p :block/uid ?u] [?p :block/string ?contents] [(clojure.string/includes? ?contents  "![](https")]]`
+          `[:find ?u ?contents :where [?p :block/uid ?u] [?p :block/string ?contents] [(clojure.string/includes? ?contents "](https")]]`
         )
         .map(([uid, text]: string[]) => ({ uid, text })),
     []
