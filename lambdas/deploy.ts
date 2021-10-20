@@ -418,9 +418,10 @@ const convertContentToHtml = ({
             return Mustache.render(
               template,
               {
-                PAGES: Object.entries(pages).map(([name, { layout }]) => ({
+                PAGES: Object.entries(pages).map(([name, { layout, metadata }]) => ({
                   name,
                   filter: typeof layout === "undefined" ? -1 : layout,
+                  metadata,
                 })),
               },
               {},

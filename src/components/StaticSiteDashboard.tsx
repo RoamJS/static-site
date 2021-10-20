@@ -1052,7 +1052,7 @@ const LiveContent: StageContent = () => {
                   onClick={manualDeploy}
                   intent={Intent.PRIMARY}
                 >
-                  Manual Deploy
+                  Deploy
                 </Button>
                 <WebsiteButton
                   disabled={siteDeploying}
