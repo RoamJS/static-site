@@ -418,14 +418,19 @@ const convertContentToHtml = ({
             return Mustache.render(
               template,
               {
-                PAGES: Object.entries(pages).map(([name, { layout, metadata }]) => ({
-                  name,
-                  filter: typeof layout === "undefined" ? -1 : layout,
-                  metadata,
-                })),
+                PAGES: Object.entries(pages).map(
+                  ([name, { layout, metadata }]) => ({
+                    name,
+                    filter: typeof layout === "undefined" ? -1 : layout,
+                    metadata,
+                  })
+                ),
               },
               {},
-              ["${", "}"]
+              {
+                tags: ["${", "}"],
+                escape: (s) => s,
+              }
             );
           }
         }
