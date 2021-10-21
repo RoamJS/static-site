@@ -1228,7 +1228,7 @@ const RequestReferenceTemplateContent: StageContent = ({ openPanel }) => {
   );
 };
 
-type PluginTab = { id: string; options: string[]; multi?: true };
+type PluginTab = { id: string; options?: string[]; multi?: true };
 
 type Plugin = {
   id: string;
@@ -1236,6 +1236,7 @@ type Plugin = {
 };
 
 const pluginIds: Plugin[] = [
+  { id: "footer", tabs: [{ id: "links", multi: true }, { id: "copyright" }] },
   { id: "header", tabs: [{ id: "links", options: ["{page}"], multi: true }] },
   { id: "image-preview", tabs: [] },
   { id: "inline-block-references", tabs: [] },
@@ -1287,6 +1288,13 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
     () => pluginIds.find(({ id }) => id === outerKey),
     [outerKey]
   );
+  const outerTabById = useMemo(
+    () =>
+      Object.fromEntries(
+        outerTabSelected.tabs.map(({ id, ...rest }) => [id, rest])
+      ),
+    [outerTabSelected]
+  );
   const [innerKey, setInnerKey] = useState(outerKey);
   const onSubmit = useCallback(() => {
     getShallowTreeByParentUid(pluginUid).forEach(({ uid }) => deleteBlock(uid));
@@ -1334,7 +1342,9 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
                 vertical
                 onChange={(k) => {
                   setInnerKey(k as string);
-                  setActiveValue("");
+                  setActiveValue(
+                    outerTabById[k].multi ? "" : values[tabId][k]?.[0] || ''
+                  );
                 }}
                 selectedTabId={innerKey}
               >
@@ -1359,7 +1369,7 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
                   }
                 />
                 {outerTabSelected.tabs.map(
-                  ({ id: subtabId, options, multi }) => {
+                  ({ id: subtabId, options = [], multi }) => {
                     const onConfirm = () => {
                       const { [subtabId]: activeValues = [], ...rest } =
                         values[tabId];
@@ -1423,9 +1433,18 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
                               ) : (
                                 <InputGroup
                                   value={activeValue}
-                                  onChange={(e) =>
-                                    setActiveValue(e.target.value)
-                                  }
+                                  onChange={(e) => {
+                                    setActiveValue(e.target.value);
+                                    if (!multi) {
+                                      setValues({
+                                        ...values,
+                                        [tabId]: {
+                                          ...values[tabId],
+                                          [subtabId]: [e.target.value],
+                                        },
+                                      });
+                                    }
+                                  }}
                                   rightElement={
                                     multi && (
                                       <Button

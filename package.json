@@ -42,6 +42,7 @@
     "react": "^17.0.2",
     "react-codemirror2": "^7.2.1",
     "react-dom": "^17.0.2",
+    "react-icons": "^4.3.1",
     "roamjs-components": "^0.25.6",
     "uuid": "^8.3.2"
   },
@@ -63,7 +64,7 @@
     "css-loader": "^6.2.0",
     "file-loader": "^6.2.0",
     "http-server": "^13.0.2",
-    "jest": "^26.6.3",
+    "jest": "^27.3.1",
     "localhost-lambdas": "^0.5.3",
     "node-polyfill-webpack-plugin": "^1.1.4",
     "roamjs-scripts": "^0.12.5",

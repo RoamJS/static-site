@@ -27,6 +27,7 @@ import { JSDOM } from "jsdom";
 import DailyLog from "../components/DailyLog";
 import InlineBlockReference from "../components/InlineBlockReference";
 import { render as renderHeader } from "../components/Header";
+import { render as renderFooter } from "../components/Footer";
 import { render as renderSidebar } from "../components/Sidebar";
 import { render as renderImagePreview } from "../components/ImagePreview";
 import axios from "axios";
@@ -506,6 +507,7 @@ const PLUGIN_RENDER: {
   header: renderHeader,
   sidebar: renderSidebar,
   "image-preview": renderImagePreview,
+  footer: renderFooter,
 };
 
 const inlineTryCatch = <T>(tryFcn: () => T, catchFcn: (e: Error) => T): T => {
