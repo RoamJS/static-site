@@ -17,7 +17,7 @@ test.skip("Run Action", async (done) => {
 test("Based on JSON", (done) => {
   jest.setTimeout(600000);
   const { pages, config } = JSON.parse(
-    fs.readFileSync("../../../Downloads/20211018082117.json").toString()
+    fs.readFileSync("../../../Downloads/20211022032602.json").toString()
   );
   processSiteData({
     pages,
@@ -26,10 +26,6 @@ test("Based on JSON", (done) => {
     outputPath: "out",
   }).then((outConfig) => {
     expect(outConfig).toBeTruthy();
-   /* handler({
-      roamGraph: '',
-      key: ''
-    }).then(done) */
     done();
   });
 });

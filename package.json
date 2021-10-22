@@ -43,7 +43,7 @@
     "react-codemirror2": "^7.2.1",
     "react-dom": "^17.0.2",
     "react-icons": "^4.3.1",
-    "roamjs-components": "^0.25.6",
+    "roamjs-components": "^0.25.8",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
@@ -70,7 +70,7 @@
     "roamjs-scripts": "^0.12.5",
     "style-loader": "^3.1.0",
     "svg-react-loader": "^0.4.6",
-    "ts-jest": "^26.4.4",
+    "ts-jest": "^27.0.7",
     "ts-loader": "^9.2.3",
     "typescript": "^4.1.2",
     "url-loader": "^4.1.1",
