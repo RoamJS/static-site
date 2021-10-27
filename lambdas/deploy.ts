@@ -1288,17 +1288,16 @@ export const readDir = (s: string): string[] =>
       f.isDirectory() ? readDir(path.join(s, f.name)) : [path.join(s, f.name)]
     );
 
-const outputPath =
-  process.env.NODE_ENV === "production"
-    ? path.join("/tmp", "path")
-    : path.resolve("dist");
-
 export const handler = async (event: {
   roamGraph: string;
   key?: string;
   debug?: boolean;
 }): Promise<void> => {
   const logStatus = createLogStatus(event.roamGraph, "deploy");
+  const outputPath =
+  process.env.NODE_ENV === "production"
+    ? path.join("/tmp", event.roamGraph)
+    : path.resolve("dist");
   if (!event.key) {
     console.warn("Daily deploys deprecated - `key` is required");
     await logStatus("SUCCESS");
@@ -1326,9 +1325,10 @@ export const handler = async (event: {
       await logStatus("DELETING STALE FILES");
       const Bucket = `roamjs-static-sites`;
       const Prefix = `${event.roamGraph}/`;
+      const outputPathRegex = new RegExp(`^${outputPath.replace(/\\/g, "\\\\")}`);
       const filesToUpload = readDir(outputPath).map((s) =>
         s
-          .replace(new RegExp(`^${outputPath.replace(/\\/g, "\\\\")}`), "")
+          .replace(outputPathRegex, "")
           .replace(/^(\/|\\)/, "")
           .replace(/\\/g, "/")
       );
