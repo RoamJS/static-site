@@ -107,6 +107,12 @@ export const defaultConfig: Required<InputConfig> = {
 <title>$\{PAGE_NAME}</title>
 <meta property="og:title" content="$\{PAGE_NAME}">
 <meta property="og:type" content="website">
+<meta name="twitter:card" content={"summary"} />
+<meta name="twitter:creator" content="$\{PAGE_USER}" />
+<meta name="twitter:title" content="$\{PAGE_NAME}" />
+<meta name="twitter:description" content="$\{PAGE_DESCRIPTION}" />
+<meta name="og:image" content="$\{PAGE_THUMBNAIL}" />
+<meta name="twitter:image" content="$\{PAGE_THUMBNAIL}" />
 </head>
 <body>
 <div id="content">
