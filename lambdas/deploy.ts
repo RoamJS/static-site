@@ -449,6 +449,7 @@ const convertContentToHtml = ({
       classlist.push(className);
       return "";
     });
+    console.log(textToParse);
     const inlineMarked = parseInline(textToParse, {
       ...context,
       components: componentsWithChildren,
@@ -562,9 +563,7 @@ export const renderHtmlFromPage = ({
           `${name
             .split(/\//)
             .map((s) =>
-              encodeURIComponent(
-                s.replace(/ /g, "_").replace(/[^\w-]/g, "")
-              )
+              encodeURIComponent(s.replace(/ /g, "_").replace(/[^\w-]/g, ""))
             )
             .join("/")}`,
           useLowercase,
@@ -580,10 +579,11 @@ export const renderHtmlFromPage = ({
     "inline-block-references"
   );
 
-  const blockReferences = (u: string) => ({
-    text: blockReferencesCache[u]?.node?.text,
-    page: blockReferencesCache[u]?.page,
-  });
+  const blockReferences = (u: string) =>
+    blockReferencesCache[u] && {
+      text: blockReferencesCache[u].node?.text,
+      page: blockReferencesCache[u].page,
+    };
   const converter = ({ content }: { content: HydratedTreeNode[] }): string => {
     const filterIgnore = (t: TreeNode) => {
       if (IGNORE_BLOCKS.some((ib) => t.text.trim().includes(ib))) {
@@ -1301,9 +1301,9 @@ export const handler = async (event: {
 }): Promise<void> => {
   const logStatus = createLogStatus(event.roamGraph, "deploy");
   const outputPath =
-  process.env.NODE_ENV === "production"
-    ? path.join("/tmp", event.roamGraph)
-    : path.resolve("dist");
+    process.env.NODE_ENV === "production"
+      ? path.join("/tmp", event.roamGraph)
+      : path.resolve("dist");
   if (!event.key) {
     console.warn("Daily deploys deprecated - `key` is required");
     await logStatus("SUCCESS");
@@ -1331,7 +1331,9 @@ export const handler = async (event: {
       await logStatus("DELETING STALE FILES");
       const Bucket = `roamjs-static-sites`;
       const Prefix = `${event.roamGraph}/`;
-      const outputPathRegex = new RegExp(`^${outputPath.replace(/\\/g, "\\\\")}`);
+      const outputPathRegex = new RegExp(
+        `^${outputPath.replace(/\\/g, "\\\\")}`
+      );
       const filesToUpload = readDir(outputPath).map((s) =>
         s
           .replace(outputPathRegex, "")
