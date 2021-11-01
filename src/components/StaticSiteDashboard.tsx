@@ -691,7 +691,7 @@ const getDeployBody = () => {
               k,
               inlineTryCatch(
                 () => new Function("uid", JS_REGEX.exec(v)?.[1] || v)(uid),
-                () => ""
+                () => v
               ),
             ]
           )
