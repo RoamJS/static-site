@@ -214,6 +214,7 @@ h1, h2, h3, p {
   background-color: #F5F8FA;
   border-left: 5px solid #30404D;
   padding: 10px 20px;
+  white-space: pre-wrap;
 }
 `;
 
