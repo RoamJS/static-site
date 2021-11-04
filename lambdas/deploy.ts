@@ -33,6 +33,7 @@ import { render as renderImagePreview } from "../components/ImagePreview";
 import axios from "axios";
 import mime from "mime-types";
 import Mustache from "mustache";
+import { DEFAULT_TEMPLATE } from "./common/constants";
 
 const transformIfTrue = (s: string, f: boolean, t: (s: string) => string) =>
   f ? t(s) : s;
@@ -42,11 +43,6 @@ const TITLE_REGEX = new RegExp(
   `(?:${CONFIG_PAGE_NAMES.map((c) => `${c.replace("/", "\\/")}/title`).join(
     "|"
   )})::(.*)`
-);
-const HEAD_REGEX = new RegExp(
-  `(?:${CONFIG_PAGE_NAMES.map((c) => `${c.replace("/", "\\/")}/head`).join(
-    "|"
-  )})::`
 );
 const METADATA_REGEX = /roam\/js\/static-site\/([a-z-]+)::(.*)/;
 const CODE_REGEX = new RegExp("```[a-z]*\n(.*)```", "s");
@@ -98,33 +94,7 @@ declare global {
 export const defaultConfig: Required<InputConfig> = {
   index: "Website Index",
   filter: [],
-  template: `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8"/>
-<meta name="description" content="$\{PAGE_DESCRIPTION}"/>
-<meta property="og:description" content="$\{PAGE_DESCRIPTION}">
-<title>$\{PAGE_NAME}</title>
-<meta property="og:title" content="$\{PAGE_NAME}">
-<meta property="og:type" content="website">
-<meta name="twitter:card" content={"summary"} />
-<meta name="twitter:creator" content="$\{PAGE_USER}" />
-<meta name="twitter:title" content="$\{PAGE_NAME}" />
-<meta name="twitter:description" content="$\{PAGE_DESCRIPTION}" />
-<meta name="og:image" content="$\{PAGE_THUMBNAIL}" />
-<meta name="twitter:image" content="$\{PAGE_THUMBNAIL}" />
-</head>
-<body>
-<div id="content">
-$\{PAGE_CONTENT}
-</div>
-<div id="references">
-<ul>
-$\{REFERENCES}
-</ul>
-</div>
-</body>
-</html>`,
+  template: DEFAULT_TEMPLATE,
   referenceTemplate: '<li><a href="${LINK}">${REFERENCE}</a></li>',
   plugins: {},
   theme: {},
@@ -513,7 +483,6 @@ const convertContentToHtml = ({
 type PageContent = {
   content: HydratedTreeNode[];
   references: { title: string; node: HydratedTreeNode }[];
-  head: string;
   viewType: ViewType;
   uid: string;
   metadata: Record<string, string>;
@@ -557,7 +526,7 @@ export const renderHtmlFromPage = ({
     { node: HydratedTreeNode; page: string }
   >;
 }): void => {
-  const { content, references = [], head, metadata = {}, viewType } = pages[p];
+  const { content, references = [], metadata = {}, viewType } = pages[p];
   const pageNameSet = new Set(Object.keys(pages));
   const uidByName = Object.fromEntries(
     Object.entries(pages).map(([name, { uid }]) => [name, uid])
@@ -742,7 +711,6 @@ export const renderHtmlFromPage = ({
         .join("\n")
     );
   const dom = new JSDOM(hydratedHtml);
-  dom.window.document.head.innerHTML = `${dom.window.document.head.innerHTML}${head}`;
   pluginKeys.forEach((k) =>
     PLUGIN_RENDER[k]?.(dom, config.plugins[k], {
       convertPageNameToPath,
@@ -1191,11 +1159,7 @@ export const run = async ({
             const titleMatch = allBlocks
               .find((s) => TITLE_REGEX.test(s.text))
               ?.text?.match?.(TITLE_REGEX);
-            const headMatch = allBlocks
-              .find((s) => HEAD_REGEX.test(s.text))
-              ?.children?.[0]?.text?.match?.(HTML_REGEX);
             const title = titleMatch ? titleMatch[1].trim() : pageName;
-            const head = headMatch ? headMatch[1] : "";
             const metadata = Object.fromEntries(
               allBlocks
                 .filter((s) => METADATA_REGEX.test(s.text))
@@ -1215,7 +1179,6 @@ export const run = async ({
               pageName,
               {
                 content,
-                head,
                 metadata,
                 ...props,
               },

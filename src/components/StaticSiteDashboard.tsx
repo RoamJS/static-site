@@ -62,6 +62,7 @@ import {
   BlockInput,
 } from "roamjs-components";
 import urlRegex from "url-regex-safe";
+import { DEFAULT_TEMPLATE } from "../../lambdas/common/constants";
 
 const allBlockMapper = (t: TreeNode): TreeNode[] => [
   t,
@@ -73,6 +74,7 @@ const SUBDOMAIN_REGEX = /^((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])$/;
 const UPLOAD_REGEX = /(https?:\/\/[^\)]*)(?:$|\)|\s)/;
 const DOMAIN_REGEX =
   /^(\*\.)?(((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])\.)+((?!-)[A-Za-z0-9-]{1,62}[A-Za-z0-9])$/;
+const IMAGE_REGEX = /!\[\]\(([^)]+)\)/;
 const RequestDomainContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
   const pageUid = useServicePageUid();
@@ -501,6 +503,13 @@ const inlineTryCatch = (
   }
 };
 
+const extractValue = (s: string) => {
+  const postTag = extractTag(s.trim());
+  const postImage = IMAGE_REGEX.test(postTag) ? IMAGE_REGEX.exec(postTag)?.[1] : postTag;
+  const postCode = HTML_REGEX.test(postTag) ? HTML_REGEX.exec(postImage)?.[1] : postImage;
+  return postCode;
+}
+
 const getDeployBody = () => {
   const allPageNames = getAllPageNames();
   const configPageTree = getTreeByPageName("roam/js/static-site");
@@ -670,11 +679,7 @@ const getDeployBody = () => {
       const titleMatch = allBlocks
         .find((s) => TITLE_REGEX.test(s.text))
         ?.text?.match?.(TITLE_REGEX);
-      const headMatch = allBlocks
-        .find((s) => HEAD_REGEX.test(s.text))
-        ?.children?.[0]?.text?.match?.(HTML_REGEX);
       const title = titleMatch ? titleMatch[1].trim() : pageName;
-      const head = headMatch ? headMatch[1] : "";
       const metadata = {
         ...Object.fromEntries(
           allBlocks
@@ -688,7 +693,7 @@ const getDeployBody = () => {
               key: match[1],
               value: match[2].trim() || node.children[0]?.text || "",
             }))
-            .map(({ key, value }) => [key, extractTag(value.trim())])
+            .map(({ key, value }) => [key, extractValue(value)])
             .concat([["name", title.split("/").slice(-1)[0]]])
         ),
         ...Object.fromEntries(
@@ -707,7 +712,6 @@ const getDeployBody = () => {
         pageName,
         {
           content,
-          head,
           metadata,
           layout,
           uid,
@@ -1183,28 +1187,6 @@ const RequestHtmlContent = ({
     </div>
   );
 };
-
-const DEFAULT_TEMPLATE = `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8"/>
-    <meta name="description" content="$\{PAGE_DESCRIPTION}"/>
-    <meta property="og:description" content="$\{PAGE_DESCRIPTION}">
-    <title>$\{PAGE_NAME}</title>
-    <meta property="og:title" content="$\{PAGE_NAME}">
-    <meta property="og:type" content="website">
-  </head>
-  <body>
-    <div id="content">
-      $\{PAGE_CONTENT}
-    </div>
-    <div id="references">
-      <ul>
-        $\{REFERENCES}
-      </ul>
-    </div>
-  </body>
-</html>`;
 
 const RequestTemplateContent: StageContent = ({ openPanel }) => {
   return (
