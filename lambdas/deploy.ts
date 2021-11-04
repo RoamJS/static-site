@@ -216,6 +216,18 @@ h1, h2, h3, p {
   padding: 10px 20px;
   white-space: pre-wrap;
 }
+.left {
+  text-align: left;
+}
+.center {
+  text-align: center;
+}
+.right {
+  text-align: right;
+}
+.justify {
+  text-align: justify;
+}
 `;
 
 const renderComponent = <T extends Record<string, unknown>>({
@@ -445,12 +457,11 @@ const convertContentToHtml = ({
       }
       return false;
     };
-    const classlist = ["roam-block"];
+    const classlist = ["roam-block", t.textAlign];
     const textToParse = t.text.replace(/#\.([^\s]*)/g, (_, className) => {
       classlist.push(className);
       return "";
     });
-    console.log(textToParse);
     const inlineMarked = parseInline(textToParse, {
       ...context,
       components: componentsWithChildren,

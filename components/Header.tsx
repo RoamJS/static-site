@@ -2,14 +2,13 @@ import React from "react";
 import ReactDOM from "react-dom";
 import ReactDOMServer from "react-dom/server";
 //import { extractTag } from "roam-client"; Why is tree shaking not working?
-import {
-  ensureReact,
-  ensureScript,
-} from "../lambdas/common/components";
+import { ensureReact, ensureScript } from "../lambdas/common/components";
 import { RenderFunction } from "../lambdas/common/types";
+import { parseInline } from "roam-marked";
 
 type Props = {
   links: { title: string; href: string }[];
+  home?: string;
 };
 
 const extractTag = (tag: string): string =>
@@ -23,7 +22,7 @@ const extractTag = (tag: string): string =>
     ? tag.substring(0, tag.length - 2)
     : tag;
 
-const Header = ({ links }: Props): React.ReactElement => {
+const Header = ({ links, home = "Home" }: Props): React.ReactElement => {
   return (
     <>
       <style>
@@ -86,9 +85,13 @@ const Header = ({ links }: Props): React.ReactElement => {
       <header className="roamjs-header-root">
         <div className="roamjs-nav-root">
           <h6 className="roamjs-home-header">
-            <a href="/" className="roamjs-home-link">
-              Home
-            </a>
+            <a
+              href="/"
+              className="roamjs-home-link"
+              dangerouslySetInnerHTML={{
+                __html: parseInline(home),
+              }}
+            />
           </h6>
           <div>
             <div className="roamjs-links-container">
@@ -122,12 +125,11 @@ let cache = "";
 
 export const render: RenderFunction = (dom, props, context) => {
   const componentProps = {
-    links: (props["links"] || [])
-    .map(extractTag)
-    .map((title) => ({
+    links: (props["links"] || []).map(extractTag).map((title) => ({
       title,
       href: context.convertPageNameToPath(title),
     })),
+    home: props["home"]?.[0],
   };
   const innerHtml =
     cache ||

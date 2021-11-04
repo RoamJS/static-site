@@ -524,6 +524,12 @@ const getDeployBody = () => {
   const withIndex = indexNode?.children?.length
     ? { index: extractTag(indexNode.children[0].text.trim()) }
     : {};
+  if (!withIndex?.index) {
+    throw new Error("The Website Index is not set and is required.");
+  }
+  if (!getPageUidByPageTitle(withIndex.index)) {
+    throw new Error(`Could not find your index page: ${withIndex.index}`)
+  }
   const withFilter = filterNode?.children?.length
     ? {
         filter: filterNode.children.map((t) => ({
@@ -1237,7 +1243,10 @@ type Plugin = {
 
 const pluginIds: Plugin[] = [
   { id: "footer", tabs: [{ id: "links", multi: true }, { id: "copyright" }] },
-  { id: "header", tabs: [{ id: "links", options: ["{page}"], multi: true }] },
+  {
+    id: "header",
+    tabs: [{ id: "links", options: ["{page}"], multi: true }, { id: "home" }],
+  },
   { id: "image-preview", tabs: [] },
   { id: "inline-block-references", tabs: [] },
   { id: "paths", tabs: [{ id: "type", options: ["uid", "lowercase"] }] },
@@ -1343,7 +1352,7 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
                 onChange={(k) => {
                   setInnerKey(k as string);
                   setActiveValue(
-                    outerTabById[k].multi ? "" : values[tabId][k]?.[0] || ''
+                    outerTabById[k].multi ? "" : values[tabId][k]?.[0] || ""
                   );
                 }}
                 selectedTabId={innerKey}
