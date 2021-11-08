@@ -3,7 +3,6 @@ import ReactDOM from "react-dom";
 import ReactDOMServer from "react-dom/server";
 import { ensureReact, ensureScript } from "../lambdas/common/components";
 import { RenderFunction } from "../lambdas/common/types";
-import { Icon } from "@blueprintjs/core";
 import {
   FaTwitter,
   FaGithub,
@@ -15,6 +14,8 @@ import {
   FaMedium,
   FaTwitch,
   FaStrava,
+  FaEnvelope,
+  FaLink
 } from "react-icons/fa";
 
 type Props = {
@@ -23,18 +24,18 @@ type Props = {
 };
 
 const icons = [
-  { test: /twitter\.com/, component: <Icon icon={<FaTwitter />} /> },
-  { test: /github\.com/, component: <Icon icon={<FaGithub />} /> },
-  { test: /linkedin\.com/, component: <Icon icon={<FaLinkedin />} /> },
-  { test: /instagram\.com/, component: <Icon icon={<FaInstagram />} /> },
-  { test: /facebook\.com/, component: <Icon icon={<FaFacebook />} /> },
-  { test: /reddit\.com/, component: <Icon icon={<FaReddit />} /> },
-  { test: /youtube\.com/, component: <Icon icon={<FaYoutube />} /> },
-  { test: /medium\.com/, component: <Icon icon={<FaMedium />} /> },
-  { test: /twitch\.tv/, component: <Icon icon={<FaTwitch />} /> },
-  { test: /strava\.com/, component: <Icon icon={<FaStrava />} /> },
-  { test: /^mailto:/, component: <Icon icon={"envelope"} /> },
-  { test: /.*/, component: <Icon icon={"social-media"} /> },
+  { test: /twitter\.com/, component: <FaTwitter /> },
+  { test: /github\.com/, component: <FaGithub /> },
+  { test: /linkedin\.com/, component: <FaLinkedin /> },
+  { test: /instagram\.com/, component: <FaInstagram /> },
+  { test: /facebook\.com/, component: <FaFacebook /> },
+  { test: /reddit\.com/, component: <FaReddit /> },
+  { test: /youtube\.com/, component: <FaYoutube /> },
+  { test: /medium\.com/, component: <FaMedium /> },
+  { test: /twitch\.tv/, component: <FaTwitch /> },
+  { test: /strava\.com/, component: <FaStrava /> },
+  { test: /^mailto:/, component: <FaEnvelope /> },
+  { test: /.*/, component: <FaLink /> },
 ];
 
 const Footer = ({ links, copyright }: Props): React.ReactElement => {
@@ -59,15 +60,28 @@ const Footer = ({ links, copyright }: Props): React.ReactElement => {
   align-items: center;
   padding: 0;
   list-style: none;
+  justify-content: end;
+  min-width: 40%;
 }
 
 .roamjs-footer-social-networks li {
   padding: 0 8px;
+}
+
+.roamjs-footer-copyright {
+  min-width: 40%;
+}
+
+.roamjs-footer-icon {
+  color: inherit;
+  display: inline-block;
+  flex: 0 0 auto;
+  vertical-align: text-bottom;
 }`}
       </style>
       <footer className={"roamjs-footer"}>
         <div className={"roamjs-footer-container"}>
-          <span>
+          <span className={"roamjs-footer-copyright"}>
             © {new Date().getFullYear()} {copyright}
           </span>
           <span>
@@ -85,7 +99,9 @@ const Footer = ({ links, copyright }: Props): React.ReactElement => {
             {links.map((link) => (
               <li key={link}>
                 <a href={link} target="_blank" rel="noopener">
+    <span className={'roamjs-footer-icon'}>
                   {icons.find((i) => i.test.test(link)).component}
+                  </span>
                 </a>
               </li>
             ))}

@@ -17,7 +17,8 @@ const ImagePreview = (): React.ReactElement => {
       const target = e.target as HTMLElement;
       if (
         target.tagName === "IMG" &&
-        target.classList.contains("roamjs-image-preview-img")
+        target.classList.contains("roamjs-image-preview-img") &&
+        !target.closest(".roamjs-image-preview-ignore")
       ) {
         setSrc((target as HTMLImageElement).src);
       }
@@ -75,6 +76,10 @@ const ImagePreview = (): React.ReactElement => {
       
 .roamjs-image-preview-img {
   cursor: pointer;
+}
+
+.roamjs-image-preview-ignore img.roamjs-image-preview-img {
+  cursor: unset;
 }
 
 .roamjs-image-preview-portal {

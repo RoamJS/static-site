@@ -39,7 +39,7 @@ if (process.env.NODE_ENV === "development") {
 }
 
 export const getRoamJSUser = (event: Pick<APIGatewayProxyEvent, "headers">) =>
-  axios.get(`https://api.roamjs.com/user`, {
+  axios.get(`https://lambda.roamjs.com/user`, {
     headers: {
       "x-roamjs-token":
         event.headers.Authorization || event.headers.authorization,
@@ -51,7 +51,7 @@ export const putRoamJSUser = (
   event: Pick<APIGatewayProxyEvent, "headers">,
   data: { websiteGraph?: string }
 ) =>
-  axios.put(`https://api.roamjs.com/user`, data, {
+  axios.put(`https://lambda.roamjs.com/user`, data, {
     headers: {
       "x-roamjs-token":
         event.headers.Authorization || event.headers.authorization,

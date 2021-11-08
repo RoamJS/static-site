@@ -198,6 +198,146 @@ h1, h2, h3, p {
 .justify {
   text-align: justify;
 }
+p > code {
+  margin-right: .2em;
+  border-radius: 4px;
+  color: #333;
+  background: #eee;
+  border: 1px solid #ddd;
+  padding: .1em .3em;
+}
+pre code[class*="language-"] {
+  color: black;
+  background: none;
+  text-shadow: 0 1px white; 
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+  line-height: 1.5;
+}
+pre {
+  color: black;
+  background: #f5f2f0;
+  text-shadow: 0 1px white;
+  white-space: pre;
+  word-spacing: normal;
+  word-break: normal;
+  word-wrap: normal;
+  line-height: 1.5;
+  padding: 1em;
+  margin: .5em 0;
+  overflow: auto;
+}
+pre code .comment {
+  color: slategray;
+}
+pre code .prolog {
+  color: slategray;
+}
+pre code .doctype {
+  color: slategray;
+}
+pre code .cdata {
+  color: slategray;
+}
+pre code .punctuation {
+  color: #999;
+}
+pre code .namespace {
+  opacity: .7;
+}
+pre code .property {
+  color: #905;
+}
+pre code .tag {
+  color: #905;
+}
+pre code .boolean {
+  color: #905;
+}
+pre code .number {
+  color: #905;
+}
+pre code .constant {
+  color: #905;
+}
+pre code .symbol {
+  color: #905;
+}
+pre code .deleted {
+  color: #905;
+}
+pre code .selector {
+  color: #690;
+}
+pre code .attr-name {
+  color: #690;
+}
+pre code .string {
+  color: #690;
+}
+pre code .char {
+  color: #690;
+}
+pre code .builtin {
+  color: #690;
+}
+pre code .inserted {
+  color: #690;
+}
+pre code .operator {
+  color: #9a6e3a;
+  background: hsla(0, 0%, 100%, .5);
+}
+pre code .entity {
+  color: #9a6e3a;
+  background: hsla(0, 0%, 100%, .5);
+  cursor: help;
+}
+pre code .url {
+  color: #9a6e3a;
+  background: hsla(0, 0%, 100%, .5);
+}
+pre code.language-css .token.string {
+  color: #9a6e3a;
+  background: hsla(0, 0%, 100%, .5);
+}
+pre code .style .token.string {
+  color: #9a6e3a;
+  background: hsla(0, 0%, 100%, .5);
+}
+pre code .atrule {
+  color: #07a;
+}
+pre code .attr-value {
+  color: #07a;
+}
+pre code .keyword {
+  color: #07a;
+}
+pre code .function {
+  color: #DD4A68;
+}
+pre code .class-name {
+  color: #DD4A68;
+}
+pre code .regex {
+  color: #e90;
+}
+pre code .important {
+  color: #e90;
+  font-weight: 700;
+}
+pre code .variable {
+  color: #e90;
+}
+pre code .bold {
+  font-weight: 700;
+}
+pre code .italic {
+  font-style: italic;
+}
 `;
 
 const renderComponent = <T extends Record<string, unknown>>({

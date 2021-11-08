@@ -1227,7 +1227,7 @@ const pluginIds: Plugin[] = [
   { id: "footer", tabs: [{ id: "links", multi: true }, { id: "copyright" }] },
   {
     id: "header",
-    tabs: [{ id: "links", options: ["{page}"], multi: true }, { id: "home" }],
+    tabs: [{ id: "links", options: ["{page}"], multi: true }, { id: "home" }, { id: "right icon" }],
   },
   { id: "image-preview", tabs: [] },
   { id: "inline-block-references", tabs: [] },

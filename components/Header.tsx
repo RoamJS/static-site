@@ -9,6 +9,7 @@ import { parseInline } from "roam-marked";
 type Props = {
   links: { title: string; href: string }[];
   home?: string;
+  icon?: string;
 };
 
 const extractTag = (tag: string): string =>
@@ -22,7 +23,7 @@ const extractTag = (tag: string): string =>
     ? tag.substring(0, tag.length - 2)
     : tag;
 
-const Header = ({ links, home = "Home" }: Props): React.ReactElement => {
+const Header = ({ links, home = "Home", icon }: Props): React.ReactElement => {
   return (
     <>
       <style>
@@ -67,6 +68,7 @@ const Header = ({ links, home = "Home" }: Props): React.ReactElement => {
 .roamjs-home-link {
   margin-left: 8px; 
   box-shadow: none;
+  min-width: 16%;
 }
 
 .roamjs-links-container {
@@ -80,6 +82,10 @@ const Header = ({ links, home = "Home" }: Props): React.ReactElement => {
 
 .roamjs-nav-link {
   margin-left: 8px;
+}
+
+.roamjs-header-icon {
+  min-width: 16%;
 }`}
       </style>
       <header className="roamjs-header-root">
@@ -106,6 +112,14 @@ const Header = ({ links, home = "Home" }: Props): React.ReactElement => {
               ))}
             </div>
           </div>
+          {icon && (
+            <div
+              className={"roamjs-header-icon"}
+              dangerouslySetInnerHTML={{
+                __html: parseInline(icon),
+              }}
+            />
+          )}
         </div>
       </header>
     </>
@@ -130,6 +144,7 @@ export const render: RenderFunction = (dom, props, context) => {
       href: context.convertPageNameToPath(title),
     })),
     home: props["home"]?.[0],
+    icon: props["right icon"]?.[0],
   };
   const innerHtml =
     cache ||
