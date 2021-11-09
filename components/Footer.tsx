@@ -74,9 +74,8 @@ const Footer = ({ links, copyright }: Props): React.ReactElement => {
 
 .roamjs-footer-icon {
   color: inherit;
-  display: inline-block;
+  display: flex;
   flex: 0 0 auto;
-  vertical-align: text-bottom;
 }`}
       </style>
       <footer className={"roamjs-footer"}>
