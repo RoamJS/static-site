@@ -15,7 +15,7 @@ import {
   FaTwitch,
   FaStrava,
   FaEnvelope,
-  FaLink
+  FaLink,
 } from "react-icons/fa";
 
 type Props = {
@@ -99,8 +99,8 @@ const Footer = ({ links, copyright }: Props): React.ReactElement => {
             {links.map((link) => (
               <li key={link}>
                 <a href={link} target="_blank" rel="noopener">
-    <span className={'roamjs-footer-icon'}>
-                  {icons.find((i) => i.test.test(link)).component}
+                  <span className={"roamjs-footer-icon"}>
+                    {icons.find((i) => i.test.test(link)).component}
                   </span>
                 </a>
               </li>

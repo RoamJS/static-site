@@ -63,12 +63,12 @@ const Header = ({ links, home = "Home", icon }: Props): React.ReactElement => {
   letter-spacing: 0.0075em;
   margin: 0;
   padding: 0;
+  min-width: 16%;
 }
 
 .roamjs-home-link {
   margin-left: 8px; 
   box-shadow: none;
-  min-width: 16%;
 }
 
 .roamjs-links-container {
