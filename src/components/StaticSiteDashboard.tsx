@@ -33,6 +33,7 @@ import {
   getTreeByBlockUid,
   getTreeByPageName,
   createBlock,
+  createPage,
   TreeNode,
   getPageViewType,
   getShallowTreeByParentUid,
@@ -137,7 +138,17 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
       <Switch
         checked={domainSwitch}
         onChange={onSwitchChange}
-        labelElement={"Use Custom Domain"}
+        labelElement={
+          <>
+            Use Custom Domain{" "}
+            <Description
+              description={
+                "A custom domain is one you bought from a separate registrar. A non custom subdomain will be one under RoamJS. This could be changed at any time."
+              }
+            />
+          </>
+        }
+        style={{marginBottom: 32}}
       />
       <Label>
         {domainSwitch ? "Custom Domain" : "RoamJS Subdomain"}
@@ -170,6 +181,9 @@ const RequestIndexContent: StageContent = ({ openPanel }) => {
   const [value, setValue] = useState(useServiceField("index"));
   const onSubmit = useCallback(() => {
     setInputSetting({ blockUid: pageUid, key: "index", value, index: 1 });
+    if (!getPageUidByPageTitle(value)) {
+      createPage({ title: value, tree: [{ text: "Welcome!" }] });
+    }
     nextStage();
   }, [value, nextStage]);
   const onKeyDown = useCallback(
@@ -332,7 +346,7 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
           Filters
           <Description
             description={
-              "Add the filter criteria for specifying which pages in your graph will be included in your static site."
+              "Add the filter criteria for specifying which pages in your graph will be included in your website."
             }
           />
         </Label>
@@ -505,10 +519,14 @@ const inlineTryCatch = (
 
 const extractValue = (s: string) => {
   const postTag = extractTag(s.trim());
-  const postImage = IMAGE_REGEX.test(postTag) ? IMAGE_REGEX.exec(postTag)?.[1] : postTag;
-  const postCode = HTML_REGEX.test(postTag) ? HTML_REGEX.exec(postImage)?.[1] : postImage;
+  const postImage = IMAGE_REGEX.test(postTag)
+    ? IMAGE_REGEX.exec(postTag)?.[1]
+    : postTag;
+  const postCode = HTML_REGEX.test(postTag)
+    ? HTML_REGEX.exec(postImage)?.[1]
+    : postImage;
   return postCode;
-}
+};
 
 const getDeployBody = () => {
   const allPageNames = getAllPageNames();
@@ -537,7 +555,7 @@ const getDeployBody = () => {
     throw new Error("The Website Index is not set and is required.");
   }
   if (!getPageUidByPageTitle(withIndex.index)) {
-    throw new Error(`Could not find your index page: ${withIndex.index}`)
+    throw new Error(`Could not find your index page: ${withIndex.index}`);
   }
   const withFilter = filterNode?.children?.length
     ? {
@@ -1227,7 +1245,11 @@ const pluginIds: Plugin[] = [
   { id: "footer", tabs: [{ id: "links", multi: true }, { id: "copyright" }] },
   {
     id: "header",
-    tabs: [{ id: "links", options: ["{page}"], multi: true }, { id: "home" }, { id: "right icon" }],
+    tabs: [
+      { id: "links", options: ["{page}"], multi: true },
+      { id: "home" },
+      { id: "right icon" },
+    ],
   },
   { id: "image-preview", tabs: [] },
   { id: "inline-block-references", tabs: [] },
@@ -1309,7 +1331,7 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
         Plugins
         <Description
           description={
-            "Enable any of the following plugins to include extra features on your static site!"
+            "Enable any of the following plugins to include extra features on your website!"
           }
         />
       </Label>
@@ -1588,7 +1610,7 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
       <Label>
         Theme
         <Description
-          description={"Configure the look and feel of your static site!"}
+          description={"Configure the look and feel of your website!"}
         />
       </Label>
       <Tabs
