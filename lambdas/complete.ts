@@ -1,6 +1,5 @@
 import AWS from "aws-sdk";
 import { SNSEvent } from "aws-lambda";
-import axios from "axios";
 import {
   clearRecords,
   clearRecordsById,
@@ -15,7 +14,6 @@ import {
   ses,
   SHUTDOWN_CALLBACK_STATUS,
 } from "./common/common";
-import { CloudFormation } from "aws-sdk";
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -176,8 +174,13 @@ export const handler = async (event: SNSEvent) => {
               ?.status_props?.S
         );
       if (shutdownCallback) {
-        const { userToken } = JSON.parse(shutdownCallback);
-        const event = { headers: { Authorization: userToken } };
+        const { userToken, dev } = JSON.parse(shutdownCallback);
+        const event = {
+          headers: {
+            Authorization: userToken,
+            ...(dev ? { "x-roamjs-dev": "true" } : {}),
+          },
+        };
         const { websiteGraph, email } = await getRoamJSUser(event).then(
           (r) => r.data
         );

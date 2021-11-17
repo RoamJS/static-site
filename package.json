@@ -14,7 +14,7 @@
     "deploy": "roamjs-scripts deploy",
     "dev": "roamjs-scripts dev",
     "preserver": "roamjs-scripts lambdas --fast --build",
-    "server": "localhost-lambdas --port 3005 --tunnel"
+    "server": "localhost-lambdas --port 3005 --tunnel vargas"
   },
   "repository": {
     "type": "git",
@@ -65,7 +65,7 @@
     "file-loader": "^6.2.0",
     "http-server": "^13.0.2",
     "jest": "^27.3.1",
-    "localhost-lambdas": "^0.5.3",
+    "localhost-lambdas": "^0.5.5",
     "node-polyfill-webpack-plugin": "^1.1.4",
     "roamjs-scripts": "^0.12.5",
     "style-loader": "^3.1.0",

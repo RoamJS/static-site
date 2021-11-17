@@ -15,6 +15,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         roamGraph: graph,
         shutdownCallback: {
           userToken: event.headers.Authorization || event.headers.authorization,
+          dev: process.env.NODE_ENV === "development",
         },
       }),
     })
