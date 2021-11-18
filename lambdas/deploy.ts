@@ -673,8 +673,7 @@ export const renderHtmlFromPage = ({
   );
   const pathConfigType = config.plugins["paths"]?.["type"] || [];
   const useLowercase = pathConfigType.includes("lowercase");
-  const useUid =
-    pathConfigType.includes("uid") || !!config.plugins["uid-paths"];
+  const useUid = pathConfigType.includes("uid");
   const convertPageNameToPath = (name: string): string =>
     name === config.index
       ? "/"

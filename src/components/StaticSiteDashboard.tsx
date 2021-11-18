@@ -148,7 +148,7 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
             />
           </>
         }
-        style={{marginBottom: 32}}
+        style={{ marginBottom: 32 }}
       />
       <Label>
         {domainSwitch ? "Custom Domain" : "RoamJS Subdomain"}
@@ -666,31 +666,31 @@ const getDeployBody = () => {
     children: t.children.map(getReferences),
   });
 
-  const pageNamesWithContent = allPageNames
+  const entries = allPageNames
     .filter((pageName) => pageName === config.index || titleFilter(pageName))
     .filter((pageName) => "roam/js/static-site" !== pageName)
     .map((pageName) => ({
       pageName,
       content: getTreeByPageName(pageName),
       layout: titleFilters.find((r) => r.fcn(pageName))?.layout,
-    }));
-  const entries = pageNamesWithContent.map(({ pageName, content, layout }) => {
-    const references = (pageReferences.current[pageName] || []).map(
-      ({ title, uid }) => ({
-        title,
-        node: getReferences(getTreeByBlockUid(uid)),
-      })
-    );
-    const viewType = getPageViewType(pageName);
-    return {
-      references,
-      pageName,
-      content: content.map(getReferences),
-      viewType,
-      uid: getPageUidByPageTitle(pageName),
-      layout,
-    };
-  });
+    }))
+    .map(({ pageName, content, layout }) => {
+      const references = (pageReferences.current[pageName] || []).map(
+        ({ title, uid }) => ({
+          title,
+          node: getReferences(getTreeByBlockUid(uid)),
+        })
+      );
+      const viewType = getPageViewType(pageName);
+      return {
+        references,
+        pageName,
+        content: content.map(getReferences),
+        viewType,
+        uid: getPageUidByPageTitle(pageName),
+        layout,
+      };
+    });
   const pages = Object.fromEntries(
     entries.map(({ content, pageName, layout, uid, ...props }) => {
       const allBlocks = content.flatMap(allBlockMapper);
@@ -1252,7 +1252,7 @@ const pluginIds: Plugin[] = [
     ],
   },
   { id: "image-preview", tabs: [] },
-  { id: "inline-block-references", tabs: [] },
+ // { id: "inline-block-references", tabs: [] },
   { id: "paths", tabs: [{ id: "type", options: ["uid", "lowercase"] }] },
   {
     id: "sidebar",
@@ -1264,7 +1264,6 @@ const pluginIds: Plugin[] = [
       },
     ],
   },
-  { id: "uid-paths", tabs: [] },
 ];
 
 const RequestPluginsContent: StageContent = ({ openPanel }) => {
