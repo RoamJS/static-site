@@ -87,7 +87,7 @@ const Footer = ({ links, copyright }: Props): React.ReactElement => {
             Built with
             {` `}
             <a
-              href="https://roamjs.com/services/static-site"
+              href="https://roamjs.com/extensions/static-site"
               target="_blank"
               rel="noopener"
             >
