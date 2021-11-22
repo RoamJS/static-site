@@ -15,8 +15,12 @@ addStyle(`.bp3-tab-panel {
   margin-left: 29px !important;
 }
 
-.roamjs-codemirror-wrapper .CodeMirror-linenumbers{
+.roamjs-codemirror-wrapper .CodeMirror-linenumbers {
   width: 29px !important;
+}
+
+.roamjs-codemirror-wrapper .CodeMirror-code::-webkit-scrollbar {
+   width: 8px;
 }`);
 
 runService({

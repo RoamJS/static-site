@@ -839,7 +839,7 @@ export const renderHtmlFromPage = ({
       (_, k: string) => metadata[k.toLowerCase().replace(/_/g, "-")] || ""
     )
     .replace(
-      /\${REFERENCES}/g,
+      /\${(PAGE_)?REFERENCES}/g,
       Array.from(new Set(references.map((r) => r.title)))
         .filter((r) => pageNameSet.has(r))
         .map((r) =>

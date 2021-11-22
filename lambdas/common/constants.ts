@@ -21,7 +21,7 @@ $\{PAGE_CONTENT}
 </div>
 <div id="references">
 <ul>
-$\{REFERENCES}
+$\{PAGE_REFERENCES}
 </ul>
 </div>
 </body>
