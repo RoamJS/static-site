@@ -1,6 +1,7 @@
 import {
   Alert,
   Button,
+  Checkbox,
   Classes,
   Dialog,
   IAlertProps,
@@ -12,12 +13,15 @@ import {
   Spinner,
   Switch,
   Tab,
+  TabId,
   Tabs,
+  TextArea,
   Tooltip,
 } from "@blueprintjs/core";
 import { Controlled as CodeMirror } from "react-codemirror2";
 import "codemirror/mode/xml/xml";
 import "codemirror/mode/css/css";
+import "codemirror/mode/javascript/javascript";
 import React, {
   useCallback,
   useEffect,
@@ -29,6 +33,7 @@ import {
   extractRef,
   extractTag,
   getAllPageNames,
+  getBasicTreeByParentUid,
   getTextByBlockUid,
   getTreeByBlockUid,
   getTreeByPageName,
@@ -75,7 +80,7 @@ const SUBDOMAIN_REGEX = /^((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])$/;
 const UPLOAD_REGEX = /(https?:\/\/[^\)]*)(?:$|\)|\s)/;
 const DOMAIN_REGEX =
   /^(\*\.)?(((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])\.)+((?!-)[A-Za-z0-9-]{1,62}[A-Za-z0-9])$/;
-const IMAGE_REGEX = /!\[\]\(([^)]+)\)/;
+const IMAGE_REGEX = /^!\[\]\(([^)]+)\)$/;
 const RequestDomainContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
   const pageUid = useServicePageUid();
@@ -217,13 +222,13 @@ const RequestIndexContent: StageContent = ({ openPanel }) => {
 };
 
 const FilterLayout = ({
-  filterText,
-  initialValue,
-  saveValue,
+  filterType,
+  initialNodes = [{ text: "", uid: window.roamAlphaAPI.util.generateUID() }],
+  saveNodes,
 }: {
-  filterText: string;
-  initialValue: string;
-  saveValue: (s: string) => void;
+  filterType: string;
+  initialNodes: InputTextNode[];
+  saveNodes: (s: InputTextNode[]) => void;
 }) => {
   const [filterLayoutOpen, setFilterLayoutOpen] = useState(false);
   const openFilterLayout = useCallback(
@@ -234,11 +239,9 @@ const FilterLayout = ({
     () => setFilterLayoutOpen(false),
     [setFilterLayoutOpen]
   );
-  const [value, setValue] = useState(initialValue);
-  const onBeforeChange = useCallback(
-    (_, __, value) => setValue(value),
-    [setValue]
-  );
+  const [nodes, setNodes] = useState(initialNodes);
+  const [tab, setTab] = useState<TabId>(nodes[0].uid);
+  const [newTab, setNewTab] = useState("");
   return (
     <>
       <Tooltip content={"Edit Filter Layout"}>
@@ -246,7 +249,7 @@ const FilterLayout = ({
       </Tooltip>
       <Dialog
         isOpen={filterLayoutOpen}
-        title={`Layout for ${filterText}`}
+        title={`Layout for ${filterType} ${nodes[0]?.text}`}
         onClose={closeFilterLayout}
         isCloseButtonShown
         canOutsideClickClose
@@ -257,16 +260,151 @@ const FilterLayout = ({
           onKeyDown={(e) => e.stopPropagation()}
         >
           <Label>
-            HTML Layout
-            <CodeMirror
-              value={value}
-              options={{
-                mode: { name: "xml", htmlMode: true },
-                lineNumbers: true,
-                lineWrapping: true,
+            <Tabs selectedTabId={tab} onChange={(t) => setTab(t)}>
+              {nodes.map((n, i) => {
+                const preValue = n.children?.[0]?.text;
+                const value =
+                  i === 0 && !HTML_REGEX.test(preValue)
+                    ? `\`\`\`html\n${preValue}\`\`\``
+                    : preValue;
+                return (
+                  <Tab
+                    id={n.uid}
+                    key={n.uid}
+                    title={i === 0 ? "Layout" : n.text}
+                    panel={
+                      CODE_BLOCK_REGEX.test(value) ? (
+                        <CodeMirror
+                          value={
+                            (i === 0 ? HTML_REGEX : JS_REGEX).exec(
+                              value
+                            )?.[1] || ""
+                          }
+                          options={{
+                            mode:
+                              i === 0
+                                ? { name: "xml", htmlMode: true }
+                                : { name: "javascript" },
+                            lineNumbers: true,
+                            lineWrapping: true,
+                          }}
+                          onBeforeChange={(_, __, v) => {
+                            const newNodes = [...nodes];
+                            newNodes[i].children = [
+                              {
+                                text: `\`\`\`${
+                                  i === 0 ? "html" : "javascript"
+                                }\n${v}\`\`\``,
+                              },
+                            ];
+                            setNodes(newNodes);
+                          }}
+                        />
+                      ) : (
+                        <TextArea
+                          value={value}
+                          onChange={(e) => {
+                            const newNodes = [...nodes];
+                            newNodes[i].children = [{ text: e.target.value }];
+                            setNodes(newNodes);
+                          }}
+                          style={{ width: "100%", height: 300 }}
+                        />
+                      )
+                    }
+                  ></Tab>
+                );
+              })}
+            </Tabs>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                marginTop: 4,
               }}
-              onBeforeChange={onBeforeChange}
-            />
+            >
+              <div style={{ display: "flex", alignItems: "center" }}>
+                {tab !== nodes[0].uid && (
+                  <>
+                    <Checkbox
+                      checked={CODE_BLOCK_REGEX.test(
+                        nodes.find((n) => n.uid === tab)?.children?.[0]?.text
+                      )}
+                      style={{
+                        marginBottom: 0,
+                        lineHeight: "24px",
+                        marginRight: 8,
+                      }}
+                      className={"roamjs-site-filter-toggle"}
+                      label={"Dynamic"}
+                      onChange={(e) => {
+                        setNodes(
+                          nodes.map((n, i) =>
+                            n.uid === tab
+                              ? {
+                                  ...n,
+                                  children: [
+                                    {
+                                      ...n.children[0],
+                                      text: (e.target as HTMLInputElement)
+                                        .checked
+                                        ? `\`\`\`javascript\n${n.children[0]?.text}\`\`\``
+                                        : JS_REGEX.exec(
+                                            n.children[0]?.text
+                                          )?.[1],
+                                    },
+                                  ],
+                                }
+                              : n
+                          )
+                        );
+                      }}
+                    />
+                    <Button
+                      minimal
+                      icon={"trash"}
+                      style={{
+                        width: 24,
+                        height: 24,
+                        minWidth: 24,
+                        minHeight: 24,
+                      }}
+                      onClick={() => {
+                        setNodes(nodes.filter((n) => n.uid !== tab));
+                        setTab(nodes[0].uid);
+                      }}
+                    />
+                  </>
+                )}
+              </div>
+              <div style={{ display: "flex" }}>
+                <InputGroup
+                  value={newTab}
+                  onChange={(e) => setNewTab(e.target.value)}
+                  placeholder={"New Layout Variable"}
+                />
+                <Tooltip content={"Add Layout Variable"}>
+                  <Button
+                    minimal
+                    disabled={!newTab}
+                    icon={"plus"}
+                    onClick={() => {
+                      const uid = window.roamAlphaAPI.util.generateUID();
+                      setNodes([
+                        ...nodes,
+                        {
+                          text: newTab,
+                          children: [{ text: "value" }],
+                          uid,
+                        },
+                      ]);
+                      setNewTab("");
+                      setTab(uid);
+                    }}
+                  />
+                </Tooltip>
+              </div>
+            </div>
           </Label>
         </div>
         <div className={Classes.DIALOG_FOOTER}>
@@ -276,7 +414,7 @@ const FilterLayout = ({
               text={"Save"}
               intent={Intent.PRIMARY}
               onClick={() => {
-                saveValue(value);
+                saveNodes(nodes);
                 closeFilterLayout();
               }}
             />
@@ -295,14 +433,12 @@ const removeUidFromNodes = (nodes: InputTextNode[]): InputTextNode[] =>
 const RequestFiltersContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
   const pageUid = useServicePageUid();
-  const [filters, setFilters] = useState<(InputTextNode & { key: number })[]>(
-    (
-      getTreeByPageName("roam/js/static-site").find((t) =>
-        /filter/i.test(t.text)
-      )?.children || []
-    ).map((t, key) => ({ ...t, key }))
+  const [filters, setFilters] = useState<InputTextNode[]>(
+    () =>
+      getBasicTreeByParentUid(
+        getPageUidByPageTitle("roam/js/static-site")
+      ).find((t) => /filter/i.test(t.text))?.children || []
   );
-  const [key, setKey] = useState(filters.length);
   const onSubmit = useCallback(() => {
     const tree = getTreeByBlockUid(pageUid);
     const keyNode = tree.children.find((t) => /filter/i.test(t.text));
@@ -331,14 +467,13 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
         children: [
           {
             text: "Website",
-            children: [{ text: "${PAGE_CONTENT}" }],
+            children: [{ text: "```html\n${PAGE_CONTENT}```" }],
           },
         ],
-        key,
+        uid: window.roamAlphaAPI.util.generateUID(),
       },
     ]);
-    setKey(key + 1);
-  }, [filters, setFilters, key, setKey]);
+  }, [filters, setFilters]);
   return (
     <>
       <div style={{ margin: "16px 0" }}>
@@ -352,7 +487,7 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
         </Label>
         {filters.map((f) => (
           <div
-            key={f.key}
+            key={f.uid}
             style={{
               display: "flex",
               justifyContent: "space-between",
@@ -365,7 +500,7 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
               onItemSelect={(s) =>
                 setFilters(
                   filters.map((filter) =>
-                    f.key === filter.key ? { ...filter, text: s } : filter
+                    f.uid === filter.uid ? { ...filter, text: s } : filter
                   )
                 )
               }
@@ -377,7 +512,7 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
                 setValue={(text) =>
                   setFilters(
                     filters.map((filter) =>
-                      f.key === filter.key
+                      f.uid === filter.uid
                         ? {
                             ...filter,
                             children: [{ ...f.children[0], text }],
@@ -394,7 +529,7 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setFilters(
                       filters.map((filter) =>
-                        f.key === filter.key
+                        f.uid === filter.uid
                           ? {
                               ...filter,
                               children: [
@@ -409,27 +544,15 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
               )
             )}
             <FilterLayout
-              filterText={`${f.text} ${f.children[0]?.text}`}
-              initialValue={
-                HTML_REGEX.exec(f.children[0]?.children?.[0]?.text)?.[1] ||
-                "${PAGE_CONTENT}"
-              }
-              saveValue={(v) =>
+              filterType={f.text}
+              initialNodes={f.children}
+              saveNodes={(v) =>
                 setFilters(
                   filters.map((filter) =>
-                    f.key === filter.key
+                    f.uid === filter.uid
                       ? {
                           ...filter,
-                          children: [
-                            {
-                              ...filter.children[0],
-                              children: [
-                                {
-                                  text: `\`\`\`html\n${v}\`\`\``,
-                                },
-                              ],
-                            },
-                          ],
+                          children: v,
                         }
                       : filter
                   )
@@ -440,7 +563,7 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
               icon={"trash"}
               minimal
               onClick={() =>
-                setFilters(filters.filter((filter) => filter.key !== f.key))
+                setFilters(filters.filter((filter) => filter.uid !== f.uid))
               }
             />
           </div>
@@ -472,10 +595,10 @@ type Filter = {
   variables: Record<string, string>;
 };
 const TITLE_REGEX = new RegExp(`roam/js/static-site/title::(.*)`);
-const HEAD_REGEX = new RegExp(`roam/js/static-stite/head::`);
 const METADATA_REGEX = /roam\/js\/static-site\/([a-z-]+)::(.*)/;
 const HTML_REGEX = new RegExp("```html\n(.*)```", "s");
 const JS_REGEX = new RegExp("```javascript\n(.*)```", "s");
+const CODE_BLOCK_REGEX = new RegExp("```([a-z]+)\n(.*)```", "s");
 const pageReferences: {
   current: Record<string, { title: string; uid: string }[]>;
 } = { current: {} };
@@ -517,15 +640,24 @@ const inlineTryCatch = (
   }
 };
 
-const extractValue = (s: string) => {
+const extractValue = (s: string, pageUid: string) => {
   const postTag = extractTag(s.trim());
   const postImage = IMAGE_REGEX.test(postTag)
     ? IMAGE_REGEX.exec(postTag)?.[1]
     : postTag;
-  const postCode = HTML_REGEX.test(postTag)
+  const postHtml = HTML_REGEX.test(postTag)
     ? HTML_REGEX.exec(postImage)?.[1]
     : postImage;
-  return postCode;
+  const postJs = JS_REGEX.test(postHtml)
+    ? inlineTryCatch(
+        () =>
+          new Function("uid", JS_REGEX.exec(postHtml)?.[1] || postHtml)(
+            pageUid
+          ),
+        () => postHtml
+      )
+    : postHtml;
+  return postJs;
 };
 
 const getDeployBody = () => {
@@ -711,18 +843,12 @@ const getDeployBody = () => {
               key: match[1],
               value: match[2].trim() || node.children[0]?.text || "",
             }))
-            .map(({ key, value }) => [key, extractValue(value)])
+            .map(({ key, value }) => [key, extractValue(value, uid)])
             .concat([["name", title.split("/").slice(-1)[0]]])
         ),
         ...Object.fromEntries(
           Object.entries(config.filter[layout]?.variables || {}).map(
-            ([k, v]) => [
-              k,
-              inlineTryCatch(
-                () => new Function("uid", JS_REGEX.exec(v)?.[1] || v)(uid),
-                () => v
-              ),
-            ]
+            ([k, v]) => [k, extractValue(v, uid)]
           )
         ),
       };
@@ -1252,7 +1378,7 @@ const pluginIds: Plugin[] = [
     ],
   },
   { id: "image-preview", tabs: [] },
- // { id: "inline-block-references", tabs: [] },
+  // { id: "inline-block-references", tabs: [] },
   { id: "paths", tabs: [{ id: "type", options: ["uid", "lowercase"] }] },
   {
     id: "sidebar",
