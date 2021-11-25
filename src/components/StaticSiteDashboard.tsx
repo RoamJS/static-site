@@ -46,6 +46,7 @@ import {
   DAILY_NOTE_PAGE_TITLE_REGEX,
   getPageUidByPageTitle,
   InputTextNode,
+  updateBlock,
 } from "roam-client";
 import {
   Description,
@@ -66,6 +67,8 @@ import {
   useServicePageUid,
   useSubTree,
   BlockInput,
+  getSettingValueFromTree,
+  getSubTree,
 } from "roamjs-components";
 import urlRegex from "url-regex-safe";
 import { DEFAULT_TEMPLATE } from "../../lambdas/common/constants";
@@ -945,6 +948,91 @@ const WebsiteButton: React.FunctionComponent<
   );
 };
 
+const shim = () => {
+  const configUid = getPageUidByPageTitle("roam/js/static-site");
+  const configTree = getBasicTreeByParentUid(configUid);
+  const { uid: themeUid, children: themeChildren } = getSubTree({
+    tree: configTree,
+    key: "theme",
+  });
+  const { uid: textUid, children: textChildren } = getSubTree({
+    tree: themeChildren,
+    key: "text",
+  });
+  const { uid: layoutUid, children: layoutChildren } = getSubTree({
+    tree: themeChildren,
+    key: "layout",
+  });
+
+  const cssToAdd = [];
+
+  const { uid: cssUid, children: cssChildren } = getSubTree({
+    tree: themeChildren,
+    key: "css",
+  });
+  if (cssUid && cssChildren.length) {
+    cssToAdd.push(cssChildren[0].text.match(CSS_REGEX)?.[1] || "");
+  }
+
+  const layoutCss = getSettingValueFromTree({
+    tree: layoutChildren,
+    key: "css",
+  });
+  if (layoutCss) {
+    cssToAdd.push(layoutCss.match(CSS_REGEX)?.[1] || "");
+  }
+  const layoutWidth = getSettingValueFromTree({
+    tree: layoutChildren,
+    key: "width",
+  });
+  if (layoutWidth) {
+    cssToAdd.push(
+      `#content, #references {\n  margin: auto;\n  width: ${
+        /\d$/.test(layoutWidth) ? `${layoutWidth}px` : layoutWidth
+      };\n}`
+    );
+  }
+  const textFont = getSettingValueFromTree({
+    tree: textChildren,
+    key: "font",
+  });
+  if (textFont) {
+    cssToAdd.push(`body {\n  font-family: ${textFont};\n}`);
+  }
+  setInputSetting({
+    blockUid: themeUid,
+    key: "css",
+    value: `\`\`\`css\n${cssToAdd.join("\n")}\`\`\``,
+  });
+
+  const favicon = getSettingValueFromTree({
+    tree: layoutChildren,
+    key: "favicon",
+  });
+  if (favicon) {
+    const { uid: filesUid, children: filesChildren } = getSubTree({
+      tree: configTree,
+      key: "files",
+    });
+    const node = { text: "/favicon.ico", children: [{ text: favicon }] };
+    if (filesUid) {
+      createBlock({
+        parentUid: filesUid,
+        order: filesChildren.length,
+        node,
+      });
+    } else {
+      createBlock({
+        parentUid: configUid,
+        order: 5,
+        node: { text: "files", children: [node] },
+      });
+    }
+  }
+  deleteBlock(layoutUid);
+  deleteBlock(textUid);
+};
+
 const LiveContent: StageContent = () => {
   const authenticatedAxiosGet = useAuthenticatedGet();
   const authenticatedAxiosPost = useAuthenticatedPost();
@@ -1643,51 +1731,6 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
   );
 };
 
-const ThemeInput = ({
-  value,
-  setValue,
-}: {
-  value: string;
-  setValue: (s: string) => void;
-}) => <InputGroup value={value} onChange={(e) => setValue(e.target.value)} />;
-
-const tabIds: Record<
-  string,
-  {
-    id: string;
-    component: (props: {
-      value: string;
-      setValue: (s: string) => void;
-    }) => React.ReactElement;
-  }[]
-> = {
-  text: [{ id: "font", component: ThemeInput }],
-  layout: [
-    { id: "width", component: ThemeInput },
-    { id: "favicon", component: ThemeInput },
-    {
-      id: "css",
-      component: ({ value, setValue }) => (
-        <div
-          className={"roamjs-codemirror-wrapper"}
-          style={{ border: "1px solid lightgray", position: "relative" }}
-          onKeyDown={(e) => e.stopPropagation()}
-        >
-          <CodeMirror
-            value={CSS_REGEX.exec(value)?.[1] || ""}
-            options={{
-              mode: { name: "css" },
-              lineNumbers: true,
-              lineWrapping: true,
-            }}
-            onBeforeChange={(_, __, v) => setValue(`\`\`\`css\n${v}\`\`\``)}
-          />
-        </div>
-      ),
-    },
-  ],
-};
-
 const RequestThemeContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
   const pageUid = useServicePageUid();
@@ -1696,40 +1739,14 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
     key: "theme",
     order: 1,
   });
-  const [values, setValues] = useState<Record<string, Record<string, string>>>(
-    () =>
-      themeUid
-        ? Object.fromEntries(
-            themeChildren.map(({ text, children }) => [
-              text,
-              Object.fromEntries(
-                children.map((c) => [c.text, c.children[0]?.text])
-              ),
-            ])
-          )
-        : {}
+  const [value, setValue] = useState(() =>
+    getSettingValueFromTree({ tree: themeChildren, key: "css" })
   );
-  const outerKeys = useMemo(
-    () => Object.keys(tabIds) as (keyof typeof tabIds)[],
-    []
-  );
-  const [outerKey, setOuterKey] = useState(outerKeys[0]);
-  const [innerKey, setInnerKey] = useState(tabIds[outerKey][0].id);
+
   const onSubmit = useCallback(() => {
-    getShallowTreeByParentUid(themeUid).forEach(({ uid }) => deleteBlock(uid));
-    Object.entries(values)
-      .map(([k, m]) => ({
-        text: k,
-        children: Object.entries(m).map(([mk, v]) => ({
-          text: mk,
-          children: [{ text: v }],
-        })),
-      }))
-      .forEach((node, order) =>
-        createBlock({ parentUid: themeUid, node, order })
-      );
+    setInputSetting({ blockUid: themeUid, key: "css", value });
     nextStage();
-  }, [values, nextStage, themeUid]);
+  }, [value, nextStage, themeUid]);
   return (
     <div>
       <Label>
@@ -1738,55 +1755,25 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
           description={"Configure the look and feel of your website!"}
         />
       </Label>
-      <Tabs
-        vertical
-        onChange={(k) => {
-          const t = k as keyof typeof tabIds;
-          setOuterKey(t);
-          setInnerKey(tabIds[t][0].id);
+      <div
+        className={"roamjs-codemirror-wrapper"}
+        style={{
+          border: "1px solid lightgray",
+          position: "relative",
+          marginBottom: 16,
         }}
-        selectedTabId={outerKey}
+        onKeyDown={(e) => e.stopPropagation()}
       >
-        {outerKeys.map((tabId) => (
-          <Tab
-            id={tabId}
-            key={tabId}
-            title={tabId}
-            panel={
-              <Tabs
-                vertical
-                onChange={(k) => setInnerKey(k as string)}
-                selectedTabId={innerKey}
-              >
-                {tabIds[outerKey].map((subtab) => (
-                  <Tab
-                    id={subtab.id}
-                    key={subtab.id}
-                    title={subtab.id}
-                    panel={
-                      <Label>
-                        {subtab.id}
-                        <subtab.component
-                          value={values?.[tabId]?.[subtab.id] || ""}
-                          setValue={(v) =>
-                            setValues({
-                              ...values,
-                              [tabId]: {
-                                ...values[tabId],
-                                [subtab.id]: v,
-                              },
-                            })
-                          }
-                        />
-                      </Label>
-                    }
-                  />
-                ))}
-              </Tabs>
-            }
-          />
-        ))}
-      </Tabs>
+        <CodeMirror
+          value={CSS_REGEX.exec(value)?.[1] || ""}
+          options={{
+            mode: { name: "css" },
+            lineNumbers: true,
+            lineWrapping: true,
+          }}
+          onBeforeChange={(_, __, v) => setValue(`\`\`\`css\n${v}\`\`\``)}
+        />
+      </div>
       <ServiceNextButton onClick={onSubmit} />
     </div>
   );
@@ -1911,43 +1898,46 @@ const RequestFilesContent: StageContent = ({ openPanel }) => {
   );
 };
 
-const StaticSiteDashboard = (): React.ReactElement => (
-  <ServiceDashboard
-    service={"static-site"}
-    stages={[
-      SERVICE_TOKEN_STAGE,
-      {
-        component: RequestDomainContent,
-        setting: "Domain",
-      },
-      {
-        component: RequestIndexContent,
-        setting: "Index",
-      },
-      {
-        component: RequestFiltersContent,
-        setting: "Filter",
-      },
-      WrapServiceMainStage(LiveContent),
-      {
-        component: RequestThemeContent,
-        setting: "Theme",
-      },
-      {
-        component: RequestPluginsContent,
-        setting: "Plugins",
-      },
-      {
-        component: RequestTemplateContent,
-        setting: "Template",
-      },
-      {
-        component: RequestReferenceTemplateContent,
-        setting: "Reference Template",
-      },
-      { component: RequestFilesContent, setting: "Files" },
-    ]}
-  />
-);
+const StaticSiteDashboard = (): React.ReactElement => {
+  useEffect(shim, []);
+  return (
+    <ServiceDashboard
+      service={"static-site"}
+      stages={[
+        SERVICE_TOKEN_STAGE,
+        {
+          component: RequestDomainContent,
+          setting: "Domain",
+        },
+        {
+          component: RequestIndexContent,
+          setting: "Index",
+        },
+        {
+          component: RequestFiltersContent,
+          setting: "Filter",
+        },
+        WrapServiceMainStage(LiveContent),
+        {
+          component: RequestThemeContent,
+          setting: "Theme",
+        },
+        {
+          component: RequestPluginsContent,
+          setting: "Plugins",
+        },
+        {
+          component: RequestTemplateContent,
+          setting: "Template",
+        },
+        {
+          component: RequestReferenceTemplateContent,
+          setting: "Reference Template",
+        },
+        { component: RequestFilesContent, setting: "Files" },
+      ]}
+    />
+  );
+};
 
 export default StaticSiteDashboard;

@@ -78,7 +78,7 @@ type InputConfig = {
   template?: string;
   referenceTemplate?: string;
   plugins?: Record<string, Record<string, string[]>>;
-  theme?: Record<string, Record<string, string>>;
+  theme?: { css?: string };
   files?: Record<string, string>;
 };
 
@@ -456,11 +456,9 @@ const getConfigFromPage = (parsedTree: TreeNode[]) => {
         theme: Object.fromEntries(
           themeNode.children.map((p) => [
             p.text,
-            Object.fromEntries(
-              (p.children || []).map((c) => [c.text, c.children[0]?.text])
-            ),
+            p.children[0]?.text,
           ])
-        ),
+        ) as InputConfig['theme'],
       }
     : {};
   const withFiles: InputConfig = filesNode?.children?.length
@@ -653,14 +651,12 @@ export const renderHtmlFromPage = ({
   layout,
   config,
   blockReferencesCache,
-  theme,
 }: {
   outputPath: string;
   pages: Record<string, PageContent>;
   layout: string;
   p: string;
   config: Required<InputConfig>;
-  theme: string;
   blockReferencesCache: Record<
     string,
     { node: HydratedTreeNode; page: string }
@@ -857,8 +853,8 @@ export const renderHtmlFromPage = ({
       pageName: p,
     })
   );
-  const cssContent = `${DEFAULT_STYLE}\n${theme}\n${
-    CSS_REGEX.exec(config.theme?.layout?.css)?.[1] || ""
+  const cssContent = `${DEFAULT_STYLE}\n${
+    CSS_REGEX.exec(config.theme?.css)?.[1] || ""
   }`;
   fs.writeFileSync(path.join(outputPath, "theme.css"), cssContent);
   const link = dom.window.document.createElement("link");
@@ -917,19 +913,6 @@ export const processSiteData = async ({
     };
     content.forEach(forEach);
   });
-  let theme = "";
-  if (config.theme.text) {
-    if (config.theme.text.font) {
-      theme = `body {\n  font-family: ${config.theme.text.font};\n}\n${theme}`;
-    }
-  }
-  if (config.theme?.layout) {
-    const { width } = config.theme.layout;
-    if (width) {
-      const widthStyle = /\d$/.test(width) ? `${width}px` : width;
-      theme = `#content, #references {\n  margin: auto;\n  width: ${widthStyle};\n}\n${theme}`;
-    }
-  }
 
   pageNames.map((p) => {
     renderHtmlFromPage({
@@ -939,7 +922,6 @@ export const processSiteData = async ({
       layout: config.filter[pages[p].layout]?.layout || "${PAGE_CONTENT}",
       p,
       blockReferencesCache,
-      theme,
     });
   });
 
@@ -957,19 +939,6 @@ export const processSiteData = async ({
       )
   );
 
-  if (config.theme?.layout?.favicon) {
-    const url =
-      UPLOAD_REGEX.exec(config.theme.layout.favicon)?.[1] ||
-      config.theme.layout.favicon;
-    await axios
-      .get(url, { responseType: "stream" })
-      .then((r) => {
-        r.data.pipe(
-          fs.createWriteStream(path.join(outputPath, "./favicon.ico"))
-        );
-      })
-      .catch(() => console.warn("invalid favicon"));
-  }
   return config;
 };
 
