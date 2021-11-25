@@ -1173,7 +1173,7 @@ export const run = async ({
           .map((f, layout) => ({ fcn: getTitleRuleFromNode(f), layout }))
           .filter((f) => !!f.fcn);
         const titleFilter = (t: string) =>
-          !titleFilters.length || titleFilters.some((r) => r.fcn(t));
+          titleFilters.length && titleFilters.some((r) => r.fcn(t));
 
         info(`querying data ${new Date().toLocaleTimeString()}`);
         const pageNamesWithContent = await Promise.all(

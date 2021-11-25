@@ -777,7 +777,7 @@ const getDeployBody = () => {
     .map((f, layout) => ({ fcn: getTitleRuleFromNode(f), layout }))
     .filter((f) => !!f.fcn);
   const titleFilter = (t: string) =>
-    !titleFilters.length || titleFilters.some((r) => r.fcn(t));
+    titleFilters.length && titleFilters.some((r) => r.fcn(t));
 
   const blockReferences = config.plugins?.["inline-block-references"]
     ? window.roamAlphaAPI
