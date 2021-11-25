@@ -731,9 +731,7 @@ const getDeployBody = () => {
         theme: Object.fromEntries(
           themeNode.children.map((p) => [
             p.text,
-            Object.fromEntries(
-              (p.children || []).map((c) => [c.text, c.children[0]?.text])
-            ),
+            p.children[0]?.text,
           ])
         ),
       }
