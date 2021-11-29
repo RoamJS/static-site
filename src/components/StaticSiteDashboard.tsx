@@ -70,7 +70,7 @@ import {
   getSettingValueFromTree,
   getSubTree,
 } from "roamjs-components";
-import urlRegex from "url-regex-safe";
+import useRoamJSTokenWarning from "roamjs-components/dist/hooks/useRoamJSTokenWarning";
 import { DEFAULT_TEMPLATE } from "../../lambdas/common/constants";
 
 const allBlockMapper = (t: TreeNode): TreeNode[] => [
@@ -262,153 +262,147 @@ const FilterLayout = ({
           className={Classes.DIALOG_BODY}
           onKeyDown={(e) => e.stopPropagation()}
         >
-          <Label>
-            <Tabs selectedTabId={tab} onChange={(t) => setTab(t)}>
-              {nodes.map((n, i) => {
-                const preValue = n.children?.[0]?.text;
-                const value =
-                  i === 0 && !HTML_REGEX.test(preValue)
-                    ? `\`\`\`html\n${preValue}\`\`\``
-                    : preValue;
-                return (
-                  <Tab
-                    id={n.uid}
-                    key={n.uid}
-                    title={i === 0 ? "Layout" : n.text}
-                    panel={
-                      CODE_BLOCK_REGEX.test(value) ? (
-                        <CodeMirror
-                          value={
-                            (i === 0 ? HTML_REGEX : JS_REGEX).exec(
-                              value
-                            )?.[1] || ""
-                          }
-                          options={{
-                            mode:
-                              i === 0
-                                ? { name: "xml", htmlMode: true }
-                                : { name: "javascript" },
-                            lineNumbers: true,
-                            lineWrapping: true,
-                          }}
-                          onBeforeChange={(_, __, v) => {
-                            const newNodes = [...nodes];
-                            newNodes[i].children = [
-                              {
-                                text: `\`\`\`${
-                                  i === 0 ? "html" : "javascript"
-                                }\n${v}\`\`\``,
-                              },
-                            ];
-                            setNodes(newNodes);
-                          }}
-                        />
-                      ) : (
-                        <TextArea
-                          value={value}
-                          onChange={(e) => {
-                            const newNodes = [...nodes];
-                            newNodes[i].children = [{ text: e.target.value }];
-                            setNodes(newNodes);
-                          }}
-                          style={{ width: "100%", height: 300 }}
-                        />
-                      )
-                    }
-                  ></Tab>
-                );
-              })}
-            </Tabs>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginTop: 4,
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center" }}>
-                {tab !== nodes[0].uid && (
-                  <>
-                    <Checkbox
-                      checked={CODE_BLOCK_REGEX.test(
-                        nodes.find((n) => n.uid === tab)?.children?.[0]?.text
-                      )}
-                      style={{
-                        marginBottom: 0,
-                        lineHeight: "24px",
-                        marginRight: 8,
-                      }}
-                      className={"roamjs-site-filter-toggle"}
-                      label={"Dynamic"}
-                      onChange={(e) => {
-                        setNodes(
-                          nodes.map((n, i) =>
-                            n.uid === tab
-                              ? {
-                                  ...n,
-                                  children: [
-                                    {
-                                      ...n.children[0],
-                                      text: (e.target as HTMLInputElement)
-                                        .checked
-                                        ? `\`\`\`javascript\n${n.children[0]?.text}\`\`\``
-                                        : JS_REGEX.exec(
-                                            n.children[0]?.text
-                                          )?.[1],
-                                    },
-                                  ],
-                                }
-                              : n
-                          )
-                        );
-                      }}
-                    />
-                    <Button
-                      minimal
-                      icon={"trash"}
-                      style={{
-                        width: 24,
-                        height: 24,
-                        minWidth: 24,
-                        minHeight: 24,
-                      }}
-                      onClick={() => {
-                        setNodes(nodes.filter((n) => n.uid !== tab));
-                        setTab(nodes[0].uid);
-                      }}
-                    />
-                  </>
-                )}
-              </div>
-              <div style={{ display: "flex" }}>
-                <InputGroup
-                  value={newTab}
-                  onChange={(e) => setNewTab(e.target.value)}
-                  placeholder={"New Layout Variable"}
-                />
-                <Tooltip content={"Add Layout Variable"}>
-                  <Button
-                    minimal
-                    disabled={!newTab}
-                    icon={"plus"}
-                    onClick={() => {
-                      const uid = window.roamAlphaAPI.util.generateUID();
-                      setNodes([
-                        ...nodes,
-                        {
-                          text: newTab,
-                          children: [{ text: "value" }],
-                          uid,
-                        },
-                      ]);
-                      setNewTab("");
-                      setTab(uid);
+          <Tabs selectedTabId={tab} onChange={(t) => setTab(t)}>
+            {nodes.map((n, i) => {
+              const preValue = n.children?.[0]?.text;
+              const value =
+                i === 0 && !HTML_REGEX.test(preValue)
+                  ? `\`\`\`html\n${preValue}\`\`\``
+                  : preValue;
+              return (
+                <Tab
+                  id={n.uid}
+                  key={n.uid}
+                  title={i === 0 ? "Layout" : n.text}
+                  panel={
+                    CODE_BLOCK_REGEX.test(value) ? (
+                      <CodeMirror
+                        value={
+                          (i === 0 ? HTML_REGEX : JS_REGEX).exec(value)?.[1] ||
+                          ""
+                        }
+                        options={{
+                          mode:
+                            i === 0
+                              ? { name: "xml", htmlMode: true }
+                              : { name: "javascript" },
+                          lineNumbers: true,
+                          lineWrapping: true,
+                        }}
+                        onBeforeChange={(_, __, v) => {
+                          const newNodes = [...nodes];
+                          newNodes[i].children = [
+                            {
+                              text: `\`\`\`${
+                                i === 0 ? "html" : "javascript"
+                              }\n${v}\`\`\``,
+                            },
+                          ];
+                          setNodes(newNodes);
+                        }}
+                      />
+                    ) : (
+                      <TextArea
+                        value={value}
+                        onChange={(e) => {
+                          const newNodes = [...nodes];
+                          newNodes[i].children = [{ text: e.target.value }];
+                          setNodes(newNodes);
+                        }}
+                        style={{ width: "100%", height: 300 }}
+                      />
+                    )
+                  }
+                ></Tab>
+              );
+            })}
+          </Tabs>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginTop: 4,
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center" }}>
+              {tab !== nodes[0].uid && (
+                <>
+                  <Checkbox
+                    checked={CODE_BLOCK_REGEX.test(
+                      nodes.find((n) => n.uid === tab)?.children?.[0]?.text
+                    )}
+                    style={{
+                      marginBottom: 0,
+                      lineHeight: "24px",
+                      marginRight: 8,
+                    }}
+                    className={"roamjs-site-filter-toggle"}
+                    label={"Dynamic"}
+                    onChange={(e) => {
+                      setNodes(
+                        nodes.map((n, i) =>
+                          n.uid === tab
+                            ? {
+                                ...n,
+                                children: [
+                                  {
+                                    ...n.children[0],
+                                    text: (e.target as HTMLInputElement).checked
+                                      ? `\`\`\`javascript\n${n.children[0]?.text}\`\`\``
+                                      : JS_REGEX.exec(n.children[0]?.text)?.[1],
+                                  },
+                                ],
+                              }
+                            : n
+                        )
+                      );
                     }}
                   />
-                </Tooltip>
-              </div>
+                  <Button
+                    minimal
+                    icon={"trash"}
+                    style={{
+                      width: 24,
+                      height: 24,
+                      minWidth: 24,
+                      minHeight: 24,
+                    }}
+                    onClick={() => {
+                      setNodes(nodes.filter((n) => n.uid !== tab));
+                      setTab(nodes[0].uid);
+                    }}
+                  />
+                </>
+              )}
             </div>
-          </Label>
+            <div style={{ display: "flex" }}>
+              <InputGroup
+                value={newTab}
+                onChange={(e) => setNewTab(e.target.value)}
+                placeholder={"New Layout Variable"}
+              />
+              <Tooltip content={"Add Layout Variable"}>
+                <Button
+                  minimal
+                  disabled={!newTab}
+                  icon={"plus"}
+                  onClick={() => {
+                    const uid = window.roamAlphaAPI.util.generateUID();
+                    setNodes([
+                      ...nodes,
+                      {
+                        text: newTab,
+                        children: [{ text: "value" }],
+                        uid,
+                      },
+                    ]);
+                    setNewTab("");
+                    setTab(uid);
+                  }}
+                />
+              </Tooltip>
+            </div>
+          </div>
         </div>
         <div className={Classes.DIALOG_FOOTER}>
           <div className={Classes.DIALOG_FOOTER_ACTIONS}>
@@ -729,10 +723,7 @@ const getDeployBody = () => {
   const withTheme = themeNode?.children?.length
     ? {
         theme: Object.fromEntries(
-          themeNode.children.map((p) => [
-            p.text,
-            p.children[0]?.text,
-          ])
+          themeNode.children.map((p) => [p.text, p.children[0]?.text])
         ),
       }
     : {};
@@ -1898,6 +1889,7 @@ const RequestFilesContent: StageContent = ({ openPanel }) => {
 
 const StaticSiteDashboard = (): React.ReactElement => {
   useEffect(shim, []);
+  useRoamJSTokenWarning();
   return (
     <ServiceDashboard
       service={"static-site"}
