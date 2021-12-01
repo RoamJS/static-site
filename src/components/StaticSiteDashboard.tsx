@@ -1442,23 +1442,43 @@ type PluginTab = { id: string; options?: string[]; multi?: true };
 type Plugin = {
   id: string;
   tabs: PluginTab[];
+  description: string;
 };
 
 const pluginIds: Plugin[] = [
-  { id: "footer", tabs: [{ id: "links", multi: true }, { id: "copyright" }] },
+  {
+    id: "footer",
+    description:
+      "Add a standardized footer to the bottom of every page on your website",
+    tabs: [{ id: "links", multi: true }, { id: "copyright" }],
+  },
   {
     id: "header",
+    description:
+      "Add a standardized header to the top of every page on your website",
     tabs: [
       { id: "links", options: ["{page}"], multi: true },
       { id: "home" },
       { id: "right icon" },
     ],
   },
-  { id: "image-preview", tabs: [] },
+  {
+    id: "image-preview",
+    description:
+      "Turns all images that were in Roam blocks preview-able in the same way as they were in Roam",
+    tabs: [],
+  },
   // { id: "inline-block-references", tabs: [] },
-  { id: "paths", tabs: [{ id: "type", options: ["uid", "lowercase"] }] },
+  {
+    id: "paths",
+    description:
+      "Provides different options for specifying the names of all of your URL paths",
+    tabs: [{ id: "type", options: ["uid", "lowercase"] }],
+  },
   {
     id: "sidebar",
+    description:
+      "Add a static sidebar to the right of the page that host different widgets of information",
     tabs: [
       {
         id: "widgets",
@@ -1568,19 +1588,26 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
                   key={tabId}
                   title={"enabled"}
                   panel={
-                    <Switch
-                      label={"Enabled"}
-                      checked={!!values[tabId]}
-                      onChange={(e) => {
-                        const checked = (e.target as HTMLInputElement).checked;
-                        if (checked) {
-                          setValues({ ...values, [tabId]: {} });
-                        } else {
-                          const { [tabId]: _, ...rest } = values;
-                          setValues(rest);
-                        }
-                      }}
-                    />
+                    <>
+                      <Switch
+                        label={"Enabled"}
+                        checked={!!values[tabId]}
+                        onChange={(e) => {
+                          const checked = (e.target as HTMLInputElement)
+                            .checked;
+                          if (checked) {
+                            setValues({ ...values, [tabId]: {} });
+                          } else {
+                            const { [tabId]: _, ...rest } = values;
+                            setValues(rest);
+                          }
+                        }}
+                      />
+                      <br />
+                      <span style={{ fontSize: 12, marginTop: 16 }}>
+                        {outerTabSelected.description}
+                      </span>
+                    </>
                   }
                 />
                 {outerTabSelected.tabs.map(
