@@ -619,11 +619,6 @@ const getTitleRuleFromNode = ({ rule: text, value }: Filter) => {
   return undefined;
 };
 
-type HydratedTreeNode = Omit<TreeNode, "children"> & {
-  references: { title: string; uid: string }[];
-  children: HydratedTreeNode[];
-};
-
 const inlineTryCatch = (
   tryFcn: Function,
   catchFcn: (e: Error) => string
@@ -750,16 +745,31 @@ const getDeployBody = () => {
     ...withTheme,
     ...withFiles,
   };
-  pageReferences.current = window.roamAlphaAPI
+  const references = window.roamAlphaAPI
     .q(
-      `[:find (pull ?pr [:node/title]) (pull ?r [:block/uid]) (pull ?p [:node/title]) :where [?p :node/title] [?r :block/refs ?p] [?r :block/page ?pr]]`
+      `[:find (pull ?pr [:node/title]) (pull ?r [:block/uid]) (pull ?p [:node/title :block/string :block/uid]) :where [?r :block/refs ?p] [?r :block/page ?pr]]`
     )
-    .reduce((prev, cur: Record<string, string>[]) => {
-      const [{ title }, { uid }, { title: key }] = cur;
-      if (prev[key]) {
-        prev[key].push({ title, uid });
+    .map(
+      ([
+        { title },
+        { uid },
+        { title: refTitle, string: refText, uid: refUid },
+      ]: Record<string, string>[]) => ({
+        title,
+        uid,
+        refText,
+        refTitle,
+        refUid,
+      })
+    );
+  pageReferences.current = references
+    .filter(({ refTitle }) => !!refTitle)
+    .reduce((prev, cur) => {
+      const { title, uid, refTitle } = cur;
+      if (prev[refTitle]) {
+        prev[refTitle].push({ title, uid });
       } else {
-        prev[key] = [{ title, uid }];
+        prev[refTitle] = [{ title, uid }];
       }
       return prev;
     }, {} as Record<string, { title: string; uid: string }[]>);
@@ -768,26 +778,6 @@ const getDeployBody = () => {
     .filter((f) => !!f.fcn);
   const titleFilter = (t: string) =>
     titleFilters.length && titleFilters.some((r) => r.fcn(t));
-
-  const blockReferences = config.plugins?.["inline-block-references"]
-    ? window.roamAlphaAPI
-        .q(
-          "[:find ?pu ?pt ?ru :where [?pp :node/title ?pt] [?p :block/page ?pp] [?p :block/uid ?pu] [?r :block/uid ?ru] [?p :block/refs ?r]]"
-        )
-        .reduce((cur, [uid, title, u]: string[]) => {
-          if (cur[u]) {
-            cur[u].push({ uid, title });
-          } else {
-            cur[u] = [{ uid, title }];
-          }
-          return cur;
-        }, {} as { [uid: string]: { uid: string; title: string }[] })
-    : {};
-  const getReferences = (t: TreeNode): HydratedTreeNode => ({
-    ...t,
-    references: blockReferences[t.uid] || [],
-    children: t.children.map(getReferences),
-  });
 
   const entries = allPageNames
     .filter((pageName) => pageName === config.index || titleFilter(pageName))
@@ -801,14 +791,14 @@ const getDeployBody = () => {
       const references = (pageReferences.current[pageName] || []).map(
         ({ title, uid }) => ({
           title,
-          node: getReferences(getTreeByBlockUid(uid)),
+          node: getTreeByBlockUid(uid),
         })
       );
       const viewType = getPageViewType(pageName);
       return {
         references,
         pageName,
-        content: content.map(getReferences),
+        content,
         viewType,
         uid: getPageUidByPageTitle(pageName),
         layout,
@@ -855,7 +845,7 @@ const getDeployBody = () => {
       ];
     })
   );
-  return { data: JSON.stringify({ pages, config }) };
+  return { data: JSON.stringify({ pages, config, references }) };
 };
 
 const getNameServers = (statusProps: string): string[] => {
@@ -1811,8 +1801,15 @@ const RequestFilesContent: StageContent = ({ openPanel }) => {
             uid,
             {
               path: text,
-              uid: extractRef(children[0]?.text || ""),
-              url: getTextByBlockUid(extractRef(children[0]?.text || "")),
+              ...(UPLOAD_REGEX.test(children[0]?.text)
+                ? {
+                    uid: children[0]?.uid,
+                    url: children[0]?.text,
+                  }
+                : {
+                    uid: extractRef(children[0]?.text || ""),
+                    url: getTextByBlockUid(extractRef(children[0]?.text || "")),
+                  }),
             },
           ])
         )

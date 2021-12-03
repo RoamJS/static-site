@@ -7,7 +7,7 @@ import {
   getStackParameter,
   graphToStackName,
 } from "./common/common";
-import { RenderFunction, HydratedTreeNode } from "./common/types";
+import { RenderFunction } from "./common/types";
 import chromium from "chrome-aws-lambda";
 import {
   parseRoamDate,
@@ -359,7 +359,9 @@ const renderComponent = <T extends Record<string, unknown>>({
   return component;
 };
 
-const pageReferences: { current: { [p: string]: string[] } } = { current: {} };
+const pageReferences: {
+  current: { [p: string]: { title: string; uid: string }[] };
+} = { current: {} };
 const getTitleRuleFromNode = ({ rule: text, value }: Filter) => {
   const ruleType = text.trim().toUpperCase();
   if (ruleType === "STARTS WITH" && value) {
@@ -373,7 +375,8 @@ const getTitleRuleFromNode = ({ rule: text, value }: Filter) => {
     return () => true;
   } else if (ruleType === "TAGGED WITH" && value) {
     const tag = extractTag(value);
-    const references = pageReferences.current[tag] || [];
+    const references =
+      pageReferences.current[tag].map(({ title }) => title) || [];
     return (title: string) => references.includes(title);
   }
   return undefined;
@@ -454,11 +457,8 @@ const getConfigFromPage = (parsedTree: TreeNode[]) => {
   const withTheme: InputConfig = themeNode?.children?.length
     ? {
         theme: Object.fromEntries(
-          themeNode.children.map((p) => [
-            p.text,
-            p.children[0]?.text,
-          ])
-        ) as InputConfig['theme'],
+          themeNode.children.map((p) => [p.text, p.children[0]?.text])
+        ) as InputConfig["theme"],
       }
     : {};
   const withFiles: InputConfig = filesNode?.children?.length
@@ -502,12 +502,10 @@ const convertContentToHtml = ({
   viewType,
   level,
   context,
-  useInlineBlockReferences,
   pages,
 }: {
   level: number;
   context: Required<RoamMarkedContext>;
-  useInlineBlockReferences: boolean;
   pages: Record<string, PageContent>;
 } & Pick<PageContent, "content" | "viewType">): string => {
   if (content.length === 0) {
@@ -579,7 +577,6 @@ const convertContentToHtml = ({
       : convertContentToHtml({
           content: t.children,
           viewType: t.viewType,
-          useInlineBlockReferences,
           level: level + 1,
           context,
           pages,
@@ -588,20 +585,7 @@ const convertContentToHtml = ({
     const headingTag =
       // p tags cannot contain divs
       rawHeading === "p" && /<div/.test(inlineMarked) ? "div" : rawHeading;
-    const pageNameSet = new Set(Object.keys(pages));
-    const innerHtml = `<${headingTag}>${inlineMarked}</${headingTag}>${
-      useInlineBlockReferences
-        ? renderComponent({
-            Component: InlineBlockReference,
-            id: `${t.uid}-inline-references`,
-            props: {
-              blockReferences: t.references.filter((tr) =>
-                pageNameSet.has(tr.title)
-              ),
-            },
-          })
-        : ""
-    }\n${children}`;
+    const innerHtml = `<${headingTag}>${inlineMarked}</${headingTag}>\n${children}`;
     if (level > 0 && viewType === "document") {
       classlist.push("document-bullet");
     }
@@ -619,13 +603,21 @@ const convertContentToHtml = ({
 };
 
 type PageContent = {
-  content: HydratedTreeNode[];
-  references: { title: string; node: HydratedTreeNode }[];
+  content: TreeNode[];
+  references: { title: string; node: TreeNode }[];
   viewType: ViewType;
   uid: string;
   metadata: Record<string, string>;
   layout: number;
 };
+
+type References = {
+  title: string;
+  uid: string;
+  refText: string;
+  refTitle: string;
+  refUid: string;
+}[];
 
 const PLUGIN_RENDER: {
   [key: string]: RenderFunction;
@@ -659,7 +651,7 @@ export const renderHtmlFromPage = ({
   config: Required<InputConfig>;
   blockReferencesCache: Record<
     string,
-    { node: HydratedTreeNode; page: string }
+    { node: TreeNode; page: string } | string
   >;
 }): void => {
   const { content, references = [], metadata = {}, viewType } = pages[p];
@@ -691,16 +683,23 @@ export const renderHtmlFromPage = ({
       ? `/${convertPageNameToPath(name).replace(/^\/$/, "")}${r ? `#${r}` : ""}`
       : "";
   const pluginKeys = Object.keys(config.plugins);
-  const useInlineBlockReferences = pluginKeys.includes(
-    "inline-block-references"
-  );
 
-  const blockReferences = (u: string) =>
-    blockReferencesCache[u] && {
-      text: blockReferencesCache[u].node?.text,
-      page: blockReferencesCache[u].page,
-    };
-  const converter = ({ content }: { content: HydratedTreeNode[] }): string => {
+  const blockReferences = (u: string) => {
+    const ref = blockReferencesCache[u];
+    if (ref) {
+      return typeof ref === "string"
+        ? {
+            text: ref,
+            page: "",
+          }
+        : {
+            text: ref.node?.text,
+            page: ref.page,
+          };
+    }
+    return undefined;
+  };
+  const converter = ({ content }: { content: TreeNode[] }): string => {
     const filterIgnore = (t: TreeNode) => {
       if (IGNORE_BLOCKS.some((ib) => t.text.trim().includes(ib))) {
         return false;
@@ -712,11 +711,11 @@ export const renderHtmlFromPage = ({
     return convertContentToHtml({
       content: preparedContent,
       viewType,
-      useInlineBlockReferences,
       pages,
       level: 0,
       context: {
         pagesToHrefs,
+        blockReferences,
         components: (s, ac) => {
           if (/static site/i.test(s)) {
             if (ac && /daily log/i.test(ac)) {
@@ -795,14 +794,17 @@ export const renderHtmlFromPage = ({
           } else if (/embed/i.test(s)) {
             const uid = BLOCK_REF_REGEX.exec(ac.trim())?.[1];
             if (uid) {
+              const ref = blockReferencesCache[uid];
               return (
-                blockReferencesCache[uid] &&
-                `<div class="rm-embed-container">${converter({
-                  content: [blockReferencesCache[uid].node],
-                })}<a class="rm-embed-link" href="${pagesToHrefs(
-                  blockReferencesCache[uid].page,
-                  uid
-                )}"> ↗ </a></div>`
+                ref &&
+                (typeof ref === "string"
+                  ? `<div class="rm-embed-container">${ref}</div>`
+                  : `<div class="rm-embed-container">${converter({
+                      content: [ref.node],
+                    })}<a class="rm-embed-link" href="${pagesToHrefs(
+                      ref.page,
+                      uid
+                    )}"> ↗ </a></div>`)
               );
             }
             const tag = extractTag(ac.trim());
@@ -817,7 +819,6 @@ export const renderHtmlFromPage = ({
           }
           return "";
         },
-        blockReferences,
       },
     });
   };
@@ -888,6 +889,7 @@ export const processSiteData = async ({
   pages,
   outputPath,
   config,
+  references = [],
   info,
 }: {
   info: (s: string) => void;
@@ -896,23 +898,29 @@ export const processSiteData = async ({
   pages: {
     [k: string]: PageContent;
   };
+  references?: References;
 }): Promise<InputConfig> => {
   const pageNames = Object.keys(pages).sort();
   info(
     `resolving ${pageNames.length} pages ${new Date().toLocaleTimeString()}`
   );
   info(`Here are some: ${pageNames.slice(0, 5)}`);
-  const blockReferencesCache: {
-    [p: string]: { node: HydratedTreeNode; page: string };
-  } = {};
+  const blockReferencesCache: Parameters<
+    typeof renderHtmlFromPage
+  >[0]["blockReferencesCache"] = {};
   pageNames.forEach((page) => {
     const { content } = pages[page];
-    const forEach = (node: HydratedTreeNode) => {
+    const forEach = (node: TreeNode) => {
       blockReferencesCache[node.uid] = { node, page };
       node.children.forEach(forEach);
     };
     content.forEach(forEach);
   });
+  references
+    .filter(({ refText }) => !!refText)
+    .forEach((node) => {
+      blockReferencesCache[node.refUid] = node.refText;
+    });
 
   pageNames.map((p) => {
     renderHtmlFromPage({
@@ -1131,42 +1139,6 @@ export const run = async ({
               .then((url) => [u, UPLOAD_REGEX.exec(url)?.[1] || ""])
           )
         ).then((ents) => Object.fromEntries(ents));
-        const blockReferences = config.plugins["inline-block-references"]
-          ? await page.evaluate(() => {
-              return window.roamAlphaAPI
-                .q(
-                  "[:find ?pu ?pt ?ru :where [?pp :node/title ?pt] [?p :block/page ?pp] [?p :block/uid ?pu] [?r :block/uid ?ru] [?p :block/refs ?r]]"
-                )
-                .reduce((cur, [uid, title, u]: string[]) => {
-                  if (cur[u]) {
-                    cur[u].push({ uid, title });
-                  } else {
-                    cur[u] = [{ uid, title }];
-                  }
-                  return cur;
-                }, {} as { [uid: string]: { uid: string; title: string }[] });
-            })
-          : ({} as { [uid: string]: { uid: string; title: string }[] });
-        pageReferences.current = await page
-          .evaluate(() =>
-            window.roamAlphaAPI.q(
-              "[:find ?t ?title :where [?parent :node/title ?title] [?b :block/page ?parent] [?b :block/refs ?p] [?p :node/title ?t]]"
-            )
-          )
-          .then((prs) =>
-            prs.reduce(
-              (prev, cur: string[]) => ({
-                ...prev,
-                [cur[0]]: [...(prev[cur[0]] || []), cur[1]],
-              }),
-              {} as { [p: string]: string[] }
-            )
-          );
-        const getReferences = (t: TreeNode): HydratedTreeNode => ({
-          ...t,
-          references: blockReferences[t.uid] || [],
-          children: t.children.map(getReferences),
-        });
 
         const layouts = config.filter.map((f) => f.layout);
         const titleFilters = config.filter
@@ -1174,6 +1146,44 @@ export const run = async ({
           .filter((f) => !!f.fcn);
         const titleFilter = (t: string) =>
           titleFilters.length && titleFilters.some((r) => r.fcn(t));
+
+        const references = await page
+          .evaluate(() =>
+            window.roamAlphaAPI
+              .q(
+                `[:find (pull ?pr [:node/title]) (pull ?r [:block/uid]) (pull ?p [:node/title :block/string :block/uid]) :where [?r :block/refs ?p] [?r :block/page ?pr]]`
+              )
+              .map(
+                ([
+                  { title },
+                  { uid },
+                  { title: refTitle, string: refText, uid: refUid },
+                ]: Record<string, string>[]) => ({
+                  title,
+                  uid,
+                  refText,
+                  refTitle,
+                  refUid,
+                })
+              )
+          )
+          .then((refs) =>
+            refs.filter(
+              (r) =>
+                titleFilter(r.title) || (r.refTitle && titleFilter(r.refTitle))
+            )
+          );
+        pageReferences.current = references
+          .filter(({ refTitle }) => !!refTitle)
+          .reduce((prev, cur) => {
+            const { title, uid, refTitle } = cur;
+            if (prev[refTitle]) {
+              prev[refTitle].push({ title, uid });
+            } else {
+              prev[refTitle] = [{ title, uid }];
+            }
+            return prev;
+          }, {} as Record<string, { title: string; uid: string }[]>);
 
         info(`querying data ${new Date().toLocaleTimeString()}`);
         const pageNamesWithContent = await Promise.all(
@@ -1240,12 +1250,9 @@ export const run = async ({
               ),
             ])
               .then(([references, viewType, uid]) => ({
-                references: references.map((r) => ({
-                  ...r,
-                  node: getReferences(r.node),
-                })),
+                references,
                 pageName,
-                content: content.map(getReferences),
+                content,
                 viewType,
                 uid,
                 layout,
@@ -1295,7 +1302,7 @@ export const run = async ({
         );
         await page.close();
         browser.close();
-        return { pages, outputPath, config, layouts };
+        return { pages, outputPath, config, layouts, references };
       } catch (e) {
         await page.screenshot({ path: path.join(pathRoot, "error.png") });
         error("took screenshot");
@@ -1398,7 +1405,7 @@ export const handler = async (event: {
     .getObject({ Bucket: "roamjs-static-site-data", Key: event.key })
     .promise()
     .then((data) => {
-      const { pages, config } = JSON.parse(data.Body.toString());
+      const { pages, config, references } = JSON.parse(data.Body.toString());
       fs.mkdirSync(outputPath, { recursive: true });
       return processSiteData({
         pages,
@@ -1406,6 +1413,7 @@ export const handler = async (event: {
           ...defaultConfig,
           ...config,
         },
+        references,
         outputPath,
         info: console.log,
       });

@@ -6,15 +6,16 @@
   "scripts": {
     "test": "jest --config jestconfig.json",
     "prebuild": "rm -Rf out",
-    "lambdas": "cross-env NODE_ENV=production roamjs-scripts lambdas --fast",
+    "lambdas": "cross-env NODE_ENV=production roamjs-scripts lambdas",
     "build": "roamjs-scripts build",
     "build:components": "node scripts/buildComponents.js",
     "precomponents": "npm run build:components",
     "components": "http-server -p 3007 build",
     "deploy": "roamjs-scripts deploy",
     "dev": "roamjs-scripts dev",
-    "preserver": "roamjs-scripts lambdas --fast --build",
-    "server": "localhost-lambdas --port 3005 --tunnel vargas"
+    "preserver": "cross-env NODE_ENV=development roamjs-scripts lambdas --build",
+    "server": "localhost-lambdas --port 3005 --tunnel vargas",
+    "start": "concurrently npm:dev npm:server"
   },
   "repository": {
     "type": "git",
@@ -43,7 +44,7 @@
     "react-codemirror2": "^7.2.1",
     "react-dom": "^17.0.2",
     "react-icons": "^4.3.1",
-    "roamjs-components": "^0.27.5",
+    "roamjs-components": "^0.29.3",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
@@ -60,6 +61,7 @@
     "@types/url-regex-safe": "^1.0.0",
     "@types/uuid": "^8.3.0",
     "babel-loader": "^8.2.2",
+    "concurrently": "^6.4.0",
     "cross-env": "^7.0.3",
     "css-loader": "^6.2.0",
     "file-loader": "^6.2.0",
@@ -67,7 +69,7 @@
     "jest": "^27.3.1",
     "localhost-lambdas": "^0.5.5",
     "node-polyfill-webpack-plugin": "^1.1.4",
-    "roamjs-scripts": "^0.12.5",
+    "roamjs-scripts": "^0.13.2",
     "style-loader": "^3.1.0",
     "svg-react-loader": "^0.4.6",
     "ts-jest": "^27.0.7",
