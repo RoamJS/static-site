@@ -60,7 +60,6 @@ import {
   ServiceDashboard,
   StageContent,
   StageProps,
-  SERVICE_TOKEN_STAGE,
   useAuthenticatedGet,
   useAuthenticatedPost,
   useServiceNextStage,
@@ -1921,7 +1920,6 @@ const StaticSiteDashboard = (): React.ReactElement => {
     <ServiceDashboard
       service={"static-site"}
       stages={[
-        SERVICE_TOKEN_STAGE,
         {
           component: RequestDomainContent,
           setting: "Domain",

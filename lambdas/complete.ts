@@ -90,7 +90,8 @@ export const handler = async (event: SNSEvent) => {
   if (LogicalResourceId === StackName) {
     if (
       ResourceStatus === "CREATE_COMPLETE" ||
-      ResourceStatus === "UPDATE_COMPLETE"
+      ResourceStatus === "UPDATE_COMPLETE" ||
+      ResourceStatus === "UPDATE_ROLLBACK_COMPLETE"
     ) {
       const domain = await getStackParameter("DomainName", StackName);
 
