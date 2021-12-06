@@ -135,7 +135,7 @@ if (process.env.CLIENT_SIDE) {
   );
 }
 
-let cache = "";
+let cache: Record<string,string> = {};
 
 export const render: RenderFunction = (dom, props, context) => {
   const componentProps = {
@@ -147,8 +147,8 @@ export const render: RenderFunction = (dom, props, context) => {
     icon: props["right icon"]?.[0],
   };
   const innerHtml =
-    cache ||
-    (cache = ReactDOMServer.renderToString(<Header {...componentProps} />));
+    cache[context.deployId] ||
+    (cache[context.deployId] = ReactDOMServer.renderToString(<Header {...componentProps} />));
   const { document } = dom.window;
   const { body, head } = document;
   const container = document.createElement("div");

@@ -34,6 +34,7 @@ import axios from "axios";
 import mime from "mime-types";
 import Mustache from "mustache";
 import { DEFAULT_TEMPLATE } from "./common/constants";
+import { v4} from 'uuid';
 
 const transformIfTrue = (s: string, f: boolean, t: (s: string) => string) =>
   f ? t(s) : s;
@@ -643,6 +644,7 @@ export const renderHtmlFromPage = ({
   layout,
   config,
   blockReferencesCache,
+  deployId,
 }: {
   outputPath: string;
   pages: Record<string, PageContent>;
@@ -653,6 +655,7 @@ export const renderHtmlFromPage = ({
     string,
     { node: TreeNode; page: string } | string
   >;
+  deployId: string;
 }): void => {
   const { content, references = [], metadata = {}, viewType } = pages[p];
   const pageNameSet = new Set(Object.keys(pages));
@@ -852,6 +855,7 @@ export const renderHtmlFromPage = ({
       convertPageNameToPath,
       references,
       pageName: p,
+      deployId,
     })
   );
   const cssContent = `${DEFAULT_STYLE}\n${
@@ -891,6 +895,7 @@ export const processSiteData = async ({
   config,
   references = [],
   info,
+  deployId,
 }: {
   info: (s: string) => void;
   config: Required<InputConfig>;
@@ -899,6 +904,7 @@ export const processSiteData = async ({
     [k: string]: PageContent;
   };
   references?: References;
+  deployId: string;
 }): Promise<InputConfig> => {
   const pageNames = Object.keys(pages).sort();
   info(
@@ -930,6 +936,7 @@ export const processSiteData = async ({
       layout: config.filter[pages[p].layout]?.layout || "${PAGE_CONTENT}",
       p,
       blockReferencesCache,
+      deployId,
     });
   });
 
@@ -1309,7 +1316,7 @@ export const run = async ({
         throw new Error(e);
       }
     })
-    .then((d) => processSiteData({ ...d, info }))
+    .then((d) => processSiteData({ ...d, info, deployId: v4() }))
     .catch((e) => {
       error(e.message);
       throw new Error(e);
@@ -1416,6 +1423,7 @@ export const handler = async (event: {
         references,
         outputPath,
         info: console.log,
+        deployId: event.key,
       });
     })
     .then(async () => {

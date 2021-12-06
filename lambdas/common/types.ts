@@ -8,5 +8,6 @@ export type RenderFunction = (
     convertPageNameToPath: (s: string) => string;
     references: { title: string; node: TreeNode }[];
     pageName: string;
+    deployId: string;
   }
 ) => void;
