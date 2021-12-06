@@ -5,6 +5,7 @@ import {
   getActionGraph,
   getRoamJSUser,
   headers,
+  putRoamJSUser,
 } from "./common/common";
 
 const getProgressProps = (
@@ -90,7 +91,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
           KeyConditionExpression: "action_graph = :a",
           ExpressionAttributeValues: {
             ":a": {
-              S: getActionGraph(graph, 'deploy'),
+              S: getActionGraph(graph, "deploy"),
             },
           },
           ScanIndexForward: false,
@@ -105,12 +106,19 @@ export const handler: APIGatewayProxyHandler = async (event) => {
         successDeployStatuses[0] === deployStatuses.Items[0]
           ? successDeployStatuses
           : [deployStatuses.Items[0], ...successDeployStatuses];
+      const status = statuses.Items
+        ? statuses.Items[0].status.S
+        : "INITIALIZING";
+      if (status === "INACTIVE")
+        await putRoamJSUser(event, {
+          websiteGraph: undefined,
+        });
 
       return {
         statusCode: 200,
         body: JSON.stringify({
           graph,
-          status: statuses.Items ? statuses.Items[0].status.S : "INITIALIZING",
+          status,
           statusProps: statuses.Items
             ? statuses.Items[0].status_props?.S
             : "{}",
