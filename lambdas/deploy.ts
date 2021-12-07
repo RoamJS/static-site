@@ -1423,7 +1423,7 @@ export const handler = async (event: {
         references,
         outputPath,
         info: console.log,
-        deployId: event.key,
+        deployId: v4(),
       });
     })
     .then(async () => {
@@ -1494,7 +1494,13 @@ export const handler = async (event: {
       await logStatus("INVALIDATING CACHE");
       const DistributionId = await getDistributionIdByDomain(
         await getStackParameter("DomainName", graphToStackName(event.roamGraph))
-      );
+      ).catch((e) => {
+        console.error(
+          `Failed to get Distribution Id for ${graphToStackName(event.roamGraph)}`,
+        );
+        console.error(e);
+        return "";
+      });
       if (DistributionId) {
         const invalidatingItems =
           filesToInvalidate.size === filesToUpload.length
