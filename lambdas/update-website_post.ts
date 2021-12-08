@@ -1,6 +1,5 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
-import { v4 } from "uuid";
-import { createLogStatus, dynamo, getRoamJSUser, headers, lambda } from "./common/common";
+import { createLogStatus, getRoamJSUser, headers, lambda } from "./common/common";
 
 export const handler: APIGatewayProxyHandler = async (event) => {
   const { graph, diffs } = JSON.parse(event.body);

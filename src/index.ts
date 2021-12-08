@@ -1,6 +1,6 @@
 import Dashboard from "./components/StaticSiteDashboard";
-import { runService } from "roamjs-components";
-import { addStyle } from "roam-client";
+import { runService } from "roamjs-components/components/ServiceComponents";
+import addStyle from "roamjs-components/dom/addStyle";
 
 addStyle(`.bp3-tab-panel {
   width: 100%;

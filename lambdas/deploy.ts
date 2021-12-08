@@ -9,18 +9,16 @@ import {
 } from "./common/common";
 import { RenderFunction } from "./common/types";
 import chromium from "chrome-aws-lambda";
+import parseRoamDate from "roamjs-components/date/parseRoamDate";
+import type { RoamBlock, TreeNode, ViewType } from "roamjs-components/types";
+import extractTag from "roamjs-components/util/extractTag";
+import extractRef from "roamjs-components/util/extractRef";
+import { DAILY_NOTE_PAGE_TITLE_REGEX } from "roamjs-components/date/constants";
 import {
-  parseRoamDate,
-  RoamBlock,
-  TreeNode,
-  ViewType,
-  extractTag,
-  extractRef,
-  DAILY_NOTE_PAGE_TITLE_REGEX,
   parseInline,
-  RoamMarkedContext,
-  BLOCK_REF_REGEX,
-} from "roam-client";
+  RoamContext as RoamMarkedContext,
+} from "roamjs-components/marked";
+import { BLOCK_REF_REGEX } from "roamjs-components/dom/constants";
 import React from "react";
 import ReactDOMServer from "react-dom/server";
 import { JSDOM } from "jsdom";
@@ -34,7 +32,7 @@ import axios from "axios";
 import mime from "mime-types";
 import Mustache from "mustache";
 import { DEFAULT_TEMPLATE } from "./common/constants";
-import { v4} from 'uuid';
+import { v4 } from "uuid";
 
 const transformIfTrue = (s: string, f: boolean, t: (s: string) => string) =>
   f ? t(s) : s;
@@ -53,9 +51,9 @@ const UPLOAD_REGEX = /(https?:\/\/[^\)]*)(?:$|\)|\s)/;
 const DAILY_NOTE_PAGE_REGEX =
   /(January|February|March|April|May|June|July|August|September|October|November|December) [0-3]?[0-9](st|nd|rd|th), [0-9][0-9][0-9][0-9]/;
 
-const allBlockMapper = (t: TreeNode): TreeNode[] => [
+const allBlockMapper = (t: Partial<TreeNode>): Partial<TreeNode>[] => [
   t,
-  ...t.children.flatMap(allBlockMapper),
+  ...(t.children || []).flatMap(allBlockMapper),
 ];
 
 const ensureDirectoryExistence = (filePath: string) => {
@@ -514,6 +512,7 @@ const convertContentToHtml = ({
   }
   const items = content.map((t) => {
     let skipChildren = false;
+    const children = t.children || [];
     const componentsWithChildren = (s: string, ac?: string): string | false => {
       const parent = context.components(s, ac);
       if (parent) {
@@ -521,10 +520,10 @@ const convertContentToHtml = ({
       }
       if (/table/i.test(s)) {
         skipChildren = true;
-        return `<table><tbody>${t.children
+        return `<table><tbody>${children
           .map(
             (row) =>
-              `<tr>${[row, ...row.children.flatMap(allBlockMapper)]
+              `<tr>${[row, ...(row.children || []).flatMap(allBlockMapper)]
                 .map(
                   (td) =>
                     `<td>${parseInline(cleanText(td.text), {
@@ -537,7 +536,7 @@ const convertContentToHtml = ({
           .join("")}</tbody></table>`;
       } else if (/static site/i.test(s) && ac) {
         if (/inject/i.test(ac)) {
-          const node = t.children.find((c) => HTML_REGEX.test(c.text))?.text;
+          const node = children.find((c) => HTML_REGEX.test(c.text))?.text;
           if (node) {
             skipChildren = true;
             const template = node.match(HTML_REGEX)?.[1];
@@ -564,7 +563,7 @@ const convertContentToHtml = ({
       }
       return false;
     };
-    const classlist = ["roam-block", t.textAlign];
+    const classlist = ["roam-block", ...(t.textAlign ? [t.textAlign] : [])];
     const textToParse = t.text.replace(/#\.([^\s]*)/g, (_, className) => {
       classlist.push(className);
       return "";
@@ -573,20 +572,20 @@ const convertContentToHtml = ({
       ...context,
       components: componentsWithChildren,
     });
-    const children = skipChildren
+    const childrenHtml = skipChildren
       ? ""
       : convertContentToHtml({
-          content: t.children,
-          viewType: t.viewType,
+          content: children,
+          viewType: t.viewType || viewType,
           level: level + 1,
           context,
           pages,
         });
-    const rawHeading = HEADINGS[t.heading];
+    const rawHeading = HEADINGS[t.heading || 0];
     const headingTag =
       // p tags cannot contain divs
       rawHeading === "p" && /<div/.test(inlineMarked) ? "div" : rawHeading;
-    const innerHtml = `<${headingTag}>${inlineMarked}</${headingTag}>\n${children}`;
+    const innerHtml = `<${headingTag}>${inlineMarked}</${headingTag}>\n${childrenHtml}`;
     if (level > 0 && viewType === "document") {
       classlist.push("document-bullet");
     }
@@ -604,7 +603,7 @@ const convertContentToHtml = ({
 };
 
 type PageContent = {
-  content: TreeNode[];
+  content: Partial<TreeNode>[];
   references: { title: string; node: TreeNode }[];
   viewType: ViewType;
   uid: string;
@@ -653,7 +652,7 @@ export const renderHtmlFromPage = ({
   config: Required<InputConfig>;
   blockReferencesCache: Record<
     string,
-    { node: TreeNode; page: string } | string
+    { node: Partial<TreeNode>; page: string } | string
   >;
   deployId: string;
 }): void => {
@@ -702,12 +701,12 @@ export const renderHtmlFromPage = ({
     }
     return undefined;
   };
-  const converter = ({ content }: { content: TreeNode[] }): string => {
-    const filterIgnore = (t: TreeNode) => {
+  const converter = ({ content }: { content: Partial<TreeNode>[] }): string => {
+    const filterIgnore = (t: Partial<TreeNode>) => {
       if (IGNORE_BLOCKS.some((ib) => t.text.trim().includes(ib))) {
         return false;
       }
-      t.children = t.children.filter(filterIgnore);
+      if (t.children) t.children = t.children.filter(filterIgnore);
       return true;
     };
     const preparedContent = content.filter(filterIgnore);
@@ -868,9 +867,7 @@ export const renderHtmlFromPage = ({
   link.href = "/theme.css";
   dom.window.document.head.appendChild(link);
 
-  // temporary until we figure out a better option:
-  // 1. include this in marked
-  // 2. figure out tree shaking so that it goes back in image caption
+  // todo - include this in marked
   dom.window.document
     .querySelectorAll<HTMLImageElement>(".roam-block img")
     .forEach((img) => {
@@ -916,9 +913,9 @@ export const processSiteData = async ({
   >[0]["blockReferencesCache"] = {};
   pageNames.forEach((page) => {
     const { content } = pages[page];
-    const forEach = (node: TreeNode) => {
+    const forEach = (node: Partial<TreeNode>) => {
       blockReferencesCache[node.uid] = { node, page };
-      node.children.forEach(forEach);
+      (node.children || []).forEach(forEach);
     };
     content.forEach(forEach);
   });
@@ -1496,7 +1493,9 @@ export const handler = async (event: {
         await getStackParameter("DomainName", graphToStackName(event.roamGraph))
       ).catch((e) => {
         console.error(
-          `Failed to get Distribution Id for ${graphToStackName(event.roamGraph)}`,
+          `Failed to get Distribution Id for ${graphToStackName(
+            event.roamGraph
+          )}`
         );
         console.error(e);
         return "";

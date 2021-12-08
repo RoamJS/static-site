@@ -1,27 +1,16 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import ReactDOMServer from "react-dom/server";
-//import { extractTag } from "roam-client"; Why is tree shaking not working?
+import extractTag from "roamjs-components/util/extractTag";
 import { ensureReact, ensureScript } from "../lambdas/common/components";
 import { RenderFunction } from "../lambdas/common/types";
-import { parseInline } from "roam-marked";
+import { parseInline } from "roamjs-components/marked";
 
 type Props = {
   links: { title: string; href: string }[];
   home?: string;
   icon?: string;
 };
-
-const extractTag = (tag: string): string =>
-  tag.startsWith("#[[") && tag.endsWith("]]")
-    ? tag.substring(3, tag.length - 2)
-    : tag.startsWith("[[") && tag.endsWith("]]")
-    ? tag.substring(2, tag.length - 2)
-    : tag.startsWith("#")
-    ? tag.substring(1)
-    : tag.endsWith("::")
-    ? tag.substring(0, tag.length - 2)
-    : tag;
 
 const Header = ({ links, home = "Home", icon }: Props): React.ReactElement => {
   return (

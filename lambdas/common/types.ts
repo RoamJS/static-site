@@ -1,5 +1,5 @@
 import type { JSDOM } from "jsdom";
-import type { TreeNode } from "roam-client";
+import type { TreeNode } from "roamjs-components/types";
 
 export type RenderFunction = (
   dom: JSDOM,

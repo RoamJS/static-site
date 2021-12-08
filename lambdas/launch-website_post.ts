@@ -1,5 +1,4 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
-import { v4 } from "uuid";
 import {
   createLogStatus,
   dynamo,

@@ -29,52 +29,52 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  extractRef,
-  extractTag,
-  getAllPageNames,
-  getBasicTreeByParentUid,
-  getTextByBlockUid,
-  getTreeByBlockUid,
-  getTreeByPageName,
-  createBlock,
-  createPage,
+import BlockInput from "roamjs-components/components/BlockInput";
+import Description from "roamjs-components/components/Description";
+import MenuItemSelect from "roamjs-components/components/MenuItemSelect";
+import PageInput from "roamjs-components/components/PageInput";
+import useRoamJSTokenWarning from "roamjs-components/hooks/useRoamJSTokenWarning";
+import useSubTree from "roamjs-components/hooks/useSubTree";
+import extractRef from "roamjs-components/util/extractRef";
+import extractTag from "roamjs-components/util/extractTag";
+import setInputSetting from "roamjs-components/util/setInputSetting";
+import toFlexRegex from "roamjs-components/util/toFlexRegex";
+import getSettingValueFromTree from "roamjs-components/util/getSettingValueFromTree";
+import getSubTree from "roamjs-components/util/getSubTree";
+import getFullTreeByParentUid from "roamjs-components/queries/getFullTreeByParentUid";
+import getBasicTreeByParentUid from "roamjs-components/queries/getBasicTreeByParentUid";
+import getTextByBlockUid from "roamjs-components/queries/getTextByBlockUid";
+import getPageViewType from "roamjs-components/queries/getPageViewType";
+import getPageUidByPageTitle from "roamjs-components/queries/getPageUidByPageTitle";
+import getShallowTreeByParentUid from "roamjs-components/queries/getShallowTreeByParentUid";
+import { DAILY_NOTE_PAGE_TITLE_REGEX } from "roamjs-components/date/constants";
+import createBlock from "roamjs-components/writes/createBlock";
+import createPage from "roamjs-components/writes/createPage";
+import type {
   TreeNode,
-  getPageViewType,
-  getShallowTreeByParentUid,
-  deleteBlock,
-  DAILY_NOTE_PAGE_TITLE_REGEX,
-  getPageUidByPageTitle,
   InputTextNode,
-  updateBlock,
-} from "roam-client";
+  RoamBasicNode,
+} from "roamjs-components/types";
+import deleteBlock from "roamjs-components/writes/deleteBlock";
 import {
-  Description,
-  MenuItemSelect,
-  PageInput,
-  setInputSetting,
-  toFlexRegex,
-  useServiceField,
-  WrapServiceMainStage,
-  ServiceNextButton,
+  // TODO split these out or delete
+  useField as useServiceField,
+  MainStage as WrapServiceMainStage,
+  NextButton as ServiceNextButton,
   ServiceDashboard,
   StageContent,
   StageProps,
-  useAuthenticatedGet,
-  useAuthenticatedPost,
-  useServiceNextStage,
-  useServicePageUid,
-  useSubTree,
-  BlockInput,
-  getSettingValueFromTree,
-  getSubTree,
-} from "roamjs-components";
-import useRoamJSTokenWarning from "roamjs-components/dist/hooks/useRoamJSTokenWarning";
+  useAuthenticatedAxiosGet as useAuthenticatedGet,
+  useAuthenticatedAxiosPost as useAuthenticatedPost,
+  useNextStage as useServiceNextStage,
+  usePageUid as useServicePageUid,
+  usePageUid,
+} from "roamjs-components/components/ServiceComponents";
 import { DEFAULT_TEMPLATE } from "../../lambdas/common/constants";
 
 const allBlockMapper = (t: TreeNode): TreeNode[] => [
   t,
-  ...t.children.flatMap(allBlockMapper),
+  ...(t.children || []).flatMap(allBlockMapper),
 ];
 
 const CSS_REGEX = new RegExp("```css\n(.*)```", "s");
@@ -436,8 +436,8 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
       ).find((t) => /filter/i.test(t.text))?.children || []
   );
   const onSubmit = useCallback(() => {
-    const tree = getTreeByBlockUid(pageUid);
-    const keyNode = tree.children.find((t) => /filter/i.test(t.text));
+    const tree = getBasicTreeByParentUid(pageUid);
+    const keyNode = tree.find((t) => /filter/i.test(t.text));
     const cleanFilters = removeUidFromNodes(filters);
     if (keyNode) {
       keyNode.children.forEach(({ uid }) =>
@@ -576,8 +576,8 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
 const getGraph = () =>
   new RegExp(`^#/app/(.*?)/page/`).exec(window.location.hash)[1];
 
-const getLaunchBody = () => {
-  const tree = getTreeByPageName("roam/js/static-site");
+const getLaunchBody = (pageUid: string) => {
+  const tree = getBasicTreeByParentUid(pageUid);
   return {
     graph: getGraph(),
     domain: tree.find((t) => /domain/i.test(t.text))?.children?.[0]?.text,
@@ -651,9 +651,24 @@ const extractValue = (s: string, pageUid: string) => {
   return postJs;
 };
 
-const getDeployBody = () => {
-  const allPageNames = getAllPageNames();
-  const configPageTree = getTreeByPageName("roam/js/static-site");
+type MinimalRoamNode = Omit<Partial<TreeNode>, "order" | "children"> & {
+  children?: MinimalRoamNode[];
+};
+
+const formatRoamNodes = (nodes: Partial<TreeNode>[]): MinimalRoamNode[] =>
+  nodes
+    .sort(({ order: a }, { order: b }) => a - b)
+    .map(({ order, ...node }) => ({
+      ...node,
+      ...(node.children
+        ? {
+            children: formatRoamNodes(node.children),
+          }
+        : {}),
+    }));
+
+const getDeployBody = (pageUid: string) => {
+  const configPageTree = getBasicTreeByParentUid(pageUid);
   const getConfigNode = (key: string) =>
     configPageTree.find(
       (n) => n.text.trim().toUpperCase() === key.toUpperCase()
@@ -665,7 +680,7 @@ const getDeployBody = () => {
   const pluginsNode = getConfigNode("plugins");
   const themeNode = getConfigNode("theme");
   const filesNode = getConfigNode("files");
-  const getCode = (node?: TreeNode) =>
+  const getCode = (node?: RoamBasicNode) =>
     (node?.children || [])
       .map((s) => s.text.match(HTML_REGEX))
       .find((s) => !!s)?.[1];
@@ -778,32 +793,81 @@ const getDeployBody = () => {
     .filter((f) => !!f.fcn);
   const titleFilter = (t: string) =>
     titleFilters.length && titleFilters.some((r) => r.fcn(t));
-
-  const entries = allPageNames
-    .filter((pageName) => pageName === config.index || titleFilter(pageName))
-    .filter((pageName) => "roam/js/static-site" !== pageName)
-    .map((pageName) => ({
-      pageName,
-      content: getTreeByPageName(pageName),
-      layout: titleFilters.find((r) => r.fcn(pageName))?.layout,
-    }))
-    .map(({ pageName, content, layout }) => {
-      const references = (pageReferences.current[pageName] || []).map(
-        ({ title, uid }) => ({
-          title,
-          node: getTreeByBlockUid(uid),
+  const useLegacy = config.filter.some((s) => s.rule === "DAILY");
+  debugger;
+  const entries = useLegacy
+    ? window.roamAlphaAPI
+        .q("[:find ?s (pull ?e [:block/uid]) :where [?e :node/title ?s]]")
+        .map((b) => ({ title: b[0] as string, uid: b[1].uid as string }))
+        .filter(({ title }) => title === config.index || titleFilter(title))
+        .filter(({ title }) => "roam/js/static-site" !== title)
+        .map(({ title, uid }) => ({
+          pageName: title,
+          content: getFullTreeByParentUid(uid).children,
+          layout: titleFilters.find((r) => r.fcn(title))?.layout,
+          uid,
+        }))
+        .map(({ pageName, content, layout, uid }) => {
+          const references = (pageReferences.current[pageName] || []).map(
+            ({ title, uid }) => ({
+              title,
+              node: getFullTreeByParentUid(uid),
+            })
+          );
+          const viewType = getPageViewType(pageName);
+          return {
+            references,
+            pageName,
+            content,
+            viewType,
+            uid,
+            layout,
+          };
         })
-      );
-      const viewType = getPageViewType(pageName);
-      return {
-        references,
-        pageName,
-        content,
-        viewType,
-        uid: getPageUidByPageTitle(pageName),
-        layout,
-      };
-    });
+    : window.roamAlphaAPI
+        .q(
+          `[:find (pull ?b [
+      [:block/string :as "text"] 
+      [:node/title :as "text"] 
+      :block/uid 
+      :block/order 
+      :block/heading
+      [:children/view-type :as "viewType"] 
+      [:block/text-align :as "textAlign"]
+      {:block/children ...}
+    ]) :where [?b :block/uid] (or-join [?b]
+      ${config.filter
+        .map((f) => {
+          switch (f.rule) {
+            case "STARTS WITH":
+              return `(and [?b :node/title ?title] [(clojure.string/starts-with? ?title "${f.value}")])`;
+            case "TAGGED WITH":
+              return `(and [?c :block/page ?b] [?c :block/refs ?r] [?r :node/title "${f.value}"])`;
+            default:
+              return `(and [?b :node/title])`;
+          }
+        })
+        .concat(`(and [?b :node/title "${config.index}"])`)
+        .join(" ")}
+    )]`
+        )
+        .map((p) => {
+          const { text: pageName, uid, children, viewType = "bullet" } = p[0];
+          const references = (pageReferences.current[pageName] || []).map(
+            ({ title, uid }) => ({
+              title,
+              node: getFullTreeByParentUid(uid),
+            })
+          );
+          return {
+            references,
+            pageName,
+            content: formatRoamNodes(children),
+            viewType,
+            uid,
+            layout: titleFilters.find((r) => r.fcn(pageName))?.layout,
+          };
+        });
   const pages = Object.fromEntries(
     entries.map(({ content, pageName, layout, uid, ...props }) => {
       const allBlocks = content.flatMap(allBlockMapper);
@@ -822,7 +886,7 @@ const getDeployBody = () => {
             .filter(({ match }) => !!match && match.length >= 3)
             .map(({ match, node }) => ({
               key: match[1],
-              value: match[2].trim() || node.children[0]?.text || "",
+              value: match[2].trim() || node.children?.[0]?.text || "",
             }))
             .map(({ key, value }) => [key, extractValue(value, uid)])
             .concat([["name", title.split("/").slice(-1)[0]]])
@@ -845,7 +909,15 @@ const getDeployBody = () => {
       ];
     })
   );
-  return { data: JSON.stringify({ pages, config, references }) };
+  return {
+    data: JSON.stringify({
+      pages,
+      config,
+      references: references.filter(
+        (r) => titleFilter(r.title) || (r.refTitle && titleFilter(r.refTitle))
+      ),
+    }),
+  };
 };
 
 const getNameServers = (statusProps: string): string[] => {
@@ -1014,6 +1086,7 @@ const shim = () => {
 const LiveContent: StageContent = () => {
   const authenticatedAxiosGet = useAuthenticatedGet();
   const authenticatedAxiosPost = useAuthenticatedPost();
+  const pageUid = usePageUid();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
@@ -1043,7 +1116,7 @@ const LiveContent: StageContent = () => {
             authenticatedAxiosGet(`website-variables?graph=${getGraph()}`)
               .then((r) => {
                 const diffs = [];
-                const tree = getTreeByPageName(`roam/js/static-site`);
+                const tree = getBasicTreeByParentUid(pageUid);
                 const newDomain = tree.find((t) =>
                   toFlexRegex("domain").test(t.text)
                 )?.children?.[0]?.text;
@@ -1088,16 +1161,17 @@ const LiveContent: StageContent = () => {
       setStatusProps,
       setProgressType,
       setProgress,
+      pageUid,
     ]
   );
   const wrapPost = useCallback(
-    (path: string, getData: () => Record<string, unknown>) => {
+    (path: string, getData: (uid: string) => Record<string, unknown>) => {
       setError("");
       setLoading(true);
       return new Promise<Record<string, unknown>>((resolve, reject) =>
         setTimeout(() => {
           try {
-            const data = getData();
+            const data = getData(pageUid);
             resolve(data);
           } catch (e) {
             reject(e);
@@ -1115,7 +1189,7 @@ const LiveContent: StageContent = () => {
         })
         .finally(() => setLoading(false));
     },
-    [setError, setLoading, getWebsite, authenticatedAxiosPost]
+    [setError, setLoading, getWebsite, authenticatedAxiosPost, pageUid]
   );
   const manualDeploy = useCallback(
     () => wrapPost(process.env.DEPLOY_ENDPOINT, getDeployBody),
@@ -1126,9 +1200,12 @@ const LiveContent: StageContent = () => {
       wrapPost("launch-website", getLaunchBody).then(
         (success) =>
           success &&
-          authenticatedAxiosPost(process.env.DEPLOY_ENDPOINT, getDeployBody())
+          authenticatedAxiosPost(
+            process.env.DEPLOY_ENDPOINT,
+            getDeployBody(pageUid)
+          )
       ),
-    [wrapPost]
+    [wrapPost, pageUid, authenticatedAxiosPost]
   );
   const shutdownWebsite = useCallback(
     () =>
@@ -1155,6 +1232,13 @@ const LiveContent: StageContent = () => {
       .catch((e) => setError(e.response?.data || e.message))
       .finally(() => setLoading(false));
   }, [setError, setLoading, setInitialLoad, getWebsite]);
+  const domain = useMemo(
+    () =>
+      getBasicTreeByParentUid(pageUid).find((t) =>
+        toFlexRegex("domain").test(t.text)
+      )?.children?.[0]?.text,
+    [pageUid]
+  );
   return (
     <>
       {loading && <Spinner />}
@@ -1203,11 +1287,7 @@ const LiveContent: StageContent = () => {
                   >
                     {status === "LIVE" ? (
                       <a
-                        href={`https://${
-                          getTreeByPageName(`roam/js/static-site`).find((t) =>
-                            toFlexRegex("domain").test(t.text)
-                          )?.children?.[0]?.text
-                        }`}
+                        href={`https://${domain}`}
                         target="_blank"
                         rel="noopener"
                         style={{ color: "inherit" }}
