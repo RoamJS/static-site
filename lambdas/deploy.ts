@@ -7,7 +7,7 @@ import {
   getStackParameter,
   graphToStackName,
 } from "./common/common";
-import { RenderFunction } from "./common/types";
+import { RenderFunction, PartialRecursive } from "./common/types";
 import chromium from "chrome-aws-lambda";
 import parseRoamDate from "roamjs-components/date/parseRoamDate";
 import type { RoamBlock, TreeNode, ViewType } from "roamjs-components/types";
@@ -51,7 +51,9 @@ const UPLOAD_REGEX = /(https?:\/\/[^\)]*)(?:$|\)|\s)/;
 const DAILY_NOTE_PAGE_REGEX =
   /(January|February|March|April|May|June|July|August|September|October|November|December) [0-3]?[0-9](st|nd|rd|th), [0-9][0-9][0-9][0-9]/;
 
-const allBlockMapper = (t: Partial<TreeNode>): Partial<TreeNode>[] => [
+const allBlockMapper = (
+  t: PartialRecursive<TreeNode>
+): PartialRecursive<TreeNode>[] => [
   t,
   ...(t.children || []).flatMap(allBlockMapper),
 ];
@@ -358,29 +360,6 @@ const renderComponent = <T extends Record<string, unknown>>({
   return component;
 };
 
-const pageReferences: {
-  current: { [p: string]: { title: string; uid: string }[] };
-} = { current: {} };
-const getTitleRuleFromNode = ({ rule: text, value }: Filter) => {
-  const ruleType = text.trim().toUpperCase();
-  if (ruleType === "STARTS WITH" && value) {
-    const tag = extractTag(value);
-    return (title: string) => {
-      return title.startsWith(tag);
-    };
-  } else if (ruleType === "DAILY") {
-    return (title: string) => DAILY_NOTE_PAGE_TITLE_REGEX.test(title);
-  } else if (ruleType === "ALL") {
-    return () => true;
-  } else if (ruleType === "TAGGED WITH" && value) {
-    const tag = extractTag(value);
-    const references =
-      pageReferences.current[tag].map(({ title }) => title) || [];
-    return (title: string) => references.includes(title);
-  }
-  return undefined;
-};
-
 const getParsedTree = async ({
   evaluate,
   pageName,
@@ -603,8 +582,7 @@ const convertContentToHtml = ({
 };
 
 type PageContent = {
-  content: Partial<TreeNode>[];
-  references: { title: string; node: TreeNode }[];
+  content: PartialRecursive<TreeNode>[];
   viewType: ViewType;
   uid: string;
   metadata: Record<string, string>;
@@ -614,6 +592,7 @@ type PageContent = {
 type References = {
   title: string;
   uid: string;
+  text: string;
   refText: string;
   refTitle: string;
   refUid: string;
@@ -643,6 +622,7 @@ export const renderHtmlFromPage = ({
   layout,
   config,
   blockReferencesCache,
+  linkedReferencesCache,
   deployId,
 }: {
   outputPath: string;
@@ -652,11 +632,16 @@ export const renderHtmlFromPage = ({
   config: Required<InputConfig>;
   blockReferencesCache: Record<
     string,
-    { node: Partial<TreeNode>; page: string } | string
+    { node: PartialRecursive<TreeNode>; page: string } | string
+  >;
+  linkedReferencesCache: Record<
+    string,
+    { title: string; node: PartialRecursive<TreeNode> }[]
   >;
   deployId: string;
 }): void => {
-  const { content, references = [], metadata = {}, viewType } = pages[p];
+  const { content, metadata = {}, viewType } = pages[p];
+  const references = linkedReferencesCache[p] || [];
   const pageNameSet = new Set(Object.keys(pages));
   const uidByName = Object.fromEntries(
     Object.entries(pages).map(([name, { uid }]) => [name, uid])
@@ -701,8 +686,12 @@ export const renderHtmlFromPage = ({
     }
     return undefined;
   };
-  const converter = ({ content }: { content: Partial<TreeNode>[] }): string => {
-    const filterIgnore = (t: Partial<TreeNode>) => {
+  const converter = ({
+    content,
+  }: {
+    content: PartialRecursive<TreeNode>[];
+  }): string => {
+    const filterIgnore = (t: PartialRecursive<TreeNode>) => {
       if (IGNORE_BLOCKS.some((ib) => t.text.trim().includes(ib))) {
         return false;
       }
@@ -834,10 +823,6 @@ export const renderHtmlFromPage = ({
       layout.replace(/\${PAGE_CONTENT}/g, markedContent)
     )
     .replace(
-      /\${PAGE_([A-Z_]+)}/g,
-      (_, k: string) => metadata[k.toLowerCase().replace(/_/g, "-")] || ""
-    )
-    .replace(
       /\${(PAGE_)?REFERENCES}/g,
       Array.from(new Set(references.map((r) => r.title)))
         .filter((r) => pageNameSet.has(r))
@@ -847,6 +832,10 @@ export const renderHtmlFromPage = ({
             .replace(/\${LINK}/g, convertPageNameToPath(r))
         )
         .join("\n")
+    )
+    .replace(
+      /\${PAGE_([A-Z_]+)}/g,
+      (_, k: string) => metadata[k.toLowerCase().replace(/_/g, "-")] || ""
     );
   const dom = new JSDOM(hydratedHtml);
   pluginKeys.forEach((k) =>
@@ -913,16 +902,34 @@ export const processSiteData = async ({
   >[0]["blockReferencesCache"] = {};
   pageNames.forEach((page) => {
     const { content } = pages[page];
-    const forEach = (node: Partial<TreeNode>) => {
+    const forEach = (node: PartialRecursive<TreeNode>) => {
       blockReferencesCache[node.uid] = { node, page };
       (node.children || []).forEach(forEach);
     };
     content.forEach(forEach);
   });
+  const linkedReferencesCache: Parameters<
+    typeof renderHtmlFromPage
+  >[0]["linkedReferencesCache"] = {};
   references
     .filter(({ refText }) => !!refText)
     .forEach((node) => {
       blockReferencesCache[node.refUid] = node.refText;
+    });
+  references
+    .filter(({ refTitle }) => !!refTitle)
+    .forEach((node) => {
+      const block = blockReferencesCache[node.uid];
+      linkedReferencesCache[node.refTitle] = [
+        ...(linkedReferencesCache[node.refTitle] || []),
+        {
+          title: node.title,
+          node:
+            typeof block === "string"
+              ? { text: block }
+              : block?.node || { text: node.text },
+        },
+      ];
     });
 
   pageNames.map((p) => {
@@ -933,6 +940,7 @@ export const processSiteData = async ({
       layout: config.filter[pages[p].layout]?.layout || "${PAGE_CONTENT}",
       p,
       blockReferencesCache,
+      linkedReferencesCache,
       deployId,
     });
   });
@@ -953,6 +961,27 @@ export const processSiteData = async ({
 
   return config;
 };
+
+type MinimalRoamNode = Omit<
+  PartialRecursive<TreeNode>,
+  "order" | "children"
+> & {
+  children?: MinimalRoamNode[];
+};
+
+const formatRoamNodes = (
+  nodes: PartialRecursive<TreeNode>[]
+): MinimalRoamNode[] =>
+  nodes
+    .sort(({ order: a }, { order: b }) => a - b)
+    .map(({ order, ...node }) => ({
+      ...node,
+      ...(node.children
+        ? {
+            children: formatRoamNodes(node.children),
+          }
+        : {}),
+    }));
 
 export const run = async ({
   roamUsername,
@@ -1143,76 +1172,90 @@ export const run = async ({
               .then((url) => [u, UPLOAD_REGEX.exec(url)?.[1] || ""])
           )
         ).then((ents) => Object.fromEntries(ents));
+        const createFilterQuery = (freeVar: string) => `(or-join [${freeVar} ?f]
+          ${config.filter
+            .map((f, i) => {
+              const createFilterRule = (s: string) =>
+                `(and ${s} [(+ 0 ${i}) ?f])`;
+              switch (f.rule) {
+                case "STARTS WITH":
+                  return createFilterRule(
+                    `[${freeVar} :node/title ?title] [(clojure.string/starts-with? ?title "${f.value}")]`
+                  );
+                case "TAGGED WITH":
+                  return createFilterRule(
+                    `[?c :block/page ${freeVar}] [?c :block/refs ?r] [?r :node/title "${f.value}"]`
+                  );
+                case "DAILY":
+                  return createFilterRule(
+                    `[${freeVar} :node/title ?title] [(re-matches ?regex ?title)]`
+                  );
+                default:
+                  return createFilterRule(`[${freeVar} :node/title]`);
+              }
+            })
+            .concat(
+              `(and [${freeVar} :node/title "${config.index}"] [(+ 0 -1) ?f])`
+            )
+            .join(" ")}
+        )`;
+        const entryQuery = `[:find (pull ?b [
+          [:block/string :as "text"] 
+          [:node/title :as "text"] 
+          :block/uid 
+          :block/order 
+          :block/heading
+          [:children/view-type :as "viewType"] 
+          [:block/text-align :as "textAlign"]
+          {:block/children ...}
+        ]) ?f
+        :where [?b :block/uid] ${createFilterQuery("?b")}]`;
 
-        const layouts = config.filter.map((f) => f.layout);
-        const titleFilters = config.filter
-          .map((f, layout) => ({ fcn: getTitleRuleFromNode(f), layout }))
-          .filter((f) => !!f.fcn);
-        const titleFilter = (t: string) =>
-          titleFilters.length && titleFilters.some((r) => r.fcn(t));
+        const pageNamesWithContent = await page
+          .evaluate((eq) => window.roamAlphaAPI.q(eq), entryQuery)
+          .then((pages) =>
+            pages.map((p) => {
+              const [
+                { text: pageName, uid, children, viewType = "bullet" },
+                layout,
+              ] = p as [PartialRecursive<TreeNode>, number];
+              return {
+                pageName,
+                content: formatRoamNodes(children),
+                viewType,
+                uid,
+                layout,
+              };
+            })
+          );
 
-        const references = await page
-          .evaluate(() =>
+        const referenceQuery = `[:find 
+          (pull ?refpage [:node/title]) 
+          (pull ?ref [:block/uid [:block/string :as "text"] [:node/title :as "text"]]) 
+          (pull ?node [:node/title :block/string :block/uid]) 
+          :where 
+          [?ref :block/refs ?node] [?ref :block/page ?refpage] (or-join [?node ?refpage] ${createFilterQuery(
+            "?node"
+          )} ${createFilterQuery("?refpage")})]`;
+        const references = await page.evaluate(
+          (rq) =>
             window.roamAlphaAPI
-              .q(
-                `[:find (pull ?pr [:node/title]) (pull ?r [:block/uid]) (pull ?p [:node/title :block/string :block/uid]) :where [?r :block/refs ?p] [?r :block/page ?pr]]`
-              )
+              .q(rq)
               .map(
                 ([
                   { title },
-                  { uid },
+                  { uid, text },
                   { title: refTitle, string: refText, uid: refUid },
                 ]: Record<string, string>[]) => ({
                   title,
                   uid,
+                  text,
                   refText,
                   refTitle,
                   refUid,
                 })
-              )
-          )
-          .then((refs) =>
-            refs.filter(
-              (r) =>
-                titleFilter(r.title) || (r.refTitle && titleFilter(r.refTitle))
-            )
-          );
-        pageReferences.current = references
-          .filter(({ refTitle }) => !!refTitle)
-          .reduce((prev, cur) => {
-            const { title, uid, refTitle } = cur;
-            if (prev[refTitle]) {
-              prev[refTitle].push({ title, uid });
-            } else {
-              prev[refTitle] = [{ title, uid }];
-            }
-            return prev;
-          }, {} as Record<string, { title: string; uid: string }[]>);
-
-        info(`querying data ${new Date().toLocaleTimeString()}`);
-        const pageNamesWithContent = await Promise.all(
-          allPageNames
-            .filter(
-              (pageName) => pageName === config.index || titleFilter(pageName)
-            )
-            .filter((pageName) => !CONFIG_PAGE_NAMES.includes(pageName))
-            .map((pageName) => {
-              if (debug) {
-                info(`Getting parsed tree for page ${pageName}`);
-              }
-              return getParsedTree({ evaluate: page.evaluate, pageName }).then(
-                (content) => ({
-                  pageName,
-                  content,
-                  layout: titleFilters.find((r) => r.fcn(pageName))?.layout,
-                })
-              );
-            })
-        );
-        info(
-          `title filtered to ${
-            pageNamesWithContent.length
-          } pages ${new Date().toLocaleTimeString()}`
+              ),
+          referenceQuery
         );
         const entries = await Promise.all(
           pageNamesWithContent.map(({ pageName, content, layout }) => {
@@ -1306,7 +1349,7 @@ export const run = async ({
         );
         await page.close();
         browser.close();
-        return { pages, outputPath, config, layouts, references };
+        return { pages, outputPath, config, references };
       } catch (e) {
         await page.screenshot({ path: path.join(pathRoot, "error.png") });
         error("took screenshot");

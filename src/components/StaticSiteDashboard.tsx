@@ -595,29 +595,6 @@ const METADATA_REGEX = /roam\/js\/static-site\/([a-z-]+)::(.*)/;
 const HTML_REGEX = new RegExp("```html\n(.*)```", "s");
 const JS_REGEX = new RegExp("```javascript\n(.*)```", "s");
 const CODE_BLOCK_REGEX = new RegExp("```([a-z]+)\n(.*)```", "s");
-const pageReferences: {
-  current: Record<string, { title: string; uid: string }[]>;
-} = { current: {} };
-const getTitleRuleFromNode = ({ rule: text, value }: Filter) => {
-  const ruleType = text.trim().toUpperCase();
-  if (ruleType === "STARTS WITH" && value) {
-    const tag = extractTag(value);
-    return (title: string) => {
-      return title.startsWith(tag);
-    };
-  } else if (ruleType === "DAILY") {
-    return (title: string) => DAILY_NOTE_PAGE_TITLE_REGEX.test(title);
-  } else if (ruleType === "ALL") {
-    return () => true;
-  } else if (ruleType === "TAGGED WITH" && value) {
-    const tag = extractTag(value);
-    const references = (pageReferences.current[tag] || []).map(
-      ({ title }) => title
-    );
-    return (title: string) => !!references && references.includes(title);
-  }
-  return undefined;
-};
 
 const inlineTryCatch = (
   tryFcn: Function,
@@ -760,72 +737,34 @@ const getDeployBody = (pageUid: string) => {
     ...withTheme,
     ...withFiles,
   };
-  const references = window.roamAlphaAPI
-    .q(
-      `[:find (pull ?pr [:node/title]) (pull ?r [:block/uid]) (pull ?p [:node/title :block/string :block/uid]) :where [?r :block/refs ?p] [?r :block/page ?pr]]`
-    )
-    .map(
-      ([
-        { title },
-        { uid },
-        { title: refTitle, string: refText, uid: refUid },
-      ]: Record<string, string>[]) => ({
-        title,
-        uid,
-        refText,
-        refTitle,
-        refUid,
+  const hasDaily = config.filter.some((s) => s.rule === "DAILY");
+  const createFilterQuery = (freeVar: string) => `(or-join [${freeVar} ?f]
+    ${config.filter
+      .map((f, i) => {
+        const createFilterRule = (s: string) => `(and ${s} [(+ 0 ${i}) ?f])`;
+        switch (f.rule) {
+          case "STARTS WITH":
+            return createFilterRule(
+              `[${freeVar} :node/title ?title] [(clojure.string/starts-with? ?title "${f.value}")]`
+            );
+          case "TAGGED WITH":
+            return createFilterRule(
+              `[?c :block/page ${freeVar}] [?c :block/refs ?r] [?r :node/title "${f.value}"]`
+            );
+          case "DAILY":
+            return createFilterRule(
+              `[${freeVar} :node/title ?title] [(re-matches ?regex ?title)]`
+            );
+          default:
+            return createFilterRule(`[${freeVar} :node/title]`);
+        }
       })
-    );
-  pageReferences.current = references
-    .filter(({ refTitle }) => !!refTitle)
-    .reduce((prev, cur) => {
-      const { title, uid, refTitle } = cur;
-      if (prev[refTitle]) {
-        prev[refTitle].push({ title, uid });
-      } else {
-        prev[refTitle] = [{ title, uid }];
-      }
-      return prev;
-    }, {} as Record<string, { title: string; uid: string }[]>);
-  const titleFilters = config.filter
-    .map((f, layout) => ({ fcn: getTitleRuleFromNode(f), layout }))
-    .filter((f) => !!f.fcn);
-  const titleFilter = (t: string) =>
-    titleFilters.length && titleFilters.some((r) => r.fcn(t));
-  const useLegacy = config.filter.some((s) => s.rule === "DAILY");
-  const entries = useLegacy
-    ? window.roamAlphaAPI
-        .q("[:find ?s (pull ?e [:block/uid]) :where [?e :node/title ?s]]")
-        .map((b) => ({ title: b[0] as string, uid: b[1].uid as string }))
-        .filter(({ title }) => title === config.index || titleFilter(title))
-        .filter(({ title }) => "roam/js/static-site" !== title)
-        .map(({ title, uid }) => ({
-          pageName: title,
-          content: getFullTreeByParentUid(uid).children,
-          layout: titleFilters.find((r) => r.fcn(title))?.layout,
-          uid,
-        }))
-        .map(({ pageName, content, layout, uid }) => {
-          const references = (pageReferences.current[pageName] || []).map(
-            ({ title, uid }) => ({
-              title,
-              node: getFullTreeByParentUid(uid),
-            })
-          );
-          const viewType = getPageViewType(pageName);
-          return {
-            references,
-            pageName,
-            content,
-            viewType,
-            uid,
-            layout,
-          };
-        })
-    : window.roamAlphaAPI
-        .q(
-          `[:find (pull ?b [
+      .concat(`(and [${freeVar} :node/title "${config.index}"] [(+ 0 -1) ?f])`)
+      .join(" ")}
+  )`;
+  const entries = window.roamAlphaAPI
+    .q(
+      `[:find (pull ?b [
       [:block/string :as "text"] 
       [:node/title :as "text"] 
       :block/uid 
@@ -834,39 +773,50 @@ const getDeployBody = (pageUid: string) => {
       [:children/view-type :as "viewType"] 
       [:block/text-align :as "textAlign"]
       {:block/children ...}
-    ]) :where [?b :block/uid] (or-join [?b]
-      ${config.filter
-        .map((f) => {
-          switch (f.rule) {
-            case "STARTS WITH":
-              return `(and [?b :node/title ?title] [(clojure.string/starts-with? ?title "${f.value}")])`;
-            case "TAGGED WITH":
-              return `(and [?c :block/page ?b] [?c :block/refs ?r] [?r :node/title "${f.value}"])`;
-            default:
-              return `(and [?b :node/title])`;
-          }
-        })
-        .concat(`(and [?b :node/title "${config.index}"])`)
-        .join(" ")}
-    )]`
-        )
-        .map((p) => {
-          const { text: pageName, uid, children, viewType = "bullet" } = p[0];
-          const references = (pageReferences.current[pageName] || []).map(
-            ({ title, uid }) => ({
-              title,
-              node: getFullTreeByParentUid(uid),
-            })
-          );
-          return {
-            references,
-            pageName,
-            content: formatRoamNodes(children),
-            viewType,
-            uid,
-            layout: titleFilters.find((r) => r.fcn(pageName))?.layout,
-          };
-        });
+    ]) ?f
+    ${hasDaily ? ":in $ ?regex" : ""}
+    :where [?b :block/uid] ${createFilterQuery("?b")}]`,
+      ...(hasDaily ? [DAILY_NOTE_PAGE_TITLE_REGEX] : [])
+    )
+    .map((p) => {
+      const [{ text: pageName, uid, children = [], viewType = "bullet" }, layout] =
+        p as [Partial<TreeNode>, number];
+      return {
+        pageName,
+        content: formatRoamNodes(children),
+        viewType,
+        uid,
+        layout,
+      };
+    });
+  // either the source or the destination needs to match the title filter
+  const references = window.roamAlphaAPI
+    .q(
+      `[:find 
+        (pull ?refpage [:node/title]) 
+        (pull ?ref [:block/uid [:block/string :as "text"] [:node/title :as "text"]]) 
+        (pull ?node [:node/title :block/string :block/uid]) 
+        :where 
+        ${hasDaily ? ":in $ ?regex" : ""}
+        [?ref :block/refs ?node] [?ref :block/page ?refpage] (or-join [?node ?refpage] ${createFilterQuery(
+          "?node"
+        )} ${createFilterQuery("?refpage")})]`,
+        ...(hasDaily ? [DAILY_NOTE_PAGE_TITLE_REGEX] : [])
+    )
+    .map(
+      ([
+        { title },
+        { uid, text },
+        { title: refTitle, string: refText, uid: refUid },
+      ]: Record<string, string>[]) => ({
+        title,
+        uid,
+        text,
+        refText,
+        refTitle,
+        refUid,
+      })
+    );
   const pages = Object.fromEntries(
     entries.map(({ content, pageName, layout, uid, ...props }) => {
       const allBlocks = content.flatMap(allBlockMapper);
@@ -912,9 +862,7 @@ const getDeployBody = (pageUid: string) => {
     data: JSON.stringify({
       pages,
       config,
-      references: references.filter(
-        (r) => titleFilter(r.title) || (r.refTitle && titleFilter(r.refTitle))
-      ),
+      references,
     }),
   };
 };
