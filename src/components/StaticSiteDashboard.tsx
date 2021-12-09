@@ -794,7 +794,6 @@ const getDeployBody = (pageUid: string) => {
   const titleFilter = (t: string) =>
     titleFilters.length && titleFilters.some((r) => r.fcn(t));
   const useLegacy = config.filter.some((s) => s.rule === "DAILY");
-  debugger;
   const entries = useLegacy
     ? window.roamAlphaAPI
         .q("[:find ?s (pull ?e [:block/uid]) :where [?e :node/title ?s]]")
