@@ -13,7 +13,6 @@ import parseRoamDate from "roamjs-components/date/parseRoamDate";
 import type { RoamBlock, TreeNode, ViewType } from "roamjs-components/types";
 import extractTag from "roamjs-components/util/extractTag";
 import extractRef from "roamjs-components/util/extractRef";
-import { DAILY_NOTE_PAGE_TITLE_REGEX } from "roamjs-components/date/constants";
 import {
   parseInline,
   RoamContext as RoamMarkedContext,
@@ -37,7 +36,6 @@ import { v4 } from "uuid";
 const transformIfTrue = (s: string, f: boolean, t: (s: string) => string) =>
   f ? t(s) : s;
 const CONFIG_PAGE_NAMES = ["roam/js/static-site", "roam/js/public-garden"];
-const IGNORE_BLOCKS = CONFIG_PAGE_NAMES.map((c) => `${c}/ignore`);
 const TITLE_REGEX = new RegExp(
   `(?:${CONFIG_PAGE_NAMES.map((c) => `${c.replace("/", "\\/")}/title`).join(
     "|"
@@ -691,16 +689,8 @@ export const renderHtmlFromPage = ({
   }: {
     content: PartialRecursive<TreeNode>[];
   }): string => {
-    const filterIgnore = (t: PartialRecursive<TreeNode>) => {
-      if (IGNORE_BLOCKS.some((ib) => t.text.trim().includes(ib))) {
-        return false;
-      }
-      if (t.children) t.children = t.children.filter(filterIgnore);
-      return true;
-    };
-    const preparedContent = content.filter(filterIgnore);
     return convertContentToHtml({
-      content: preparedContent,
+      content,
       viewType,
       pages,
       level: 0,
