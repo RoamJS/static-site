@@ -76,6 +76,7 @@ const allBlockMapper = (t: TreeNode): TreeNode[] => [
   t,
   ...(t.children || []).flatMap(allBlockMapper),
 ];
+const IGNORE_BLOCKS = `roam/js/static-site/ignore`;
 
 const CSS_REGEX = new RegExp("```css\n(.*)```", "s");
 const SUBDOMAIN_REGEX = /^((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])$/;
@@ -635,6 +636,7 @@ type MinimalRoamNode = Omit<Partial<TreeNode>, "order" | "children"> & {
 const formatRoamNodes = (nodes: Partial<TreeNode>[]): MinimalRoamNode[] =>
   nodes
     .sort(({ order: a }, { order: b }) => a - b)
+    .filter((t) => !(t.text || "").includes(IGNORE_BLOCKS))
     .map(({ order, ...node }) => ({
       ...node,
       ...(node.children
@@ -779,11 +781,13 @@ const getDeployBody = (pageUid: string) => {
       ...(hasDaily ? [DAILY_NOTE_PAGE_TITLE_REGEX] : [])
     )
     .map((p) => {
-      const [{ text: pageName, uid, children = [], viewType = "bullet" }, layout] =
-        p as [Partial<TreeNode>, number];
+      const [
+        { text: pageName, uid, children = [], viewType = "bullet" },
+        layout,
+      ] = p as [Partial<TreeNode>, number];
       return {
         pageName,
-        content: formatRoamNodes(children),
+        content: children,
         viewType,
         uid,
         layout,
@@ -801,7 +805,7 @@ const getDeployBody = (pageUid: string) => {
         [?ref :block/refs ?node] [?ref :block/page ?refpage] (or-join [?node ?refpage] ${createFilterQuery(
           "?node"
         )} ${createFilterQuery("?refpage")})]`,
-        ...(hasDaily ? [DAILY_NOTE_PAGE_TITLE_REGEX] : [])
+      ...(hasDaily ? [DAILY_NOTE_PAGE_TITLE_REGEX] : [])
     )
     .map(
       ([
@@ -849,7 +853,7 @@ const getDeployBody = (pageUid: string) => {
       return [
         pageName,
         {
-          content,
+          content: formatRoamNodes(content),
           metadata,
           layout,
           uid,
