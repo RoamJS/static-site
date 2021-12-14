@@ -1,4 +1,7 @@
-import run, { defaultConfig, handler, processSiteData } from "../lambdas/deploy";
+import run, {
+  defaultConfig,
+  processSiteData,
+} from "../lambdas/deploy";
 import fs from "fs";
 import dotenv from "dotenv";
 dotenv.config();
@@ -16,12 +19,18 @@ test.skip("Run Action", async (done) => {
 
 test("Based on JSON", (done) => {
   jest.setTimeout(600000);
-  const { pages, config } = JSON.parse(
-    fs.readFileSync("../../../Downloads/20211022032602.json").toString()
+  const {
+    pages,
+    config,
+    references = [],
+  } = JSON.parse(
+    fs.readFileSync("../../../Downloads/20211214042331.json").toString()
   );
   processSiteData({
     pages,
+    references,
     config: { ...defaultConfig, ...config },
+    deployId: "2021214042331",
     info: console.log,
     outputPath: "out",
   }).then((outConfig) => {

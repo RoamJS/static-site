@@ -1,7 +1,8 @@
 {
   "transform": {
-    "^.+\\.(t|j)sx?$": "ts-jest"
+    "^.+\\.(t|j)sx?$": "esbuild-jest"
   },
+  "transformIgnorePatterns": ["/node_modules/(?!roamjs-components)", "\\.pnp\\.[^\\\/]+$"],
   "testEnvironment": "node",
   "testRegex": "/tests/.*\\.test\\.ts$",
   "moduleFileExtensions": ["ts", "tsx", "js", "jsx"],

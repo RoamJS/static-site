@@ -904,7 +904,8 @@ export const processSiteData = async ({
   references
     .filter(({ refText }) => !!refText)
     .forEach((node) => {
-      blockReferencesCache[node.refUid] = node.refText;
+      blockReferencesCache[node.refUid] =
+        blockReferencesCache[node.refUid] || node.refText;
     });
   references
     .filter(({ refTitle }) => !!refTitle)
