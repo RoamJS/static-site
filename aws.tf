@@ -496,6 +496,10 @@ module "roamjs_lambda" {
     {
       path = "website-variables",
       method = "get"
+    },
+    {
+      path = "themes",
+      method = "get"
     }
   ]
   aws_access_token = var.aws_access_token
