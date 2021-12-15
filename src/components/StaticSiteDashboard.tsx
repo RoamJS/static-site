@@ -10,6 +10,8 @@ import {
   Intent,
   Label,
   ProgressBar,
+  Radio,
+  RadioGroup,
   Spinner,
   Switch,
   Tab,
@@ -71,6 +73,7 @@ import {
   usePageUid,
 } from "roamjs-components/components/ServiceComponents";
 import { DEFAULT_TEMPLATE } from "../../lambdas/common/constants";
+import axios from "axios";
 
 const allBlockMapper = (t: TreeNode): TreeNode[] => [
   t,
@@ -949,91 +952,6 @@ const WebsiteButton: React.FunctionComponent<
   );
 };
 
-const shim = () => {
-  const configUid = getPageUidByPageTitle("roam/js/static-site");
-  const configTree = getBasicTreeByParentUid(configUid);
-  const { uid: themeUid, children: themeChildren } = getSubTree({
-    tree: configTree,
-    key: "theme",
-  });
-  const { uid: textUid, children: textChildren } = getSubTree({
-    tree: themeChildren,
-    key: "text",
-  });
-  const { uid: layoutUid, children: layoutChildren } = getSubTree({
-    tree: themeChildren,
-    key: "layout",
-  });
-
-  const cssToAdd = [];
-
-  const { uid: cssUid, children: cssChildren } = getSubTree({
-    tree: themeChildren,
-    key: "css",
-  });
-  if (cssUid && cssChildren.length) {
-    cssToAdd.push(cssChildren[0].text.match(CSS_REGEX)?.[1] || "");
-  }
-
-  const layoutCss = getSettingValueFromTree({
-    tree: layoutChildren,
-    key: "css",
-  });
-  if (layoutCss) {
-    cssToAdd.push(layoutCss.match(CSS_REGEX)?.[1] || "");
-  }
-  const layoutWidth = getSettingValueFromTree({
-    tree: layoutChildren,
-    key: "width",
-  });
-  if (layoutWidth) {
-    cssToAdd.push(
-      `#content, #references {\n  margin: auto;\n  width: ${
-        /\d$/.test(layoutWidth) ? `${layoutWidth}px` : layoutWidth
-      };\n}`
-    );
-  }
-  const textFont = getSettingValueFromTree({
-    tree: textChildren,
-    key: "font",
-  });
-  if (textFont) {
-    cssToAdd.push(`body {\n  font-family: ${textFont};\n}`);
-  }
-  setInputSetting({
-    blockUid: themeUid,
-    key: "css",
-    value: `\`\`\`css\n${cssToAdd.join("\n")}\`\`\``,
-  });
-
-  const favicon = getSettingValueFromTree({
-    tree: layoutChildren,
-    key: "favicon",
-  });
-  if (favicon) {
-    const { uid: filesUid, children: filesChildren } = getSubTree({
-      tree: configTree,
-      key: "files",
-    });
-    const node = { text: "/favicon.ico", children: [{ text: favicon }] };
-    if (filesUid) {
-      createBlock({
-        parentUid: filesUid,
-        order: filesChildren.length,
-        node,
-      });
-    } else {
-      createBlock({
-        parentUid: configUid,
-        order: 5,
-        node: { text: "files", children: [node] },
-      });
-    }
-  }
-  deleteBlock(layoutUid);
-  deleteBlock(textUid);
-};
-
 const LiveContent: StageContent = () => {
   const authenticatedAxiosGet = useAuthenticatedGet();
   const authenticatedAxiosPost = useAuthenticatedPost();
@@ -1767,6 +1685,110 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
   );
 };
 
+const SecretFeature: React.FC = ({ children }) => {
+  const timeoutRef = useRef(0);
+  const [visibility, setVisibility] = useState<"hidden" | "visible">("hidden");
+  return (
+    <div
+      onMouseEnter={() =>
+        (timeoutRef.current = window.setTimeout(
+          () => setVisibility("visible"),
+          5000
+        ))
+      }
+      onMouseLeave={() => clearTimeout(timeoutRef.current)}
+    >
+      <div style={{ visibility }}>{children}</div>
+    </div>
+  );
+};
+
+const ThemeBrowser = ({
+  importTheme,
+}: {
+  importTheme: (s: string) => void;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [themes, setThemes] = useState<
+    { name: string; description: string; thumbnail: string; value: string }[]
+  >([]);
+  const authenticatedAxiosGet = useAuthenticatedGet();
+  const [selectedTheme, setSelectedTheme] = useState<number>();
+  const [loading, setLoading] = useState(false);
+  const openBrowser = useCallback(() => {
+    setIsOpen(true);
+    setLoading(true);
+    authenticatedAxiosGet(`themes`)
+      .then((r) => setThemes(r.data.themes))
+      .finally(() => setLoading(false));
+  }, [setIsOpen, setLoading, setThemes, authenticatedAxiosGet]);
+  const closeBrowser = useCallback(() => setIsOpen(false), [setIsOpen]);
+  return (
+    <div style={{ margin: "16px 0" }}>
+      <Button text={"Browse"} onClick={openBrowser} />
+      <Dialog
+        isOpen={isOpen}
+        title={`Browse Default Themes!`}
+        onClose={closeBrowser}
+        isCloseButtonShown
+        canOutsideClickClose
+        canEscapeKeyClose
+        style={{
+          width: 1000,
+          height: 600,
+        }}
+      >
+        <div
+          className={Classes.DIALOG_BODY}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          {loading && <Spinner />}
+          <RadioGroup
+            selectedValue={selectedTheme}
+            onChange={(e) =>
+              setSelectedTheme(Number((e.target as HTMLInputElement).value))
+            }
+          >
+            {themes.map((theme, i) => (
+              <Radio
+                value={i}
+                key={i}
+                style={{
+                  display: "flex",
+                  flexDirection: "column-reverse",
+                  alignItems: "center",
+                  maxWidth: 200,
+                }}
+                labelElement={
+                  <div>
+                    <h4>{theme.name}</h4>
+                    <img src={theme.thumbnail}></img>
+                    <p>{theme.description}</p>
+                  </div>
+                }
+              />
+            ))}
+          </RadioGroup>
+        </div>
+        <div className={Classes.DIALOG_FOOTER}>
+          <div className={Classes.DIALOG_FOOTER_ACTIONS}>
+            <Button text={"Cancel"} onClick={closeBrowser} />
+            <Button
+              text={"Import"}
+              intent={Intent.PRIMARY}
+              disabled={typeof selectedTheme !== "number"}
+              onClick={() => {
+                importTheme(themes[selectedTheme].value);
+                closeBrowser();
+              }}
+            />
+          </div>
+        </div>
+      </Dialog>
+    </div>
+  );
+};
+
 const RequestThemeContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
   const pageUid = useServicePageUid();
@@ -1778,6 +1800,7 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
   const [value, setValue] = useState(() =>
     getSettingValueFromTree({ tree: themeChildren, key: "css" })
   );
+  const codeValue = useMemo(() => CSS_REGEX.exec(value)?.[1] || "", [value]);
 
   const onSubmit = useCallback(() => {
     setInputSetting({ blockUid: themeUid, key: "css", value });
@@ -1801,7 +1824,7 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
         onKeyDown={(e) => e.stopPropagation()}
       >
         <CodeMirror
-          value={CSS_REGEX.exec(value)?.[1] || ""}
+          value={codeValue}
           options={{
             mode: { name: "css" },
             lineNumbers: true,
@@ -1810,6 +1833,17 @@ const RequestThemeContent: StageContent = ({ openPanel }) => {
           onBeforeChange={(_, __, v) => setValue(`\`\`\`css\n${v}\`\`\``)}
         />
       </div>
+      <SecretFeature>
+        <ThemeBrowser
+          importTheme={(s) =>
+            setValue(
+              `\`\`\`css\n${
+                codeValue.trim() ? `${codeValue.trim()}\n` : ""
+              }/* Start Imported Theme */\n${s}\n/* End Imported Theme */\`\`\``
+            )
+          }
+        />
+      </SecretFeature>
       <ServiceNextButton onClick={onSubmit} />
     </div>
   );
@@ -1942,7 +1976,6 @@ const RequestFilesContent: StageContent = ({ openPanel }) => {
 };
 
 const StaticSiteDashboard = (): React.ReactElement => {
-  useEffect(shim, []);
   useRoamJSTokenWarning();
   return (
     <ServiceDashboard

@@ -11,7 +11,7 @@ export const handler: APIGatewayProxyHandler = (event) =>
             {
               name: "Default",
               description: "A default theme for testing",
-              thumbnail: "https://roamjs.com/logo.png",
+              thumbnail: "https://roamjs.com/images/logo.png",
               value: "#content {\n  width: 320px;\n}",
             },
           ],
