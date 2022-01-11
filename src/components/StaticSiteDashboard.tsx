@@ -803,8 +803,8 @@ const getDeployBody = (pageUid: string) => {
         (pull ?refpage [:node/title]) 
         (pull ?ref [:block/uid [:block/string :as "text"] [:node/title :as "text"]]) 
         (pull ?node [:node/title :block/string :block/uid]) 
-        :where 
         ${hasDaily ? ":in $ ?regex" : ""}
+        :where 
         [?ref :block/refs ?node] [?ref :block/page ?refpage] (or-join [?node ?refpage] ${createFilterQuery(
           "?node"
         )} ${createFilterQuery("?refpage")})]`,
