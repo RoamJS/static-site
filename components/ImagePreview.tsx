@@ -131,9 +131,11 @@ export const render: RenderFunction = (dom) => {
       if (img.parentElement.tagName === "P") {
         const parent = img.parentElement;
         const newParent = document.createElement("div");
-        parent.parentElement.insertBefore(newParent, parent);
-        parent.childNodes.forEach((n) => newParent.appendChild(n));
-        parent.remove();
+        if (parent.parentElement) {
+          parent.parentElement.insertBefore(newParent, parent);
+          parent.childNodes.forEach((n) => newParent.appendChild(n));
+          parent.remove();
+        }
       }
       img.parentElement.classList.add("roamjs-image-container");
     });

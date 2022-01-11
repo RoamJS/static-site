@@ -495,35 +495,37 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
               marginBottom: 16,
             }}
           >
-            <MenuItemSelect
-              items={["STARTS WITH", "TAGGED WITH", "DAILY", "ALL"]}
-              onItemSelect={(s) =>
-                setFilters(
-                  filters.map((filter) =>
-                    f.uid === filter.uid ? { ...filter, text: s } : filter
-                  )
-                )
-              }
-              activeItem={f.text}
-            />
-            {f.text === "TAGGED WITH" ? (
-              <PageInput
-                value={f.children[0]?.text}
-                setValue={(text) =>
+            <div style={{ minWidth: 144 }}>
+              <MenuItemSelect
+                items={["STARTS WITH", "TAGGED WITH", "DAILY", "ALL"]}
+                onItemSelect={(s) =>
                   setFilters(
                     filters.map((filter) =>
-                      f.uid === filter.uid
-                        ? {
-                            ...filter,
-                            children: [{ ...f.children[0], text }],
-                          }
-                        : filter
+                      f.uid === filter.uid ? { ...filter, text: s } : filter
                     )
                   )
                 }
+                activeItem={f.text}
               />
-            ) : (
-              f.text === "STARTS WITH" && (
+            </div>
+            <div style={{ minWidth: 220 }}>
+              {f.text === "TAGGED WITH" ? (
+                <PageInput
+                  value={f.children[0]?.text}
+                  setValue={(text) =>
+                    setFilters(
+                      filters.map((filter) =>
+                        f.uid === filter.uid
+                          ? {
+                              ...filter,
+                              children: [{ ...f.children[0], text }],
+                            }
+                          : filter
+                      )
+                    )
+                  }
+                />
+              ) : f.text === "STARTS WITH" ? (
                 <InputGroup
                   value={f.children[0]?.text}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
@@ -541,8 +543,10 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
                     )
                   }
                 />
-              )
-            )}
+              ) : (
+                <span />
+              )}
+            </div>
             <FilterLayout
               filterType={f.text}
               initialNodes={f.children}
@@ -743,7 +747,9 @@ const getDeployBody = (pageUid: string) => {
     ...withFiles,
   };
   const hasDaily = config.filter.some((s) => s.rule === "DAILY");
-  const createFilterQuery = (freeVar: string) => `(or-join [${freeVar} ?f]
+  const createFilterQuery = (freeVar: string) => `(or-join [${freeVar} ?f${
+    hasDaily ? " ?regex" : ""
+  }]
     ${config.filter
       .map((f, i) => {
         const createFilterRule = (s: string) => `(and ${s} [(+ 0 ${i}) ?f])`;
@@ -805,7 +811,9 @@ const getDeployBody = (pageUid: string) => {
         (pull ?node [:node/title :block/string :block/uid]) 
         ${hasDaily ? ":in $ ?regex" : ""}
         :where 
-        [?ref :block/refs ?node] [?ref :block/page ?refpage] (or-join [?node ?refpage] ${createFilterQuery(
+        [?ref :block/refs ?node] [?ref :block/page ?refpage] (or-join [?node ?refpage${
+          hasDaily ? " ?regex" : ""
+        }] ${createFilterQuery(
           "?node"
         )} ${createFilterQuery("?refpage")})]`,
       ...(hasDaily ? [DAILY_NOTE_PAGE_TITLE_REGEX] : [])
@@ -1043,6 +1051,7 @@ const LiveContent: StageContent = () => {
             const data = getData(pageUid);
             resolve(data);
           } catch (e) {
+            console.error(e);
             reject(e);
           }
         }, 1)
