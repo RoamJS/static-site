@@ -358,24 +358,6 @@ const renderComponent = <T extends Record<string, unknown>>({
   return component;
 };
 
-const getParsedTree = async ({
-  evaluate,
-  pageName,
-}: {
-  evaluate: (fcn: (s: string) => TreeNode[], s: string) => Promise<TreeNode[]>;
-  pageName: string;
-}) => {
-  try {
-    return await evaluate(
-      (pageName: string) => window.getTreeByPageName(pageName),
-      pageName
-    );
-  } catch (e) {
-    console.error(`Failed to get Tree for ${pageName}`);
-    throw new Error(e);
-  }
-};
-
 const getConfigFromPage = (parsedTree: TreeNode[]) => {
   const getConfigNode = (key: string) =>
     parsedTree.find((n) => n.text.trim().toUpperCase() === key.toUpperCase());
@@ -1043,11 +1025,13 @@ export const run = async ({
         await page.waitForSelector("span.bp3-icon-more", {
           timeout: 120000,
         });
+        info(`grabbing all page names ${new Date().toLocaleTimeString()}`);
         const allPageNames = await page.evaluate(() => {
           return window.roamAlphaAPI
             .q("[:find ?s :where [?e :node/title ?s]]")
             .map((b) => b[0] as string);
         });
+        info(`setting global query methods ${new Date().toLocaleTimeString()}`);
         await page.evaluate(() => {
           window.getTreeByBlockId = (blockId: number): TreeNode => {
             const block = window.roamAlphaAPI.pull(
@@ -1126,11 +1110,14 @@ export const run = async ({
         });
         const configPage =
           allPageNames.find((c) => CONFIG_PAGE_NAMES.includes(c)) || "";
+        info(`grabbing config data ${new Date().toLocaleTimeString()}`);
         const configPageTree = configPage
-          ? await getParsedTree({
-              evaluate: page.evaluate,
-              pageName: configPage,
-            })
+          ? await page.evaluate(
+              (pageName: string) => {
+                return window.getTreeByPageName(pageName)
+              },
+              configPage
+            )
           : [];
         const userConfig = getConfigFromPage(configPageTree);
 
@@ -1139,6 +1126,7 @@ export const run = async ({
           ...userConfig,
           ...inputConfig,
         };
+        info(`grabbing files to upload ${new Date().toLocaleTimeString()}`);
         config.files = await Promise.all(
           Object.entries(config.files).map(([u, uid]) =>
             page
@@ -1191,6 +1179,7 @@ export const run = async ({
         ]) ?f
         :where [?b :block/uid] ${createFilterQuery("?b")}]`;
 
+        info(`grabbing pages with content ${new Date().toLocaleTimeString()}`);
         const pageNamesWithContent = await page
           .evaluate((eq) => window.roamAlphaAPI.q(eq), entryQuery)
           .then((pages) =>
@@ -1217,6 +1206,7 @@ export const run = async ({
           [?ref :block/refs ?node] [?ref :block/page ?refpage] (or-join [?node ?refpage] ${createFilterQuery(
             "?node"
           )} ${createFilterQuery("?refpage")})]`;
+        info(`grabbing references ${new Date().toLocaleTimeString()}`);
         const references = await page.evaluate(
           (rq) =>
             window.roamAlphaAPI
@@ -1237,6 +1227,8 @@ export const run = async ({
               ),
           referenceQuery
         );
+
+        info(`finishing the rest of our content${new Date().toLocaleTimeString()}`);
         const entries = await Promise.all(
           pageNamesWithContent.map(({ pageName, content, layout }) => {
             return Promise.all([
@@ -1290,6 +1282,7 @@ export const run = async ({
               });
           })
         );
+
         info(
           `content filtered to ${
             entries.length
@@ -1327,6 +1320,8 @@ export const run = async ({
             ];
           })
         );
+
+        info(`we have all the data ${new Date().toLocaleTimeString()}`);
         await page.close();
         browser.close();
         return { pages, outputPath, config, references };
