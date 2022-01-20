@@ -15,5 +15,5 @@ inputs:
     description: 'Path to config file to override Roam configuration'
     default: 'static_site.json'
 runs:
-  using: 'node14'
+  using: 'node12'
   main: 'action/index.js'
