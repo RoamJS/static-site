@@ -28,7 +28,7 @@ esbuild
       },
     ],
     define: {
-      "process.env.CLIENT_SIDE": "true",
+      "process.env.CLIENT_SIDE": "false",
       "process.env.BLUEPRINT_NAMESPACE": '"bp3"',
     },
   })
