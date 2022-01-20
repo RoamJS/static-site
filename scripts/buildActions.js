@@ -8,7 +8,7 @@ esbuild
     minify: true,
     bundle: true,
     outdir: "action",
-    external: ["aws-sdk", "canvas", "re2"],
+    external: ["canvas", "re2"],
     target: "node12",
     plugins: [
       {
