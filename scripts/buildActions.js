@@ -9,6 +9,7 @@ esbuild
     bundle: true,
     outdir: "action",
     external: ["aws-sdk", "canvas", "re2"],
+    target: "node12",
     plugins: [
       {
         name: "jsdom-patch",
