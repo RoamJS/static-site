@@ -21,7 +21,10 @@ const runAll = (): Promise<void> => {
     .then((input) =>
       info(`Done! Config Used: ${JSON.stringify(input, null, 4)}`)
     )
-    .catch((e) => setFailed(e.message));
+    .catch((e) => {
+      setFailed(e.message);
+      process.exit(1);
+    });
 };
 
 if (process.env.NODE_ENV !== "test") {
