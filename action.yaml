@@ -1,0 +1,19 @@
+
+name: 'Generate Roam Site'
+description: 'GitHub Action for generating Static Sites from a Roam Graph'
+inputs:
+  roam_username:
+    description: 'Your Roam Username'
+    required: true
+  roam_password:
+    description: 'Your Roam Password (use GitHub secrets!)'
+    required: true
+  roam_graph:
+    description: 'Your Roam Graph'
+    required: true
+  config_path:
+    description: 'Path to config file to override Roam configuration'
+    default: 'static_site.json'
+runs:
+  using: 'node14'
+  main: 'action/index.js'

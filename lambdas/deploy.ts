@@ -981,7 +981,6 @@ export const run = async ({
   logger = { info: console.log, error: console.error },
   pathRoot = process.cwd(),
   inputConfig = {},
-  debug = false,
 }: {
   roamUsername: string;
   roamPassword: string;
@@ -992,7 +991,6 @@ export const run = async ({
   };
   pathRoot?: string;
   inputConfig?: InputConfig;
-  debug?: boolean;
 }): Promise<InputConfig> => {
   const { info, error } = logger;
   info(

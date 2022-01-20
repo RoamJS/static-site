@@ -4,6 +4,7 @@
   "description": "AWS Lambda Function generating and deploying Roam graphs as public sites",
   "main": "out/deploy.js",
   "scripts": {
+    "action": "node scripts/buildActions.js",
     "test": "jest --config jestconfig.json",
     "prebuild": "rm -Rf out",
     "lambdas": "cross-env NODE_ENV=production roamjs-scripts lambdas",
@@ -28,6 +29,8 @@
   },
   "homepage": "https://github.com/dvargas92495/roamjs-static-site#readme",
   "dependencies": {
+    "@actions/core": "^1.6.0",
+    "@actions/github": "^5.0.0",
     "@blueprintjs/core": "^3.44.3",
     "aws-sdk": "^2.826.0",
     "axios": "^0.21.4",

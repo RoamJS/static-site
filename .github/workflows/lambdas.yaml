@@ -20,7 +20,6 @@ env:
   SNS_TOPIC_ARN: ${{ secrets.SNS_TOPIC_ARN }}
   S3_WEBSITE_ENDPOINT: ${{ secrets.S3_WEBSITE_ENDPOINT }}
   ROAMJS_ZONE_ID: ${{ secrets.ROAMJS_ZONE_ID }}
-  ROAMJS_API_URL: https://api.roamjs.com
 
 jobs:
   deploy:
