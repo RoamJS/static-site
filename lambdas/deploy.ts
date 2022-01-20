@@ -951,7 +951,7 @@ const formatRoamNodes = (
       ...node,
       ...(node.children
         ? {
-            children: formatRoamNodes(node.children),
+            children: formatRoamNodes(node.children || []),
           }
         : {}),
     }));
@@ -1185,7 +1185,7 @@ export const run = async ({
           .then((pages) =>
             pages.map((p) => {
               const [
-                { text: pageName, uid, children, viewType = "bullet" },
+                { text: pageName, uid, children = [], viewType = "bullet" },
                 layout,
               ] = p as [PartialRecursive<TreeNode>, number];
               return {
