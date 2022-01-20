@@ -8,7 +8,7 @@ import {
   graphToStackName,
 } from "./common/common";
 import { RenderFunction, PartialRecursive } from "./common/types";
-import chromium from "chrome-aws-lambda";
+import puppeteer from "puppeteer";
 import parseRoamDate from "roamjs-components/date/parseRoamDate";
 import type { RoamBlock, TreeNode, ViewType } from "roamjs-components/types";
 import extractTag from "roamjs-components/util/extractTag";
@@ -997,18 +997,9 @@ export const run = async ({
     `Hello ${roamUsername}! Fetching from ${roamGraph}... ${new Date().toLocaleTimeString()}`
   );
 
-  const chromiumPath = await chromium.executablePath;
-  const executablePath = chromiumPath
-    ? chromiumPath
-    : process.platform === "win32"
-    ? "C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe"
-    : "/usr/bin/google-chrome-stable";
-
-  return chromium.puppeteer
+  return puppeteer
     .launch({
-      args: chromium.args,
-      defaultViewport: chromium.defaultViewport,
-      executablePath,
+      executablePath: "/usr/bin/google-chrome-stable",
       headless: true,
       ignoreHTTPSErrors: true,
     })
