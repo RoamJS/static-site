@@ -1196,7 +1196,10 @@ export const run = async ({
                 layout,
               };
             })
-          );
+          )
+          .catch(() => {
+            throw new Error(`Failed to evaluate this query:\n${entryQuery}`)
+          });
 
         const referenceQuery = `[:find 
           (pull ?refpage [:node/title]) 
@@ -1331,11 +1334,7 @@ export const run = async ({
         throw new Error(e);
       }
     })
-    .then((d) => processSiteData({ ...d, info, deployId: v4() }))
-    .catch((e) => {
-      error(e.message);
-      throw new Error(e);
-    });
+    .then((d) => processSiteData({ ...d, info, deployId: v4() }));
 };
 
 export default run;
