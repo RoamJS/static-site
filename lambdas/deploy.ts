@@ -1112,12 +1112,9 @@ export const run = async ({
           allPageNames.find((c) => CONFIG_PAGE_NAMES.includes(c)) || "";
         info(`grabbing config data ${new Date().toLocaleTimeString()}`);
         const configPageTree = configPage
-          ? await page.evaluate(
-              (pageName: string) => {
-                return window.getTreeByPageName(pageName)
-              },
-              configPage
-            )
+          ? await page.evaluate((pageName: string) => {
+              return window.getTreeByPageName(pageName);
+            }, configPage)
           : [];
         const userConfig = getConfigFromPage(configPageTree);
 
@@ -1140,7 +1137,10 @@ export const run = async ({
               .then((url) => [u, UPLOAD_REGEX.exec(url)?.[1] || ""])
           )
         ).then((ents) => Object.fromEntries(ents));
-        const createFilterQuery = (freeVar: string) => `(or-join [${freeVar} ?f]
+        const hasDaily = config.filter.some((s) => s.rule === "DAILY");
+        const createFilterQuery = (
+          freeVar: string
+        ) => `(or-join [${freeVar} ?f${hasDaily ? " ?regex" : ""}]
           ${config.filter
             .map((f, i) => {
               const createFilterRule = (s: string) =>
@@ -1177,11 +1177,24 @@ export const run = async ({
           [:block/text-align :as "textAlign"]
           {:block/children ...}
         ]) ?f
+        ${hasDaily ? ":in $ ?regex" : ""}
         :where [?b :block/uid] ${createFilterQuery("?b")}]`;
 
         info(`grabbing pages with content ${new Date().toLocaleTimeString()}`);
         const pageNamesWithContent = await page
-          .evaluate((eq) => window.roamAlphaAPI.q(eq), entryQuery)
+          .evaluate(
+            (eq, hasDaily) =>
+              window.roamAlphaAPI.q(
+                eq,
+                ...(hasDaily
+                  ? [
+                      /^(January|February|March|April|May|June|July|August|September|October|November|December) [0-3]?[0-9](st|nd|rd|th), [0-9][0-9][0-9][0-9]%/,
+                    ]
+                  : [])
+              ),
+            entryQuery,
+            hasDaily
+          )
           .then((pages) =>
             pages.map((p) => {
               const [
@@ -1198,22 +1211,30 @@ export const run = async ({
             })
           )
           .catch(() => {
-            throw new Error(`Failed to evaluate this query:\n${entryQuery}`)
+            throw new Error(`Failed to evaluate this query:\n${entryQuery}`);
           });
 
         const referenceQuery = `[:find 
           (pull ?refpage [:node/title]) 
           (pull ?ref [:block/uid [:block/string :as "text"] [:node/title :as "text"]]) 
           (pull ?node [:node/title :block/string :block/uid]) 
+          ${hasDaily ? ":in $ ?regex" : ""}
           :where 
-          [?ref :block/refs ?node] [?ref :block/page ?refpage] (or-join [?node ?refpage] ${createFilterQuery(
-            "?node"
-          )} ${createFilterQuery("?refpage")})]`;
+          [?ref :block/refs ?node] [?ref :block/page ?refpage] (or-join [?node ?refpage${
+            hasDaily ? " ?regex" : ""
+          }] ${createFilterQuery("?node")} ${createFilterQuery("?refpage")})]`;
         info(`grabbing references ${new Date().toLocaleTimeString()}`);
         const references = await page.evaluate(
-          (rq) =>
+          (rq, hasDaily) =>
             window.roamAlphaAPI
-              .q(rq)
+              .q(
+                rq,
+                ...(hasDaily
+                  ? [
+                      /^(January|February|March|April|May|June|July|August|September|October|November|December) [0-3]?[0-9](st|nd|rd|th), [0-9][0-9][0-9][0-9]%/,
+                    ]
+                  : [])
+              )
               .map(
                 ([
                   { title },
@@ -1228,10 +1249,13 @@ export const run = async ({
                   refUid,
                 })
               ),
-          referenceQuery
+          referenceQuery,
+          hasDaily
         );
 
-        info(`finishing the rest of our content${new Date().toLocaleTimeString()}`);
+        info(
+          `finishing the rest of our content${new Date().toLocaleTimeString()}`
+        );
         const entries = await Promise.all(
           pageNamesWithContent.map(({ pageName, content, layout }) => {
             return Promise.all([
