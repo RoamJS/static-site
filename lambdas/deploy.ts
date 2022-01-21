@@ -48,6 +48,7 @@ const CSS_REGEX = new RegExp("```css\n(.*)```", "s");
 const UPLOAD_REGEX = /(https?:\/\/[^\)]*)(?:$|\)|\s)/;
 const DAILY_NOTE_PAGE_REGEX =
   /(January|February|March|April|May|June|July|August|September|October|November|December) [0-3]?[0-9](st|nd|rd|th), [0-9][0-9][0-9][0-9]/;
+const IGNORE_BLOCKS = `roam/js/static-site/ignore`;
 
 const allBlockMapper = (
   t: PartialRecursive<TreeNode>
@@ -947,6 +948,7 @@ const formatRoamNodes = (
 ): MinimalRoamNode[] =>
   nodes
     .sort(({ order: a }, { order: b }) => a - b)
+    .filter((t) => !(t.text || "").includes(IGNORE_BLOCKS))
     .map(({ order, ...node }) => ({
       ...node,
       ...(node.children
