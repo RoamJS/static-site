@@ -27,7 +27,7 @@ A GitHub action for generating a static site from your Roam Graph is also availa
 ## Usage
 
 ```yaml
-uses: dvargas92495/roamjs-static-site@2022-01-21-01-15
+uses: dvargas92495/roamjs-static-site@2022-01-22-00-07
 with:
     roam_username: dvargas92495@gmail.com
     roam_password: ${{ secrets.ROAM_PASSWORD }}
