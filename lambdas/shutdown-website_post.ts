@@ -1,6 +1,7 @@
 import AWS from "aws-sdk";
-import { APIGatewayProxyHandler } from "aws-lambda";
-import { createLogStatus, headers } from "./common/common";
+import type { APIGatewayProxyHandler } from "aws-lambda";
+import { createLogStatus } from "./common/common";
+import headers from "roamjs-components/backend/headers";
 
 const lambda = new AWS.Lambda({ apiVersion: "2015-03-31" });
 

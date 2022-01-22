@@ -46,6 +46,8 @@ const CODE_REGEX = new RegExp("```[a-z]*\n(.*)```", "s");
 const HTML_REGEX = new RegExp("```html\n(.*)```", "s");
 const CSS_REGEX = new RegExp("```css\n(.*)```", "s");
 const UPLOAD_REGEX = /(https?:\/\/[^\)]*)(?:$|\)|\s)/;
+const JS_REGEX = new RegExp("```javascript\n(.*)```", "s");
+const IMAGE_REGEX = /^!\[\]\(([^)]+)\)$/;
 const DAILY_NOTE_PAGE_REGEX =
   /(January|February|March|April|May|June|July|August|September|October|November|December) [0-3]?[0-9](st|nd|rd|th), [0-9][0-9][0-9][0-9]/;
 const IGNORE_BLOCKS = `roam/js/static-site/ignore`;
@@ -572,8 +574,9 @@ type PageContent = {
 
 type References = {
   title: string;
-  uid: string;
-  text: string;
+  uid?: string;
+  text?: string;
+  node?: MinimalRoamNode;
   refText: string;
   refTitle: string;
   refUid: string;
@@ -594,6 +597,26 @@ const inlineTryCatch = <T>(tryFcn: () => T, catchFcn: (e: Error) => T): T => {
   } catch (e) {
     return catchFcn(e);
   }
+};
+
+const extractValue = (s: string, pageUid: string) => {
+  const postTag = extractTag(s.trim());
+  const postImage = IMAGE_REGEX.test(postTag)
+    ? IMAGE_REGEX.exec(postTag)?.[1]
+    : postTag;
+  const postHtml = HTML_REGEX.test(postTag)
+    ? HTML_REGEX.exec(postImage)?.[1]
+    : postImage;
+  const postJs = JS_REGEX.test(postHtml)
+    ? inlineTryCatch(
+        () =>
+          new Function("uid", JS_REGEX.exec(postHtml)?.[1] || postHtml)(
+            pageUid
+          ),
+        () => postHtml
+      )
+    : postHtml;
+  return postJs;
 };
 
 export const renderHtmlFromPage = ({
@@ -893,7 +916,7 @@ export const processSiteData = async ({
   references
     .filter(({ refTitle }) => !!refTitle)
     .forEach((node) => {
-      const block = blockReferencesCache[node.uid];
+      const block = blockReferencesCache[node?.node?.uid || node.uid];
       linkedReferencesCache[node.refTitle] = [
         ...(linkedReferencesCache[node.refTitle] || []),
         {
@@ -901,7 +924,7 @@ export const processSiteData = async ({
           node:
             typeof block === "string"
               ? { text: block }
-              : block?.node || { text: node.text },
+              : block?.node || node.node || { text: node.text },
         },
       ];
     });
@@ -1183,7 +1206,7 @@ export const run = async ({
         :where [?b :block/uid] ${createFilterQuery("?b")}]`;
 
         info(`grabbing pages with content ${new Date().toLocaleTimeString()}`);
-        const pageNamesWithContent = await page
+        const entries = await page
           .evaluate(
             (eq, hasDaily) =>
               window.roamAlphaAPI.q(
@@ -1205,7 +1228,7 @@ export const run = async ({
               ] = p as [PartialRecursive<TreeNode>, number];
               return {
                 pageName,
-                content: formatRoamNodes(children),
+                content: children,
                 viewType,
                 uid,
                 layout,
@@ -1240,12 +1263,15 @@ export const run = async ({
               .map(
                 ([
                   { title },
-                  { uid, text },
+                  node,
                   { title: refTitle, string: refText, uid: refUid },
-                ]: Record<string, string>[]) => ({
+                ]: [
+                  Record<string, string>,
+                  Partial<TreeNode>,
+                  Record<string, string>
+                ]) => ({
                   title,
-                  uid,
-                  text,
+                  node: formatRoamNodes([node])[0],
                   refText,
                   refTitle,
                   refUid,
@@ -1256,94 +1282,46 @@ export const run = async ({
         );
 
         info(
-          `finishing the rest of our content${new Date().toLocaleTimeString()}`
-        );
-        const entries = await Promise.all(
-          pageNamesWithContent.map(({ pageName, content, layout }) => {
-            return Promise.all([
-              page.evaluate(
-                (pageName: string) =>
-                  window.roamAlphaAPI
-                    .q(
-                      `[:find ?rt ?r :where [?pr :node/title ?rt] [?r :block/page ?pr] [?r :block/refs ?p] [?p :node/title "${pageName
-                        .replace(/\\/, "\\\\")
-                        .replace(/"/g, '\\"')}"]]`
-                    )
-                    .map((args) => ({
-                      title: args[0] as string,
-                      node: window.fixViewType({
-                        c: window.getTreeByBlockId(args[1] as number),
-                        v: "bullet",
-                      }),
-                    })),
-                pageName
-              ),
-              page.evaluate(
-                (pageName) =>
-                  (window.roamAlphaAPI.q(
-                    `[:find ?v :where [?e :children/view-type ?v] [?e :node/title "${pageName
-                      .replace(/\\/, "\\\\")
-                      .replace(/"/g, '\\"')}"]]`
-                  )?.[0]?.[0] as ViewType) || "bullet",
-                pageName
-              ),
-              page.evaluate(
-                (pageName) =>
-                  (window.roamAlphaAPI.q(
-                    `[:find ?u :where [?e :block/uid ?u] [?e :node/title "${pageName
-                      .replace(/\\/, "\\\\")
-                      .replace(/"/g, '\\"')}"]]`
-                  )?.[0]?.[0] as ViewType) || "bullet",
-                pageName
-              ),
-            ])
-              .then(([references, viewType, uid]) => ({
-                references,
-                pageName,
-                content,
-                viewType,
-                uid,
-                layout,
-              }))
-              .catch((e) => {
-                console.error("Failed to find references for page", pageName);
-                throw new Error(e);
-              });
-          })
-        );
-
-        info(
           `content filtered to ${
             entries.length
           } entries ${new Date().toLocaleTimeString()}`
         );
         const pages = Object.fromEntries(
-          entries.map(({ content, pageName, ...props }) => {
+          entries.map(({ content, pageName, layout, uid, ...props }) => {
             const allBlocks = content.flatMap(allBlockMapper);
             const titleMatch = allBlocks
               .find((s) => TITLE_REGEX.test(s.text))
               ?.text?.match?.(TITLE_REGEX);
             const title = titleMatch ? titleMatch[1].trim() : pageName;
-            const metadata = Object.fromEntries(
-              allBlocks
-                .filter((s) => METADATA_REGEX.test(s.text))
-                .map((node) => ({
-                  match: node.text.match(METADATA_REGEX),
-                  node,
-                }))
-                .filter(({ match }) => !!match && match.length >= 3)
-                .map(({ match, node }) => ({
-                  key: match[1],
-                  value: match[2].trim() || node.children[0]?.text || "",
-                }))
-                .map(({ key, value }) => [key, extractTag(value.trim())])
-                .concat([["name", title.split("/").slice(-1)[0]]])
-            );
+            const metadata = {
+              ...Object.fromEntries(
+                allBlocks
+                  .filter((s) => METADATA_REGEX.test(s.text))
+                  .map((node) => ({
+                    match: node.text.match(METADATA_REGEX),
+                    node,
+                  }))
+                  .filter(({ match }) => !!match && match.length >= 3)
+                  .map(({ match, node }) => ({
+                    key: match[1],
+                    value: match[2].trim() || node.children[0]?.text || "",
+                  }))
+                  .map(({ key, value }) => [key, extractTag(value.trim())])
+                  .concat([["name", title.split("/").slice(-1)[0]]])
+              ),
+              ...Object.fromEntries(
+                Object.entries(config.filter[layout]?.variables || {}).map(
+                  ([k, v]) => [k, extractValue(v, uid)]
+                )
+              ),
+            };
             return [
               pageName,
               {
-                content,
+                content: formatRoamNodes(content),
                 metadata,
+                layout,
+                uid,
                 ...props,
               },
             ];
@@ -1440,7 +1418,7 @@ export const handler = async (event: {
   const outputPath =
     process.env.NODE_ENV === "production"
       ? path.join("/tmp", event.roamGraph)
-      : path.resolve("dist");
+      : path.resolve("dist", event.key);
   if (!event.key) {
     console.warn("Daily deploys deprecated - `key` is required");
     await logStatus("SUCCESS");

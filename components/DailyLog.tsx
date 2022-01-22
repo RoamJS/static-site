@@ -36,6 +36,7 @@ const MonthLog = ({ month, year, html }: LogProps) => {
 };
 
 const DailyLog = (props: { allContent: LogProps[] }): React.ReactElement => {
+  console.log(props.allContent);
   return (
     <div>
       {props.allContent.map((logProps) => (

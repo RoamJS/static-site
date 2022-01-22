@@ -802,36 +802,44 @@ const getDeployBody = (pageUid: string) => {
         layout,
       };
     });
+
   // either the source or the destination needs to match the title filter
   const references = window.roamAlphaAPI
     .q(
       `[:find 
         (pull ?refpage [:node/title]) 
-        (pull ?ref [:block/uid [:block/string :as "text"] [:node/title :as "text"]]) 
+        (pull ?ref [
+          [:block/string :as "text"] 
+          [:node/title :as "text"] 
+          :block/uid 
+          :block/order 
+          :block/heading
+          [:children/view-type :as "viewType"] 
+          [:block/text-align :as "textAlign"]
+          {:block/children ...}
+        ]) 
         (pull ?node [:node/title :block/string :block/uid]) 
         ${hasDaily ? ":in $ ?regex" : ""}
         :where 
         [?ref :block/refs ?node] [?ref :block/page ?refpage] (or-join [?node ?refpage${
           hasDaily ? " ?regex" : ""
-        }] ${createFilterQuery(
-          "?node"
-        )} ${createFilterQuery("?refpage")})]`,
+        }] ${createFilterQuery("?node")} ${createFilterQuery("?refpage")})]`,
       ...(hasDaily ? [DAILY_NOTE_PAGE_TITLE_REGEX] : [])
     )
     .map(
-      ([
-        { title },
-        { uid, text },
-        { title: refTitle, string: refText, uid: refUid },
-      ]: Record<string, string>[]) => ({
+      ([{ title }, node, { title: refTitle, string: refText, uid: refUid }]: [
+        Record<string, string>,
+        Partial<TreeNode>,
+        Record<string, string>
+      ]) => ({
         title,
-        uid,
-        text,
+        node: formatRoamNodes([node])[0],
         refText,
         refTitle,
         refUid,
       })
     );
+
   const pages = Object.fromEntries(
     entries.map(({ content, pageName, layout, uid, ...props }) => {
       const allBlocks = content.flatMap(allBlockMapper);
@@ -1439,30 +1447,33 @@ const pluginIds: Plugin[] = [
 const RequestPluginsContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
   const pageUid = useServicePageUid();
-  const pluginUid = useMemo(
-    () =>
-      getShallowTreeByParentUid(pageUid).find((t) =>
-        toFlexRegex("plugins").test(t.text)
-      )?.uid ||
-      createBlock({ parentUid: pageUid, node: { text: "plugins" }, order: 1 }),
-    [pageUid]
-  );
+  const pluginUid = useMemo(() => {
+    const pluginUid = getShallowTreeByParentUid(pageUid).find((t) =>
+      toFlexRegex("plugins").test(t.text)
+    )?.uid;
+    if (pluginUid) return pluginUid;
+    const newPluginUid = window.roamAlphaAPI.util.generateUID();
+    createBlock({
+      parentUid: pageUid,
+      node: { text: "plugins", uid: newPluginUid },
+      order: 1,
+    });
+    return newPluginUid;
+  }, [pageUid]);
   const [values, setValues] = useState<
     Record<string, Record<string, string[]>>
   >(() =>
-    pluginUid
-      ? Object.fromEntries(
-          getShallowTreeByParentUid(pluginUid).map(({ uid, text }) => [
-            text,
-            Object.fromEntries(
-              getShallowTreeByParentUid(uid).map((c) => [
-                c.text,
-                getShallowTreeByParentUid(c.uid).map((t) => t.text),
-              ])
-            ),
+    Object.fromEntries(
+      getShallowTreeByParentUid(pluginUid).map(({ uid, text }) => [
+        text,
+        Object.fromEntries(
+          getShallowTreeByParentUid(uid).map((c) => [
+            c.text,
+            getShallowTreeByParentUid(c.uid).map((t) => t.text),
           ])
-        )
-      : {}
+        ),
+      ])
+    )
   );
   const outerKeys = useMemo(() => pluginIds.map(({ id }) => id), []);
   const [outerKey, setOuterKey] = useState(outerKeys[0]);

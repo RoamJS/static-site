@@ -1,18 +1,13 @@
 import { v4 } from "uuid";
 import format from "date-fns/format";
 import { APIGatewayProxyHandler } from "aws-lambda";
-import {
-  dynamo,
-  getRoamJSUser,
-  headers,
-  invokeLambda,
-  s3,
-} from "./common/common";
+import { dynamo, invokeLambda, s3 } from "./common/common";
+import { awsGetRoamJSUser } from "roamjs-components/backend/getRoamJSUser";
+import headers from "roamjs-components/backend/headers";
 
-export const handler: APIGatewayProxyHandler = (event) => {
-  const { data } = JSON.parse(event.body);
-  return getRoamJSUser(event).then(async (r) => {
-    const { websiteGraph } = r.data;
+export const handler: APIGatewayProxyHandler = awsGetRoamJSUser(
+  async (user, { data }) => {
+    const { websiteGraph } = user;
     const date = new Date();
     await dynamo
       .putItem({
@@ -58,5 +53,5 @@ export const handler: APIGatewayProxyHandler = (event) => {
       body: JSON.stringify({ success: true }),
       headers,
     };
-  });
-};
+  }
+);

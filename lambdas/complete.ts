@@ -7,13 +7,13 @@ import {
   createLogStatus,
   dynamo,
   getActionGraph,
-  getRoamJSUser,
   getStackParameter,
   getStackSummaries,
-  putRoamJSUser,
   ses,
   SHUTDOWN_CALLBACK_STATUS,
 } from "./common/common";
+import getRoamJSUser from "roamjs-components/backend/getRoamJSUser";
+import putRoamJSUser from "roamjs-components/backend/putRoamJSUser";
 
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -176,18 +176,21 @@ export const handler = async (event: SNSEvent) => {
         );
       if (shutdownCallback) {
         const { userToken, dev } = JSON.parse(shutdownCallback);
-        const event = {
-          headers: {
-            Authorization: userToken,
-            ...(dev ? { "x-roamjs-dev": "true" } : {}),
-          },
-        };
-        const { websiteGraph, email } = await getRoamJSUser(event).then(
-          (r) => r.data
+        const { websiteGraph, email } = await getRoamJSUser(
+          userToken,
+          process.env.ROAMJS_EXTENSION_ID,
+          process.env.ROAMJS_USER,
+          dev
         );
-        await putRoamJSUser(event, {
-          websiteGraph: undefined,
-        });
+        await putRoamJSUser(
+          userToken,
+          {
+            websiteGraph: undefined,
+          },
+          process.env.ROAMJS_EXTENSION_ID,
+          process.env.ROAMJS_USER,
+          dev
+        );
         await ses
           .sendEmail({
             Destination: {

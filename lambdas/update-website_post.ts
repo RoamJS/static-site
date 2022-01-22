@@ -1,8 +1,12 @@
 import { APIGatewayProxyHandler } from "aws-lambda";
-import { createLogStatus, getRoamJSUser, headers, lambda } from "./common/common";
+import { createLogStatus, lambda } from "./common/common";
+import headers from "roamjs-components/backend/headers";
+import { awsGetRoamJSUser } from "roamjs-components/backend/getRoamJSUser";
 
-export const handler: APIGatewayProxyHandler = async (event) => {
-  const { graph, diffs } = JSON.parse(event.body);
+export const handler: APIGatewayProxyHandler = awsGetRoamJSUser<{
+  graph: string;
+  diffs: [];
+}>(async (user, { graph, diffs }) => {
   if (!graph) {
     return {
       statusCode: 400,
@@ -19,7 +23,7 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     };
   }
 
-  const { websiteGraph } = await getRoamJSUser(event).then((r) => r.data);
+  const { websiteGraph } = user;
   if (websiteGraph !== graph) {
     return {
       statusCode: 401,
@@ -46,4 +50,4 @@ export const handler: APIGatewayProxyHandler = async (event) => {
     body: JSON.stringify({ success: true }),
     headers,
   };
-};
+});
