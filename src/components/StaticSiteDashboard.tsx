@@ -42,11 +42,8 @@ import extractTag from "roamjs-components/util/extractTag";
 import setInputSetting from "roamjs-components/util/setInputSetting";
 import toFlexRegex from "roamjs-components/util/toFlexRegex";
 import getSettingValueFromTree from "roamjs-components/util/getSettingValueFromTree";
-import getSubTree from "roamjs-components/util/getSubTree";
-import getFullTreeByParentUid from "roamjs-components/queries/getFullTreeByParentUid";
 import getBasicTreeByParentUid from "roamjs-components/queries/getBasicTreeByParentUid";
 import getTextByBlockUid from "roamjs-components/queries/getTextByBlockUid";
-import getPageViewType from "roamjs-components/queries/getPageViewType";
 import getPageUidByPageTitle from "roamjs-components/queries/getPageUidByPageTitle";
 import getShallowTreeByParentUid from "roamjs-components/queries/getShallowTreeByParentUid";
 import { DAILY_NOTE_PAGE_TITLE_REGEX } from "roamjs-components/date/constants";
@@ -66,14 +63,15 @@ import {
   ServiceDashboard,
   StageContent,
   StageProps,
-  useAuthenticatedAxiosGet as useAuthenticatedGet,
-  useAuthenticatedAxiosPost as useAuthenticatedPost,
   useNextStage as useServiceNextStage,
   usePageUid as useServicePageUid,
   usePageUid,
 } from "roamjs-components/components/ServiceComponents";
 import { DEFAULT_TEMPLATE } from "../../lambdas/common/constants";
-import axios from "axios";
+import apiGet from "roamjs-components/util/apiGet";
+import apiPost from "roamjs-components/util/apiPost";
+import axios, { AxiosError } from "axios";
+import getAuthorizationHeader from "roamjs-components/util/getAuthorizationHeader";
 
 const allBlockMapper = (t: TreeNode): TreeNode[] => [
   t,
@@ -87,6 +85,204 @@ const UPLOAD_REGEX = /(https?:\/\/[^\)]*)(?:$|\)|\s)/;
 const DOMAIN_REGEX =
   /^(\*\.)?(((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])\.)+((?!-)[A-Za-z0-9-]{1,62}[A-Za-z0-9])$/;
 const IMAGE_REGEX = /^!\[\]\(([^)]+)\)$/;
+
+const RequestSubscriptionContent: StageContent = ({ openPanel }) => {
+  const nextStage = useServiceNextStage(openPanel);
+  const pageUid = useServicePageUid();
+  const onNext = useCallback(() => {
+    setInputSetting({
+      blockUid: pageUid,
+      key: "subscribed",
+      value: "",
+      index: 1,
+    });
+    nextStage();
+  }, [nextStage, pageUid]);
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [isOpen, setIsOpen] = useState(false);
+  const [enabled, setEnabled] = useState(false);
+  const [productDescription, setProductDescription] = useState("");
+  const [pricingMessage, setPricingMessage] = useState("");
+  const dev = useMemo(
+    () => (process.env.API_URL.includes("dev") ? "&dev=true" : ""),
+    []
+  );
+
+  const intervalListener = useRef(0);
+  const catchError = useCallback(
+    (e: AxiosError) =>
+      setError(e.response?.data?.message || e.response?.data || e.message),
+    [setError]
+  );
+  useEffect(() => {
+    Promise.all([
+      axios
+        .get(`https://lambda.roamjs.com/price?extensionId=static-site${dev}`, {
+          headers: { Authorization: getAuthorizationHeader() },
+        })
+        .then((r) => {
+          setPricingMessage(
+            `$${r.data.price / 100}${r.data.perUse ? " per use" : ""}${
+              r.data.isMonthly ? " per month" : " per year"
+            }`
+          );
+          setProductDescription(r.data.description);
+        }),
+      axios
+        .get(`https://lambda.roamjs.com/check?extensionId=static-site${dev}`, {
+          headers: { Authorization: getAuthorizationHeader() },
+        })
+        .then((r) => {
+          setEnabled(r.data.success);
+          const subscribedUids = getShallowTreeByParentUid(pageUid)
+            .filter((n) => toFlexRegex("subscribed").test(n.text))
+            .map((n) => n.uid);
+          if (!r.data.success) {
+            subscribedUids.forEach(deleteBlock);
+          } else if (r.data.success && !subscribedUids.length) {
+            onNext();
+          }
+        }),
+    ])
+      .catch(catchError)
+      .finally(() => setLoading(false));
+    return () => clearTimeout(intervalListener.current);
+  }, [catchError, dev, setEnabled, setPricingMessage, pageUid, onNext]);
+  return (
+    <>
+      <div style={{ height: 120 }}>
+        {!loading ? (
+          <p style={{ whiteSpace: "pre-wrap" }}>
+            {enabled
+              ? `You have sucessfully subscribed!\n\nGo back to the previous screen to configure and deploy your website!`
+              : `This is a premium extension and will require a paid subscription to enable.\n\n${productDescription}`}
+          </p>
+        ) : (
+          <Spinner />
+        )}
+      </div>
+      <Button
+        onClick={() => setIsOpen(true)}
+        intent={
+          loading ? Intent.NONE : enabled ? Intent.DANGER : Intent.PRIMARY
+        }
+        disabled={loading}
+        style={{ maxWidth: 240 }}
+      >
+        {loading ? "Loading..." : enabled ? "Unsubscribe" : "Subscribe"}
+      </Button>
+      <p style={{ color: "red" }}>{error}</p>
+      <Alert
+        isOpen={isOpen}
+        onConfirm={() => {
+          setLoading(true);
+          setError("");
+          if (enabled) {
+            axios
+              .post(
+                `https://lambda.roamjs.com/unsubscribe`,
+                {
+                  extensionId: "static-site",
+                  dev: !!dev,
+                },
+                { headers: { Authorization: getAuthorizationHeader() } }
+              )
+              .then(() => {
+                Promise.all(
+                  getShallowTreeByParentUid(pageUid)
+                    .filter((n) => toFlexRegex("subscribed").test(n.text))
+                    .map((n) => deleteBlock(n.uid))
+                ).then(() => setEnabled(false));
+              })
+              .catch(catchError)
+              .finally(() => {
+                setLoading(false);
+                setIsOpen(false);
+              });
+          } else {
+            axios
+              .post(
+                `https://lambda.roamjs.com/subscribe`,
+                {
+                  extensionId: "static-site",
+                  dev: !!dev,
+                },
+                { headers: { Authorization: getAuthorizationHeader() } }
+              )
+              .then((r) => {
+                if (r.data.url) {
+                  const width = 600;
+                  const height = 525;
+                  const left = window.screenX + (window.innerWidth - width) / 2;
+                  const top =
+                    window.screenY + (window.innerHeight - height) / 2;
+                  window.open(
+                    r.data.url,
+                    `roamjs:roamjs:stripe`,
+                    `left=${left},top=${top},width=${width},height=${height},status=1`
+                  );
+                  const authInterval = () => {
+                    axios
+                      .get(
+                        `https://lambda.roamjs.com/check?extensionId=static-site${dev}`,
+                        { headers: { Authorization: getAuthorizationHeader() } }
+                      )
+                      .then((r) => {
+                        if (r.data.success) {
+                          setEnabled(true);
+                          setLoading(false);
+                          setIsOpen(false);
+                          onNext();
+                        } else {
+                          intervalListener.current = window.setTimeout(
+                            authInterval,
+                            2000
+                          );
+                        }
+                      })
+                      .catch((e) => {
+                        catchError(e);
+                        setLoading(false);
+                        setIsOpen(false);
+                      });
+                  };
+                  authInterval();
+                } else if (r.data.success) {
+                  setEnabled(true);
+                  setLoading(false);
+                  setIsOpen(false);
+                  onNext();
+                } else {
+                  setError(
+                    "Something went wrong with the subscription. Please contact support@roamjs.com for help!"
+                  );
+                  setLoading(false);
+                  setIsOpen(false);
+                }
+              })
+              .catch(catchError)
+              .finally(() => {
+                setLoading(false);
+                setIsOpen(false);
+              });
+          }
+        }}
+        confirmButtonText={"Submit"}
+        cancelButtonText={"Cancel"}
+        intent={Intent.PRIMARY}
+        loading={loading}
+        onCancel={() => setIsOpen(false)}
+      >
+        {enabled
+          ? `By clicking submit below, you will unsubscribe from the premium features of the RoamJS Extension: Static Site.`
+          : `By clicking submit below, you will subscribe to the premium features of the RoamJS Extension: Static Site for ${pricingMessage}. A window may appear for checkout if this is your first premium extension`}
+      </Alert>
+    </>
+  );
+};
+
 const RequestDomainContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
   const pageUid = useServicePageUid();
@@ -969,8 +1165,6 @@ const WebsiteButton: React.FunctionComponent<
 };
 
 const LiveContent: StageContent = () => {
-  const authenticatedAxiosGet = useAuthenticatedGet();
-  const authenticatedAxiosPost = useAuthenticatedPost();
   const pageUid = usePageUid();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -987,7 +1181,7 @@ const LiveContent: StageContent = () => {
 
   const getWebsite = useCallback(
     () =>
-      authenticatedAxiosGet(`website-status?graph=${getGraph()}`).then((r) => {
+      apiGet(`website-status?graph=${getGraph()}`).then((r) => {
         if (r.data) {
           setStatusProps(r.data.statusProps);
           setStatus(r.data.status);
@@ -998,7 +1192,7 @@ const LiveContent: StageContent = () => {
             timeoutRef.current = window.setTimeout(getWebsite, 5000);
           } else {
             setProgressType("");
-            authenticatedAxiosGet(`website-variables?graph=${getGraph()}`)
+            apiGet(`website-variables?graph=${getGraph()}`)
               .then((r) => {
                 const diffs = [];
                 const tree = getBasicTreeByParentUid(pageUid);
@@ -1064,7 +1258,7 @@ const LiveContent: StageContent = () => {
           }
         }, 1)
       )
-        .then((data) => authenticatedAxiosPost(path, data))
+        .then((data) => apiPost(path, data))
         .then(getWebsite)
         .then(() => true)
         .catch((e) => {
@@ -1075,7 +1269,7 @@ const LiveContent: StageContent = () => {
         })
         .finally(() => setLoading(false));
     },
-    [setError, setLoading, getWebsite, authenticatedAxiosPost, pageUid]
+    [setError, setLoading, getWebsite, pageUid]
   );
   const manualDeploy = useCallback(
     () => wrapPost(process.env.DEPLOY_ENDPOINT, getDeployBody),
@@ -1086,12 +1280,9 @@ const LiveContent: StageContent = () => {
       wrapPost("launch-website", getLaunchBody).then(
         (success) =>
           success &&
-          authenticatedAxiosPost(
-            process.env.DEPLOY_ENDPOINT,
-            getDeployBody(pageUid)
-          )
+          apiPost(process.env.DEPLOY_ENDPOINT, getDeployBody(pageUid))
       ),
-    [wrapPost, pageUid, authenticatedAxiosPost]
+    [wrapPost, pageUid]
   );
   const shutdownWebsite = useCallback(
     () =>
@@ -1732,16 +1923,15 @@ const ThemeBrowser = ({
   const [themes, setThemes] = useState<
     { name: string; description: string; thumbnail: string; value: string }[]
   >([]);
-  const authenticatedAxiosGet = useAuthenticatedGet();
   const [selectedTheme, setSelectedTheme] = useState<number>();
   const [loading, setLoading] = useState(false);
   const openBrowser = useCallback(() => {
     setIsOpen(true);
     setLoading(true);
-    authenticatedAxiosGet(`themes`)
+    apiGet(`themes`)
       .then((r) => setThemes(r.data.themes))
       .finally(() => setLoading(false));
-  }, [setIsOpen, setLoading, setThemes, authenticatedAxiosGet]);
+  }, [setIsOpen, setLoading, setThemes]);
   const closeBrowser = useCallback(() => setIsOpen(false), [setIsOpen]);
   return (
     <div style={{ margin: "16px 0" }}>
@@ -2001,6 +2191,10 @@ const StaticSiteDashboard = (): React.ReactElement => {
     <ServiceDashboard
       service={"static-site"}
       stages={[
+        {
+          component: RequestSubscriptionContent,
+          setting: "Subscribed",
+        },
         {
           component: RequestDomainContent,
           setting: "Domain",
