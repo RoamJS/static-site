@@ -654,8 +654,8 @@ export const renderHtmlFromPage = ({
   const useLowercase = pathConfigType.includes("lowercase");
   const useUid = pathConfigType.includes("uid");
   const convertPageNameToPath = (name: string): string =>
-    name === config.index
-      ? "/"
+    `/${name === config.index
+      ? ""
       : useUid
       ? uidByName[name]
       : transformIfTrue(
@@ -667,11 +667,11 @@ export const renderHtmlFromPage = ({
             .join("/")}`,
           useLowercase,
           (s) => s.toLowerCase()
-        );
+        )}`;
   const htmlFileName = convertPageNameToPath(p);
   const pagesToHrefs = (name: string, r?: string) =>
     pageNameSet.has(name)
-      ? `/${convertPageNameToPath(name).replace(/^\/$/, "")}${r ? `#${r}` : ""}`
+      ? `${convertPageNameToPath(name).replace(/^\/$/, "")}${r ? `#${r}` : ""}`
       : "";
   const pluginKeys = Object.keys(config.plugins);
 
