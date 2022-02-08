@@ -654,20 +654,22 @@ export const renderHtmlFromPage = ({
   const useLowercase = pathConfigType.includes("lowercase");
   const useUid = pathConfigType.includes("uid");
   const convertPageNameToPath = (name: string): string =>
-    `/${name === config.index
-      ? ""
-      : useUid
-      ? uidByName[name]
-      : transformIfTrue(
-          `${name
-            .split(/\//)
-            .map((s) =>
-              encodeURIComponent(s.replace(/ /g, "_").replace(/[^\w-]/g, ""))
-            )
-            .join("/")}`,
-          useLowercase,
-          (s) => s.toLowerCase()
-        )}`;
+    `/${
+      name === config.index
+        ? ""
+        : useUid
+        ? uidByName[name]
+        : transformIfTrue(
+            `${name
+              .split(/\//)
+              .map((s) =>
+                encodeURIComponent(s.replace(/ /g, "_").replace(/[^\w-]/g, ""))
+              )
+              .join("/")}`,
+            useLowercase,
+            (s) => s.toLowerCase()
+          )
+    }`;
   const htmlFileName = convertPageNameToPath(p);
   const pagesToHrefs = (name: string, r?: string) =>
     pageNameSet.has(name)
@@ -1194,7 +1196,7 @@ export const run = async ({
         )`;
         const entryQuery = `[:find (pull ?b [
           [:block/string :as "text"] 
-          [:node/title :as "text"] 
+          :node/title 
           :block/uid 
           :block/order 
           :block/heading
@@ -1223,9 +1225,12 @@ export const run = async ({
           .then((pages) =>
             pages.map((p) => {
               const [
-                { text: pageName, uid, children = [], viewType = "bullet" },
+                { title: pageName, uid, children = [], viewType = "bullet" },
                 layout,
-              ] = p as [PartialRecursive<TreeNode>, number];
+              ] = p as [
+                Omit<PartialRecursive<TreeNode>, "text"> & { title: string },
+                number
+              ];
               return {
                 pageName,
                 content: children,
@@ -1241,7 +1246,7 @@ export const run = async ({
 
         const referenceQuery = `[:find 
           (pull ?refpage [:node/title]) 
-          (pull ?ref [:block/uid [:block/string :as "text"] [:node/title :as "text"]]) 
+          (pull ?ref [:block/uid :block/string :node/title]) 
           (pull ?node [:node/title :block/string :block/uid]) 
           ${hasDaily ? ":in $ ?regex" : ""}
           :where 
@@ -1267,11 +1272,13 @@ export const run = async ({
                   { title: refTitle, string: refText, uid: refUid },
                 ]: [
                   Record<string, string>,
-                  Partial<TreeNode>,
+                  Record<string, string>,
                   Record<string, string>
                 ]) => ({
                   title,
-                  node: formatRoamNodes([node])[0],
+                  node: formatRoamNodes([
+                    { uid: node.uid, text: node.title || node.string || "" },
+                  ])[0],
                   refText,
                   refTitle,
                   refUid,

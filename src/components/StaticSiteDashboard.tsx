@@ -973,7 +973,7 @@ const getDeployBody = (pageUid: string) => {
     .q(
       `[:find (pull ?b [
       [:block/string :as "text"] 
-      [:node/title :as "text"] 
+      :node/title 
       :block/uid 
       :block/order 
       :block/heading
@@ -987,9 +987,9 @@ const getDeployBody = (pageUid: string) => {
     )
     .map((p) => {
       const [
-        { text: pageName, uid, children = [], viewType = "bullet" },
+        { title: pageName, uid, children = [], viewType = "bullet" },
         layout,
-      ] = p as [Partial<TreeNode>, number];
+      ] = p as [Omit<Partial<TreeNode>, "text"> & { title?: string }, number];
       return {
         pageName,
         content: children,
@@ -1005,8 +1005,8 @@ const getDeployBody = (pageUid: string) => {
       `[:find 
         (pull ?refpage [:node/title]) 
         (pull ?ref [
-          [:block/string :as "text"] 
-          [:node/title :as "text"] 
+          [:block/string :as "text"]
+          :node/title 
           :block/uid 
           :block/order 
           :block/heading
@@ -1025,11 +1025,13 @@ const getDeployBody = (pageUid: string) => {
     .map(
       ([{ title }, node, { title: refTitle, string: refText, uid: refUid }]: [
         Record<string, string>,
-        Partial<TreeNode>,
+        Omit<Partial<TreeNode>, "text"> & { title?: string; text?: string },
         Record<string, string>
       ]) => ({
         title,
-        node: formatRoamNodes([node])[0],
+        node: formatRoamNodes([
+          { ...node, text: node.title || node.text || "" },
+        ])[0],
         refText,
         refTitle,
         refUid,
