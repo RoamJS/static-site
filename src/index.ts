@@ -35,9 +35,11 @@ runExtension(ID, () => {
     Dashboard,
   });
 
-  window.roamjs.extension.staticSite.deploy = () =>
-    apiPost(
-      "deploy-website",
-      getDeployBody(getPageUidByPageTitle(toConfigPageName(ID)))
-    );
+  window.roamjs.extension.staticSite = {
+    deploy: () =>
+      apiPost(
+        "deploy-website",
+        getDeployBody(getPageUidByPageTitle(toConfigPageName(ID)))
+      ),
+  };
 });
