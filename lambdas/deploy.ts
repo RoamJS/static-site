@@ -663,7 +663,12 @@ export const renderHtmlFromPage = ({
             `${name
               .split(/\//)
               .map((s) =>
-                encodeURIComponent(s.replace(/ /g, "_").replace(/[^\w-]/g, ""))
+                encodeURIComponent(
+                  s
+                    .trim()
+                    .replace(/ /g, "_")
+                    .replace(/[^\w-]/g, "")
+                )
               )
               .join("/")}`,
             useLowercase,
