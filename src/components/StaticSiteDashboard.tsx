@@ -849,7 +849,7 @@ const formatRoamNodes = (nodes: Partial<TreeNode>[]): MinimalRoamNode[] =>
         : {}),
     }));
 
-const getDeployBody = (pageUid: string) => {
+export const getDeployBody = (pageUid: string) => {
   const configPageTree = getBasicTreeByParentUid(pageUid);
   const getConfigNode = (key: string) =>
     configPageTree.find(
@@ -1274,7 +1274,7 @@ const LiveContent: StageContent = () => {
     [setError, setLoading, getWebsite, pageUid]
   );
   const manualDeploy = useCallback(
-    () => wrapPost(process.env.DEPLOY_ENDPOINT, getDeployBody),
+    () => wrapPost('deploy-website', getDeployBody),
     [wrapPost]
   );
   const launchWebsite = useCallback(
@@ -1282,7 +1282,7 @@ const LiveContent: StageContent = () => {
       wrapPost("launch-website", getLaunchBody).then(
         (success) =>
           success &&
-          apiPost(process.env.DEPLOY_ENDPOINT, getDeployBody(pageUid))
+          apiPost('deploy-website', getDeployBody(pageUid))
       ),
     [wrapPost, pageUid]
   );

@@ -1,6 +1,10 @@
-import Dashboard from "./components/StaticSiteDashboard";
+import Dashboard, { getDeployBody } from "./components/StaticSiteDashboard";
 import { runService } from "roamjs-components/components/ServiceComponents";
 import addStyle from "roamjs-components/dom/addStyle";
+import runExtension from "roamjs-components/util/runExtension";
+import apiPost from "roamjs-components/util/apiPost";
+import getPageUidByPageTitle from "roamjs-components/queries/getPageUidByPageTitle";
+import toConfigPageName from "roamjs-components/util/toConfigPageName";
 
 addStyle(`.bp3-tab-panel {
   width: 100%;
@@ -23,7 +27,17 @@ addStyle(`.bp3-tab-panel {
    width: 8px;
 }`);
 
-runService({
-  id: "static-site",
-  Dashboard,
+const ID = "static-site";
+
+runExtension(ID, () => {
+  runService({
+    id: ID,
+    Dashboard,
+  });
+
+  window.roamjs.extension.staticSite.deploy = () =>
+    apiPost(
+      "deploy-website",
+      getDeployBody(getPageUidByPageTitle(toConfigPageName(ID)))
+    );
 });
