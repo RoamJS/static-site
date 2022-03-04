@@ -666,7 +666,10 @@ export const renderHtmlFromPage = ({
                 encodeURIComponent(
                   s
                     .trim()
-                    .replace(/ /g, "_")
+                    .replace(
+                      / /g,
+                      config.plugins["paths"]?.["delimiter"]?.[0] || "_"
+                    )
                     .replace(/[^\w-]/g, "")
                 )
               )

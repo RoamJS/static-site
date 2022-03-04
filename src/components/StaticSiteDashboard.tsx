@@ -1274,15 +1274,14 @@ const LiveContent: StageContent = () => {
     [setError, setLoading, getWebsite, pageUid]
   );
   const manualDeploy = useCallback(
-    () => wrapPost('deploy-website', getDeployBody),
+    () => wrapPost("deploy-website", getDeployBody),
     [wrapPost]
   );
   const launchWebsite = useCallback(
     () =>
       wrapPost("launch-website", getLaunchBody).then(
         (success) =>
-          success &&
-          apiPost('deploy-website', getDeployBody(pageUid))
+          success && apiPost("deploy-website", getDeployBody(pageUid))
       ),
     [wrapPost, pageUid]
   );
@@ -1621,7 +1620,10 @@ const pluginIds: Plugin[] = [
     id: "paths",
     description:
       "Provides different options for specifying the names of all of your URL paths",
-    tabs: [{ id: "type", options: ["uid", "lowercase"] }],
+    tabs: [
+      { id: "type", options: ["uid", "lowercase"] },
+      { id: "delimiter" },
+    ],
   },
   {
     id: "sidebar",
