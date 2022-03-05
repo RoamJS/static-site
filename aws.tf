@@ -500,7 +500,23 @@ module "roamjs_lambda" {
     {
       path = "themes",
       method = "get"
-    }
+    },
+    {
+      path = "website-records",
+      method = "get"
+    },
+    {
+      path = "website-records",
+      method = "post"
+    },
+    {
+      path = "website-records",
+      method = "put"
+    },
+    {
+      path = "website-records",
+      method = "delete"
+    },
   ]
   aws_access_token = var.aws_access_token
   aws_secret_token = var.aws_secret_token
