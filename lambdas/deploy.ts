@@ -665,12 +665,12 @@ export const renderHtmlFromPage = ({
               .map((s) =>
                 encodeURIComponent(
                   s
+                    .replace(/[^\w-]/g, "")
                     .trim()
                     .replace(
                       / /g,
                       config.plugins["paths"]?.["delimiter"]?.[0] || "_"
                     )
-                    .replace(/[^\w-]/g, "")
                 )
               )
               .join("/")}`,
