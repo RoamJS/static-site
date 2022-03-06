@@ -7,6 +7,8 @@ import {
   createLogStatus,
   dynamo,
   getActionGraph,
+  getHostedZone,
+  getHostedZoneByStackName,
   getStackParameter,
   getStackSummaries,
   ses,
@@ -45,24 +47,6 @@ const STATUSES = {
   Route53ARecordRoamjs: factory("DOMAIN"),
   Route53AAAARecordRoamjs: factory("ALTERNATE DOMAIN"),
   CloudwatchRule: factory("DEPLOYER"),
-};
-
-const getHostedZone = async (domain: string) => {
-  let finished = false;
-  let Marker: string = undefined;
-  while (!finished) {
-    const { HostedZones, IsTruncated, NextMarker } = await route53
-      .listHostedZones({ Marker })
-      .promise();
-    const zone = HostedZones.find((i) => i.Name === `${domain}.`);
-    if (zone) {
-      return zone;
-    }
-    finished = !IsTruncated;
-    Marker = NextMarker;
-  }
-
-  return undefined;
 };
 
 export const handler = async (event: SNSEvent) => {
@@ -220,88 +204,85 @@ export const handler = async (event: SNSEvent) => {
       await logStatus("BEGIN DESTROYING RESOURCES");
     }
   } else if (ResourceStatusReason.startsWith(ACM_START_TEXT)) {
-    const isCustomDomain =
-      (await getStackParameter("CustomDomain", StackName)) === "true";
-    if (isCustomDomain) {
-      const domain = await getStackParameter("DomainName", StackName);
-      const zone = await getHostedZone(domain);
-
-      if (zone) {
-        const sets = await route53
-          .listResourceRecordSets({ HostedZoneId: zone.Id })
-          .promise();
-        const email = await getStackParameter("Email", StackName);
-        const domainParts = domain.split(".").length;
-        if (domainParts === 2) {
-          const set = sets.ResourceRecordSets.find((r) => r.Type === "NS");
-          const nameServers = set.ResourceRecords.map((r) =>
-            r.Value.replace(/\.$/, "")
-          );
-          await logStatus(
-            "AWAITING VALIDATION",
-            JSON.stringify({ nameServers })
-          );
-          await ses
-            .sendEmail({
-              Destination: {
-                ToAddresses: [email],
-              },
-              Message: {
-                Body: {
-                  Text: {
+    await getHostedZoneByStackName(StackName).then(
+      async ({ HostedZoneId, domain }) => {
+        if (!domain.endsWith("roamjs.com") && HostedZoneId) {
+          const sets = await route53
+            .listResourceRecordSets({ HostedZoneId })
+            .promise();
+          const email = await getStackParameter("Email", StackName);
+          const domainParts = domain.split(".").length;
+          if (domainParts === 2) {
+            const set = sets.ResourceRecordSets.find((r) => r.Type === "NS");
+            const nameServers = set.ResourceRecords.map((r) =>
+              r.Value.replace(/\.$/, "")
+            );
+            await logStatus(
+              "AWAITING VALIDATION",
+              JSON.stringify({ nameServers })
+            );
+            await ses
+              .sendEmail({
+                Destination: {
+                  ToAddresses: [email],
+                },
+                Message: {
+                  Body: {
+                    Text: {
+                      Charset: "UTF-8",
+                      Data: `Add the following four nameservers to your domain settings.\n\n${nameServers
+                        .map((ns) => `- ${ns}\n`)
+                        .join(
+                          ""
+                        )}\nIf the domain is not validated in the next 48 hours, the website will fail to launch and a rollback will begin.`,
+                    },
+                  },
+                  Subject: {
                     Charset: "UTF-8",
-                    Data: `Add the following four nameservers to your domain settings.\n\n${nameServers
-                      .map((ns) => `- ${ns}\n`)
-                      .join(
-                        ""
-                      )}\nIf the domain is not validated in the next 48 hours, the website will fail to launch and a rollback will begin.`,
+                    Data: `Your RoamJS static site is awaiting validation.`,
                   },
                 },
-                Subject: {
-                  Charset: "UTF-8",
-                  Data: `Your RoamJS static site is awaiting validation.`,
+                Source: "support@roamjs.com",
+              })
+              .promise();
+          } else if (domainParts > 2) {
+            const set = sets.ResourceRecordSets.find((r) => r.Type === "CNAME");
+            const cname = {
+              name: set.Name.replace(/\.$/, ""),
+              value: set.ResourceRecords[0].Value.replace(/\.$/, ""),
+            };
+            await logStatus(
+              "AWAITING VALIDATION",
+              JSON.stringify({
+                cname,
+              })
+            );
+            await ses
+              .sendEmail({
+                Destination: {
+                  ToAddresses: [email],
                 },
-              },
-              Source: "support@roamjs.com",
-            })
-            .promise();
-        } else if (domainParts > 2) {
-          const set = sets.ResourceRecordSets.find((r) => r.Type === "CNAME");
-          const cname = {
-            name: set.Name.replace(/\.$/, ""),
-            value: set.ResourceRecords[0].Value.replace(/\.$/, ""),
-          };
-          await logStatus(
-            "AWAITING VALIDATION",
-            JSON.stringify({
-              cname,
-            })
-          );
-          await ses
-            .sendEmail({
-              Destination: {
-                ToAddresses: [email],
-              },
-              Message: {
-                Body: {
-                  Text: {
+                Message: {
+                  Body: {
+                    Text: {
+                      Charset: "UTF-8",
+                      Data: `Add the following DNS Record in the settings for your domain\n\nType: CNAME\nName: ${cname.name}\nValue: ${cname.value}`,
+                    },
+                  },
+                  Subject: {
                     Charset: "UTF-8",
-                    Data: `Add the following DNS Record in the settings for your domain\n\nType: CNAME\nName: ${cname.name}\nValue: ${cname.value}`,
+                    Data: `Your RoamJS static site is awaiting validation.`,
                   },
                 },
-                Subject: {
-                  Charset: "UTF-8",
-                  Data: `Your RoamJS static site is awaiting validation.`,
-                },
-              },
-              Source: "support@roamjs.com",
-            })
-            .promise();
+                Source: "support@roamjs.com",
+              })
+              .promise();
+          }
+        } else if (domain === "roamjs.com") {
+          await logStatus("AWAITING VALIDATION");
         }
       }
-    } else {
-      await logStatus("AWAITING VALIDATION");
-    }
+    );
   } else if (ResourceStatus === "ROLLBACK_IN_PROGRESS") {
     await clearRecords(StackName);
   } else if (ResourceStatus === "ROLLBACK_FAILED") {

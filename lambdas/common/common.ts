@@ -1,5 +1,7 @@
-import AWS from "aws-sdk";
+import AWS, { Route53 } from "aws-sdk";
 import axios from "axios";
+import { awsGetRoamJSUser } from "roamjs-components/backend/getRoamJSUser";
+import headers from "roamjs-components/backend/headers";
 import { v4 } from "uuid";
 
 const credentials = {
@@ -75,6 +77,32 @@ export const getStackSummaries = (StackName: string) =>
     .promise()
     .then((r) => r.StackResourceSummaries);
 
+export const waitForChangeToSync = ({
+  Id,
+  count = 0,
+}: {
+  Id: string;
+  count?: number;
+}) => {
+  route53
+    .getChange({ Id })
+    .promise()
+    .then((r) =>
+      r.ChangeInfo.Status === "INSYNC"
+        ? Promise.resolve()
+        : count === 500
+        ? Promise.reject(
+            `Timed out waiting for change: ${Id}. Last status: ${r.ChangeInfo.Status}`
+          )
+        : new Promise((resolve) =>
+            setTimeout(
+              () => resolve(waitForChangeToSync({ Id, count: count + 1 })),
+              1000
+            )
+          )
+    );
+};
+
 export const clearRecordsById = async (HostedZoneId?: string) => {
   if (HostedZoneId) {
     const CNAME = await route53
@@ -89,7 +117,8 @@ export const clearRecordsById = async (HostedZoneId?: string) => {
             Changes: [{ Action: "DELETE", ResourceRecordSet: CNAME }],
           },
         })
-        .promise();
+        .promise()
+        .then((r) => waitForChangeToSync({ Id: r.ChangeInfo.Id }));
     }
   }
 };
@@ -110,7 +139,98 @@ export const getStackParameter = (key: string, StackName: string) =>
       (c) =>
         c.Stacks[0].Parameters.find(({ ParameterKey }) => ParameterKey === key)
           .ParameterValue
-    );
+    )
+    .catch(() => "");
 
 export const graphToStackName = (graph: string) =>
   `roamjs-${graph.replace("_", "-")}`;
+
+export const getHostedZone = async (
+  domain: string
+): Promise<string | undefined> => {
+  let finished = false;
+  let Marker: string = undefined;
+  while (!finished) {
+    const { HostedZones, IsTruncated, NextMarker } = await route53
+      .listHostedZones({ Marker })
+      .promise();
+    const zone = HostedZones.find((i) => i.Name === `${domain}.`);
+    if (zone) {
+      return zone.Id;
+    }
+    finished = !IsTruncated;
+    Marker = NextMarker;
+  }
+
+  return undefined;
+};
+
+export const getHostedZoneByStackName = async (StackName: string) => {
+  const isCustomDomain = await getStackParameter("CustomDomain", StackName);
+  const domain = await getStackParameter("DomainName", StackName);
+  if (isCustomDomain === "true") {
+    return await getHostedZone(domain).then((HostedZoneId) => ({
+      HostedZoneId,
+      domain,
+    }));
+  } else if (isCustomDomain === "false") {
+    return { HostedZoneId: process.env.ROAMJS_ZONE_ID, domain };
+  } else {
+    return { HostedZoneId: "", domain: "" };
+  }
+};
+
+export const getHostedZoneByGraphName = (graph: string) =>
+  getHostedZoneByStackName(graphToStackName(graph));
+
+export const changeRecordHandler = (Action: Route53.ChangeAction) =>
+  awsGetRoamJSUser<{
+    name: string;
+    value: string;
+    type: Route53.RRType;
+  }>(async ({ websiteGraph }, record) => {
+    if (!websiteGraph) {
+      return {
+        statusCode: 204,
+        body: JSON.stringify({ success: false }),
+        headers,
+      };
+    }
+
+    return getHostedZoneByGraphName(websiteGraph as string)
+      .then(({ HostedZoneId, domain }) => {
+        if (HostedZoneId)
+          return route53
+            .changeResourceRecordSets({
+              HostedZoneId,
+              ChangeBatch: {
+                Changes: [
+                  {
+                    Action,
+                    ResourceRecordSet: {
+                      Name: `${record.name.replace(/\.$/, "")}.${domain}.`,
+                      Type: record.type,
+                      ResourceRecords: [{ Value: record.value }],
+                      TTL: 300,
+                    },
+                  },
+                ],
+              },
+            })
+            .promise()
+            .then((r) => {
+              return waitForChangeToSync({ Id: r.ChangeInfo.Id })
+            })
+            .then(() => ({ success: true }));
+        else return { success: false };
+      })
+      .then((c) => ({
+        statusCode: 200,
+        body: JSON.stringify(c),
+        headers,
+      }))
+      .catch((e) => {
+        console.error(e);
+        return ({ statusCode: 500, body: e.mesage, headers })
+      });
+  });

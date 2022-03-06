@@ -72,6 +72,7 @@ import apiGet from "roamjs-components/util/apiGet";
 import apiPost from "roamjs-components/util/apiPost";
 import axios, { AxiosError } from "axios";
 import getAuthorizationHeader from "roamjs-components/util/getAuthorizationHeader";
+import { apiDelete, apiPut } from "roamjs-components";
 
 const allBlockMapper = (t: TreeNode): TreeNode[] => [
   t,
@@ -283,6 +284,172 @@ const RequestSubscriptionContent: StageContent = ({ openPanel }) => {
   );
 };
 
+const DNS_TYPES = [
+  "A",
+  "AAAA",
+  "CAA",
+  "CNAME",
+  "DS",
+  "MX",
+  "NAPTR",
+  "NS",
+  "PTR",
+  "SOA",
+  "SPF",
+  "SRV",
+  "TXT",
+] as const;
+type DNSRecordType = typeof DNS_TYPES[number];
+type DNSRecord = { name: string; type: DNSRecordType; value: string };
+
+const DNSRecordView = ({
+  record,
+  onDelete,
+  onError,
+  onUpdate,
+}: {
+  record: DNSRecord;
+  onDelete: () => void;
+  onError: (s: string) => void;
+  onUpdate: (r: DNSRecord) => void;
+}) => {
+  const [isEdit, setIsEdit] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [newRecordValue, setNewRecordValue] = useState(record.value);
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}
+    >
+      <span
+        style={{
+          display: "inline-block",
+          width: 200,
+          minWidth: 200,
+          textOverflow: "ellipsis",
+          overflow: "hidden",
+          marginRight: 8,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {record.name}
+      </span>
+      <span
+        style={{
+          display: "inline-block",
+          width: 96,
+          minWidth: 96,
+          marginRight: 8,
+        }}
+      >
+        {record.type}
+      </span>
+      <span
+        style={{
+          display: "inline-block",
+          marginRight: 8,
+          textOverflow: "ellipsis",
+          overflow: "hidden",
+          whiteSpace: "nowrap",
+          flexGrow: 1,
+        }}
+      >
+        {isEdit ? (
+          <InputGroup
+            placeholder={"Enter value..."}
+            value={newRecordValue}
+            onChange={(e) => setNewRecordValue(e.target.value)}
+          />
+        ) : (
+          record.value
+        )}
+      </span>
+      <span
+        style={{
+          width: 96,
+          minWidth: 96,
+          display: "inline-flex",
+          alignItems: "center",
+        }}
+      >
+        <span
+          style={{
+            width: 16,
+            minWidth: 16,
+            marginRight: 16,
+            display: "inline-block",
+          }}
+        >
+          {loading && <Spinner size={16} />}
+        </span>
+        {isEdit ? (
+          <Button
+            icon={"saved"}
+            style={{ width: 32, height: 32 }}
+            minimal
+            disabled={loading}
+            onClick={() => {
+              const newBody = {
+                name: record.name,
+                type: record.type,
+                value: newRecordValue,
+              };
+              setLoading(true);
+              apiPut(`website-records`, newBody)
+                .then(() => {
+                  onUpdate(newBody);
+                  setIsEdit(false);
+                })
+                .catch((e) =>
+                  onError(e.response?.data?.errorMessage || e.response?.data)
+                )
+                .finally(() => setLoading(false));
+            }}
+          />
+        ) : (
+          <Button
+            icon={"edit"}
+            style={{ width: 32, height: 32 }}
+            minimal
+            onClick={() => setIsEdit(true)}
+            disabled={record.value.includes("acm-validations.aws") || loading}
+          />
+        )}
+        {isEdit ? (
+          <Button
+            icon={"cross"}
+            style={{ width: 32, height: 32 }}
+            minimal
+            onClick={() => setIsEdit(false)}
+            disabled={loading}
+          />
+        ) : (
+          <Button
+            icon={"trash"}
+            style={{ width: 32, height: 32 }}
+            minimal
+            onClick={() => {
+              setLoading(true);
+              apiDelete(
+                `website-records?name=${record.name}&type=${record.type}&value=${record.value}`
+              )
+                .then(onDelete)
+                .catch((e) =>
+                  onError(e.response?.data?.errorMessage || e.response?.data)
+                )
+                .finally(() => setLoading(false));
+            }}
+            disabled={record.value.includes("acm-validations.aws") || loading}
+          />
+        )}
+      </span>
+    </div>
+  );
+};
+
 const RequestDomainContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
   const pageUid = useServicePageUid();
@@ -340,6 +507,16 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
     },
     [onSubmit]
   );
+  const [records, setRecords] = useState<DNSRecord[]>([]);
+  const [newRecordName, setNewRecordName] = useState<string>("");
+  const [newRecordType, setNewRecordType] = useState<DNSRecordType>(
+    DNS_TYPES[0]
+  );
+  const [loading, setLoading] = useState(false);
+  const [newRecordValue, setNewRecordValue] = useState("");
+  useEffect(() => {
+    apiGet("website-records").then((r) => setRecords(r.data.records));
+  }, []);
   return (
     <>
       <Switch
@@ -375,8 +552,148 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
             )
           }
         />
-        <span style={{ color: "darkred" }}>{error}</span>
       </Label>
+      <p style={{ color: "darkred" }}>{error}</p>
+      {!!records.length && (
+        <>
+          <h4 style={{ marginTop: 8 }}>DNS Records</h4>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Label
+              style={{
+                display: "inline-block",
+                width: 200,
+                minWidth: 200,
+                textOverflow: "ellipsis",
+                overflow: "hidden",
+                marginRight: 8,
+              }}
+            >
+              Name
+            </Label>
+            <Label
+              style={{
+                display: "inline-block",
+                width: 96,
+                minWidth: 96,
+                marginRight: 8,
+              }}
+            >
+              Type
+            </Label>
+            <Label
+              style={{
+                display: "inline-block",
+                flexGrow: 1,
+                marginRight: 8,
+              }}
+            >
+              Value
+            </Label>
+            <Label style={{ width: 96, minWidth: 96, display: "inline-block" }}>
+              Action
+            </Label>
+          </div>
+          {records.map((record) => (
+            <DNSRecordView
+              record={record}
+              key={`${record.name}:${record.type}:${record.value}`}
+              onDelete={() => {
+                setRecords(records.filter((r) => r !== record));
+              }}
+              onError={setError}
+              onUpdate={(newRecord) => {
+                setRecords(records.map((r) => (r === record ? newRecord : r)));
+              }}
+            />
+          ))}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Label
+              style={{
+                display: "inline-block",
+                width: 200,
+                minWidth: 200,
+                textOverflow: "ellipsis",
+                overflow: "hidden",
+                marginRight: 8,
+              }}
+            >
+              Name
+              <InputGroup
+                placeholder={"Enter subdomain"}
+                value={newRecordName}
+                onChange={(e) => setNewRecordName(e.target.value)}
+              />
+            </Label>
+            <Label
+              style={{
+                display: "inline-block",
+                width: 96,
+                minWidth: 96,
+                marginRight: 8,
+              }}
+            >
+              Type
+              <MenuItemSelect
+                activeItem={newRecordType}
+                items={DNS_TYPES.slice(0)}
+                onItemSelect={(e) => {
+                  setNewRecordType(e);
+                }}
+              />
+            </Label>
+            <Label
+              style={{
+                display: "inline-block",
+                flexGrow: 1,
+                marginRight: 8,
+              }}
+            >
+              Value
+              <InputGroup
+                placeholder={"Enter value..."}
+                value={newRecordValue}
+                onChange={(e) => setNewRecordValue(e.target.value)}
+              />
+            </Label>
+            <Button
+              style={{ width: 96, minWidth: 96, display: "inline-block" }}
+              rightIcon={"plus"}
+              text={"Add"}
+              disabled={loading}
+              onClick={() => {
+                const body = {
+                  name: newRecordName,
+                  type: newRecordType,
+                  value: newRecordValue,
+                };
+                setLoading(true);
+                apiPost(`website-records`, body)
+                  .then(() => {
+                    setRecords(records.concat(body));
+                    setNewRecordName("");
+                    setNewRecordValue("");
+                  })
+                  .catch((e) =>
+                    setError(e.response?.data?.errorMessage || e.response?.data)
+                  )
+                  .finally(() => setLoading(false));
+              }}
+            />
+          </div>
+        </>
+      )}
       <ServiceNextButton onClick={onSubmit} disabled={disabled} />
     </>
   );
@@ -1620,10 +1937,7 @@ const pluginIds: Plugin[] = [
     id: "paths",
     description:
       "Provides different options for specifying the names of all of your URL paths",
-    tabs: [
-      { id: "type", options: ["uid", "lowercase"] },
-      { id: "delimiter" },
-    ],
+    tabs: [{ id: "type", options: ["uid", "lowercase"] }, { id: "delimiter" }],
   },
   {
     id: "sidebar",
