@@ -7,7 +7,7 @@ export const DEFAULT_TEMPLATE = `<!DOCTYPE html>
 <title>$\{PAGE_NAME}</title>
 <meta property="og:title" content="$\{PAGE_NAME}">
 <meta property="og:type" content="website">
-<meta name="twitter:card" content={"summary"} />
+<meta name="twitter:card" content="summary" />
 <meta name="twitter:creator" content="$\{PAGE_USER}" />
 <meta name="twitter:title" content="$\{PAGE_NAME}" />
 <meta name="twitter:description" content="$\{PAGE_DESCRIPTION}" />
