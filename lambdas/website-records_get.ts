@@ -7,7 +7,7 @@ export const handler: APIGatewayProxyHandler = awsGetRoamJSUser(
   async ({ websiteGraph }) => {
     if (!websiteGraph) {
       return {
-        statusCode: 204,
+        statusCode: 200,
         body: JSON.stringify({ records: [] }),
         headers,
       };
