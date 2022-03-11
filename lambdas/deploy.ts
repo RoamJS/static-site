@@ -665,10 +665,10 @@ export const renderHtmlFromPage = ({
               .map((s) =>
                 encodeURIComponent(
                   s
-                    .replace(/[^\w-]/g, "")
+                    .replace(/[^\w\s-]/g, "")
                     .trim()
                     .replace(
-                      / /g,
+                      /\s/g,
                       config.plugins["paths"]?.["delimiter"]?.[0] || "_"
                     )
                 )
@@ -678,6 +678,7 @@ export const renderHtmlFromPage = ({
             (s) => s.toLowerCase()
           )
     }`;
+
   const htmlFileName = convertPageNameToPath(p);
   const pagesToHrefs = (name: string, r?: string) =>
     pageNameSet.has(name)
