@@ -213,11 +213,26 @@ resource "aws_dynamodb_table" "website-statuses" {
     type = "S"
   }
 
+  attribute {
+    name = "status"
+    type = "S"
+  }
+
   global_secondary_index {
     hash_key           = "action_graph"
     name               = "primary-index"
     non_key_attributes = []
     range_key          = "date"
+    projection_type    = "ALL"
+    read_capacity      = 0
+    write_capacity     = 0
+  }
+
+  global_secondary_index {
+    hash_key           = "action_graph"
+    name               = "status-index"
+    non_key_attributes = []
+    range_key          = "status"
     projection_type    = "ALL"
     read_capacity      = 0
     write_capacity     = 0

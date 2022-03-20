@@ -1,13 +1,52 @@
-import { CloudFrontRequestHandler } from "aws-lambda";
+import type {
+  CloudFrontRequestEvent,
+  CloudFrontRequestCallback,
+  Context,
+} from "aws-lambda";
+import { DynamoDB } from "@aws-sdk/client-dynamodb";
 
-export const handler: CloudFrontRequestHandler = (event, _, callback) => {
+const dynamo = new DynamoDB({});
+
+export const handler = async (
+  event: CloudFrontRequestEvent,
+  _: Context,
+  callback: CloudFrontRequestCallback
+) => {
   const request = event.Records[0].cf.request;
   const olduri = request.uri;
   const graph = request.origin.custom.customHeaders["x-roam-graph"][0].value;
+  const mappedUri = await dynamo
+    .query({
+      TableName: "RoamJSWebsiteStatuses",
+      IndexName: "name-status-index",
+      ExpressionAttributeNames: {
+        "#s": "status",
+        "#a": "action_graph",
+      },
+      ExpressionAttributeValues: {
+        ":s": { S: olduri },
+        ":a": { S: `redirect_${graph}` },
+      },
+      KeyConditionExpression: "#a = :a AND #s = :s",
+    })
+    .then((r) => r.Items[0]?.status_props?.S);
+  if (mappedUri) {
+    return {
+      status: "301",
+      statusDescription: "Moved Permanently",
+      headers: {
+        location: [
+          {
+            key: "Location",
+            value: mappedUri,
+          },
+        ],
+      },
+    };
+  }
   if (olduri !== `/${graph}/index.html`) {
     const newuri = `/${graph}${olduri}${olduri.includes(".") ? "" : ".html"}`;
     request.uri = encodeURI(newuri);
   }
-  console.log("Mapped", olduri, "to", request.uri);
   return callback(null, request);
 };

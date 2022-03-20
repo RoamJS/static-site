@@ -31,6 +31,7 @@
   "dependencies": {
     "@actions/core": "^1.6.0",
     "@actions/github": "^5.0.0",
+    "@aws-sdk/client-dynamodb": "^3.54.1",
     "@blueprintjs/core": "^3.44.3",
     "aws-sdk": "^2.826.0",
     "axios": "^0.21.4",
