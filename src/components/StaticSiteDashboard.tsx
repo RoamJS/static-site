@@ -73,6 +73,7 @@ import apiPost from "roamjs-components/util/apiPost";
 import axios, { AxiosError } from "axios";
 import getAuthorizationHeader from "roamjs-components/util/getAuthorizationHeader";
 import { apiDelete, apiPut } from "roamjs-components";
+import { v4 } from "uuid";
 
 const allBlockMapper = (t: TreeNode): TreeNode[] => [
   t,
@@ -2503,6 +2504,113 @@ const RequestFilesContent: StageContent = ({ openPanel }) => {
   );
 };
 
+type Redirect = { uuid: string; from: string; to: string };
+
+const RequestRedirectsContent: StageContent = ({ openPanel }) => {
+  const nextStage = useServiceNextStage(openPanel);
+  const [loading, setLoading] = useState(true);
+  const [values, setValues] = useState<Redirect[]>([]);
+  const onSubmit = useCallback(() => {
+    setLoading(true);
+    apiPost("website-redirects", { method: "SUBMIT", redirects: values })
+      .then(nextStage)
+      .catch(() => setLoading(false));
+  }, [values, nextStage]);
+  useEffect(() => {
+    apiPost("website-redirects", { method: "GET" })
+      .then((r) => setValues(r.data.redirects))
+      .finally(() => setLoading(false));
+  }, []);
+  return (
+    <div>
+      <div style={{ marginBottom: 32, minHeight: 320 }}>
+        {loading ? (
+          <Spinner size={32} />
+        ) : (
+          <>
+            {values.map(({ from, to, uuid }) => (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+                key={uuid}
+              >
+                <Label>
+                  From
+                  <InputGroup
+                    value={from}
+                    onChange={(e) =>
+                      setValues(
+                        values.map((v) =>
+                          v.uuid === uuid
+                            ? {
+                                uuid,
+                                to,
+                                from: e.target.value,
+                              }
+                            : v
+                        )
+                      )
+                    }
+                  />
+                </Label>
+                <Label style={{ margin: "0 8px 15px", flexGrow: 1 }}>
+                  To
+                  <InputGroup
+                    value={to}
+                    onChange={(e) =>
+                      setValues(
+                        values.map((v) =>
+                          v.uuid === uuid
+                            ? {
+                                uuid,
+                                from,
+                                to: e.target.value,
+                              }
+                            : v
+                        )
+                      )
+                    }
+                  />
+                </Label>
+                <Button
+                  icon={"trash"}
+                  minimal
+                  onClick={() => {
+                    setLoading(true);
+                    apiPost("website-redirects", { method: "DELETE", uuid })
+                      .then(() =>
+                        setValues(values.filter((v) => v.uuid !== uuid))
+                      )
+                      .finally(() => setLoading(false));
+                  }}
+                />
+              </div>
+            ))}
+            <Button
+              text={"Add Redirect"}
+              intent={Intent.SUCCESS}
+              onClick={() =>
+                setValues([
+                  ...values,
+                  {
+                    to: "",
+                    from: "",
+                    uuid: v4(),
+                  },
+                ])
+              }
+            />
+          </>
+        )}
+      </div>
+      <ServiceNextButton onClick={onSubmit} />
+    </div>
+  );
+};
+
 const StaticSiteDashboard = (): React.ReactElement => {
   useRoamJSTokenWarning();
   return (
@@ -2543,6 +2651,7 @@ const StaticSiteDashboard = (): React.ReactElement => {
           setting: "Reference Template",
         },
         { component: RequestFilesContent, setting: "Files" },
+        { component: RequestRedirectsContent, setting: "Redirects" },
       ]}
     />
   );
