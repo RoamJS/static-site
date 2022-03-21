@@ -81,62 +81,60 @@ export const handler = async (event: SNSEvent) => {
 
       await logStatus("LIVE");
       const email = await getStackParameter("Email", StackName);
-      if (
-        ResourceStatus === "CREATE_COMPLETE" &&
-        domain.split(".").length > 2 &&
-        !domain.endsWith(".roamjs.com")
-      ) {
-        const Id = await getStackSummaries(StackName).then(
-          (summaries) =>
-            summaries.find(
-              (s) => s.LogicalResourceId === "CloudfrontDistribution"
-            ).PhysicalResourceId
-        );
-        const cloudfrontDomain = await cloudfront
-          .getDistribution({ Id })
-          .promise()
-          .then((r) => r.Distribution.DomainName);
-        await ses
-          .sendEmail({
-            Destination: {
-              ToAddresses: [email],
-            },
-            Message: {
-              Body: {
-                Text: {
+      if (ResourceStatus === "CREATE_COMPLETE") {
+        if (domain.split(".").length > 2 && !domain.endsWith(".roamjs.com")) {
+          const Id = await getStackSummaries(StackName).then(
+            (summaries) =>
+              summaries.find(
+                (s) => s.LogicalResourceId === "CloudfrontDistribution"
+              ).PhysicalResourceId
+          );
+          const cloudfrontDomain = await cloudfront
+            .getDistribution({ Id })
+            .promise()
+            .then((r) => r.Distribution.DomainName);
+          await ses
+            .sendEmail({
+              Destination: {
+                ToAddresses: [email],
+              },
+              Message: {
+                Body: {
+                  Text: {
+                    Charset: "UTF-8",
+                    Data: `Now, for your site to be accessible at ${domain}, you will need to add one more DNS record to the settings of your domain:\n\nType: CNAME\nName: ${domain}\nValue: ${cloudfrontDomain}`,
+                  },
+                },
+                Subject: {
                   Charset: "UTF-8",
-                  Data: `Now, for your site to be accessible at ${domain}, you will need to add one more DNS record to the settings of your domain:\n\nType: CNAME\nName: ${domain}\nValue: ${cloudfrontDomain}`,
+                  Data: `Your RoamJS site is almost ready!`,
                 },
               },
-              Subject: {
-                Charset: "UTF-8",
-                Data: `Your RoamJS site is almost ready!`,
+              Source: "support@roamjs.com",
+            })
+            .promise();
+        } else {
+          await ses
+            .sendEmail({
+              Destination: {
+                ToAddresses: [email],
               },
-            },
-            Source: "support@roamjs.com",
-          })
-          .promise();
-      } else {
-        await ses
-          .sendEmail({
-            Destination: {
-              ToAddresses: [email],
-            },
-            Message: {
-              Body: {
-                Text: {
+              Message: {
+                Body: {
+                  Text: {
+                    Charset: "UTF-8",
+                    Data: `Your static site is live and accessible at ${domain}.`,
+                  },
+                },
+                Subject: {
                   Charset: "UTF-8",
-                  Data: `Your static site is live and accessible at ${domain}.`,
+                  Data: `Your RoamJS site is now live!`,
                 },
               },
-              Subject: {
-                Charset: "UTF-8",
-                Data: `Your RoamJS site is now live!`,
-              },
-            },
-            Source: "support@roamjs.com",
-          })
-          .promise();
+              Source: "support@roamjs.com",
+            })
+            .promise();
+        }
       }
     } else if (ResourceStatus === "DELETE_COMPLETE") {
       await logStatus("INACTIVE");
