@@ -75,7 +75,7 @@ data "aws_iam_policy_document" "lambda_logs_policy_doc" {
   statement {
     effect    = "Allow"
     resources = [
-      aws_dynamodb_table.website-statuses.arn
+      "${aws_dynamodb_table.website-statuses.arn}/index/*"
     ]
     actions   = [
       "dynamodb:Query"
