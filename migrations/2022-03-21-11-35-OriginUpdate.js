@@ -11,7 +11,10 @@ const waitForChangeSet = ({ ChangeSetName, trial }) => {
         return Promise.resolve(true);
       } else if (trial > 100) {
         return Promise.reject("Timed out");
-      } else if (c.Status === "CREATE_PENDING") {
+      } else if (
+        c.Status === "CREATE_IN_PROGRESS" ||
+        c.Status === "CREATE_PENDING"
+      ) {
         return new Promise((resolve) =>
           setTimeout(
             () =>
@@ -43,12 +46,31 @@ const migrateStack = (StackName) => {
           oldArn.replace(/:\d{1,2}$/, ":20");
         template.Resources.CloudfrontDistributionRoamjs.Properties.DistributionConfig.DefaultCacheBehavior.LambdaFunctionAssociations[0].LambdaFunctionARN =
           oldArnRoamjs.replace(/:\d{1,2}$/, ":20");
-        console.log(JSON.stringify(template, null, 4));
+        console.log(
+          "mapping",
+          oldArn,
+          "to",
+          template.Resources.CloudfrontDistribution.Properties
+            .DistributionConfig.DefaultCacheBehavior
+            .LambdaFunctionAssociations[0].LambdaFunctionARN,
+          "for",
+          StackName
+        );
+        console.log(
+          "mapping",
+          oldArnRoamjs,
+          "to",
+          template.Resources.CloudfrontDistributionRoamjs.Properties
+            .DistributionConfig.DefaultCacheBehavior
+            .LambdaFunctionAssociations[0].LambdaFunctionARN,
+          "for",
+          StackName
+        );
         return cloudformation
           .createChangeSet({
             StackName,
             TemplateBody: JSON.stringify(template),
-            ChangeSetName: `OriginUpdate-2022-03-20-20-47`,
+            ChangeSetName: `OriginUpdate-2022-03-21-11-35`,
             Parameters: await cloudformation
               .describeStacks({ StackName })
               .promise()
@@ -67,7 +89,6 @@ const migrateStack = (StackName) => {
 };
 
 const migrate = () =>
-  // migrateStack("roamjs-roam-depot-developers");
   cloudformation
     .listStacks()
     .promise()

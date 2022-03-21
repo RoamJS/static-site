@@ -2504,7 +2504,7 @@ const RequestFilesContent: StageContent = ({ openPanel }) => {
   );
 };
 
-type Redirect = { uuid: string; from: string; to: string };
+type Redirect = { uuid: string; from: string; to: string; date:string };
 
 const RequestRedirectsContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
@@ -2528,7 +2528,7 @@ const RequestRedirectsContent: StageContent = ({ openPanel }) => {
           <Spinner size={32} />
         ) : (
           <>
-            {values.map(({ from, to, uuid }) => (
+            {values.map(({ from, to, uuid, date }) => (
               <div
                 style={{
                   display: "flex",
@@ -2549,6 +2549,7 @@ const RequestRedirectsContent: StageContent = ({ openPanel }) => {
                                 uuid,
                                 to,
                                 from: e.target.value,
+                                date,
                               }
                             : v
                         )
@@ -2568,6 +2569,7 @@ const RequestRedirectsContent: StageContent = ({ openPanel }) => {
                                 uuid,
                                 from,
                                 to: e.target.value,
+                                date,
                               }
                             : v
                         )
@@ -2580,7 +2582,7 @@ const RequestRedirectsContent: StageContent = ({ openPanel }) => {
                   minimal
                   onClick={() => {
                     setLoading(true);
-                    apiPost("website-redirects", { method: "DELETE", uuid })
+                    apiPost("website-redirects", { method: "DELETE", uuid, date })
                       .then(() =>
                         setValues(values.filter((v) => v.uuid !== uuid))
                       )
@@ -2599,6 +2601,7 @@ const RequestRedirectsContent: StageContent = ({ openPanel }) => {
                     to: "",
                     from: "",
                     uuid: v4(),
+                    date: new Date().toJSON(),
                   },
                 ])
               }

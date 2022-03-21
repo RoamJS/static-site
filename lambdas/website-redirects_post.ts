@@ -27,6 +27,7 @@ export const handler: APIGatewayProxyHandler = awsGetRoamJSUser(
                 uuid: s.uuid?.S,
                 from: s.status?.S,
                 to: s.status_props?.S,
+                date: s.date?.S, // Need date bc it's part of the table's primary key
               })),
             }),
           }))
@@ -40,8 +41,8 @@ export const handler: APIGatewayProxyHandler = awsGetRoamJSUser(
           uuid: string;
           from: string;
           to: string;
+          date: string;
         }[];
-        const now = new Date().toJSON();
         return dynamo
           .batchWriteItem({
             RequestItems: {
@@ -49,7 +50,7 @@ export const handler: APIGatewayProxyHandler = awsGetRoamJSUser(
                 PutRequest: {
                   Item: {
                     uuid: { S: r.uuid },
-                    date: { S: now },
+                    date: { S: r.date },
                     status: { S: r.from },
                     status_props: { S: r.to },
                     action_graph: { S: `redirect_${websiteGraph}` },
@@ -71,10 +72,11 @@ export const handler: APIGatewayProxyHandler = awsGetRoamJSUser(
           }));
       case "DELETE":
         const uuid = rest.uuid as string;
+        const date = rest.date as string;
         return dynamo
           .deleteItem({
             TableName: "RoamJSWebsiteStatuses",
-            Key: { uuid: { S: uuid } },
+            Key: { uuid: { S: uuid }, date: { S: date } },
           })
           .promise()
           .then(() => ({
