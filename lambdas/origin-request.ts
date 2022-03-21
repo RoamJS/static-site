@@ -18,7 +18,7 @@ export const handler = async (
   const mappedUri = await dynamo
     .query({
       TableName: "RoamJSWebsiteStatuses",
-      IndexName: "name-status-index",
+      IndexName: "status-index",
       ExpressionAttributeNames: {
         "#s": "status",
         "#a": "action_graph",
