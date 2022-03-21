@@ -71,6 +71,16 @@ data "aws_iam_policy_document" "lambda_logs_policy_doc" {
       "logs:CreateLogGroup"
     ]
   }
+
+  statement {
+    effect    = "Allow"
+    resources = [
+      aws_dynamodb_table.website-statuses.arn
+    ]
+    actions   = [
+      "dynamodb:Query"
+    ]
+  }
 }
 
 data "aws_route53_zone" "roamjs" {
