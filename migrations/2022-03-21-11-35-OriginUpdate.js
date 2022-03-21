@@ -28,24 +28,29 @@ const waitForChangeSet = ({ ChangeSetName, trial }) => {
     });
 };
 
-const migrateStack = (StackName) => {
+const errors = {};
+
+const migrateStack = (StackName, debug = false) => {
   return cloudformation
     .getTemplate({ StackName })
     .promise()
     .then(async (t) => {
       const template = JSON.parse(t.TemplateBody);
+      const hasRoamJS = !!template.Resources.CloudfrontDistributionRoamjs;
       const oldArn =
         template.Resources.CloudfrontDistribution.Properties.DistributionConfig
           .DefaultCacheBehavior.LambdaFunctionAssociations[0].LambdaFunctionARN;
-      const oldArnRoamjs =
-        template.Resources.CloudfrontDistributionRoamjs.Properties
-          .DistributionConfig.DefaultCacheBehavior.LambdaFunctionAssociations[0]
-          .LambdaFunctionARN;
+      const oldArnRoamjs = hasRoamJS
+        ? template.Resources.CloudfrontDistributionRoamjs.Properties
+            .DistributionConfig.DefaultCacheBehavior
+            .LambdaFunctionAssociations[0].LambdaFunctionARN
+        : "";
       if (!oldArn.endsWith(":20") || !oldArnRoamjs.endsWith(":20")) {
         template.Resources.CloudfrontDistribution.Properties.DistributionConfig.DefaultCacheBehavior.LambdaFunctionAssociations[0].LambdaFunctionARN =
           oldArn.replace(/:\d{1,2}$/, ":20");
-        template.Resources.CloudfrontDistributionRoamjs.Properties.DistributionConfig.DefaultCacheBehavior.LambdaFunctionAssociations[0].LambdaFunctionARN =
-          oldArnRoamjs.replace(/:\d{1,2}$/, ":20");
+        if (hasRoamJS)
+          template.Resources.CloudfrontDistributionRoamjs.Properties.DistributionConfig.DefaultCacheBehavior.LambdaFunctionAssociations[0].LambdaFunctionARN =
+            oldArnRoamjs.replace(/:\d{1,2}$/, ":20");
         console.log(
           "mapping",
           oldArn,
@@ -56,35 +61,47 @@ const migrateStack = (StackName) => {
           "for",
           StackName
         );
-        console.log(
-          "mapping",
-          oldArnRoamjs,
-          "to",
-          template.Resources.CloudfrontDistributionRoamjs.Properties
-            .DistributionConfig.DefaultCacheBehavior
-            .LambdaFunctionAssociations[0].LambdaFunctionARN,
-          "for",
-          StackName
-        );
-        return cloudformation
-          .createChangeSet({
-            StackName,
-            TemplateBody: JSON.stringify(template),
-            ChangeSetName: `OriginUpdate-2022-03-21-11-35`,
-            Parameters: await cloudformation
-              .describeStacks({ StackName })
+        if (hasRoamJS)
+          console.log(
+            "mapping",
+            oldArnRoamjs,
+            "to",
+            template.Resources.CloudfrontDistributionRoamjs.Properties
+              .DistributionConfig.DefaultCacheBehavior
+              .LambdaFunctionAssociations[0].LambdaFunctionARN,
+            "for",
+            StackName
+          );
+        return debug
+          ? Promise.resolve(1)
+          : cloudformation
+              .createChangeSet({
+                StackName,
+                TemplateBody: JSON.stringify(template),
+                ChangeSetName: `OriginUpdate-2022-03-21-11-35`,
+                Parameters: await cloudformation
+                  .describeStacks({ StackName })
+                  .promise()
+                  .then((c) => c.Stacks[0].Parameters),
+              })
               .promise()
-              .then((c) => c.Stacks[0].Parameters),
-          })
-          .promise()
-          .then((c) =>
-            waitForChangeSet({ ChangeSetName: c.Id, trial: 0 }).then(() =>
-              cloudformation.executeChangeSet({ ChangeSetName: c.Id }).promise()
-            )
-          )
-          .then(() => console.log(StackName, "updated"));
+              .then((c) =>
+                waitForChangeSet({ ChangeSetName: c.Id, trial: 0 }).then(() =>
+                  cloudformation
+                    .executeChangeSet({ ChangeSetName: c.Id })
+                    .promise()
+                )
+              )
+              .then(() => console.log(StackName, "updated"))
+              .then(() => 1);
       }
       console.log(StackName, "already up to date");
+      return 0;
+    })
+    .catch((e) => {
+      console.log("Failed to migrate", StackName);
+      errors[StackName] = e;
+      return 0;
     });
 };
 
@@ -93,7 +110,20 @@ const migrate = () =>
     .listStacks()
     .promise()
     .then((stacks) =>
-      Promise.all(stacks.StackSummaries.map((s) => migrateStack(s.StackName)))
-    );
+      stacks.StackSummaries.filter((s) => s.StackStatus !== "DELETE_COMPLETE")
+        .map((s) => () => {
+          console.log("Migrating", s.StackName, s.StackStatus, "...");
+          return migrateStack(s.StackName, false);
+        })
+        .reduce(
+          (p, c) => p.then((t) => c().then((_t) => _t + t)),
+          Promise.resolve(0)
+        )
+    )
+    .then((all) => {
+      console.log("Migrated:", all);
+      console.log("Errors Found:");
+      Object.entries(errors).forEach(([n, e]) => console.log(n, "-", e));
+    });
 
 migrate().then(() => console.log("done!"));
