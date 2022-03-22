@@ -5,7 +5,9 @@ import type {
 } from "aws-lambda";
 import { DynamoDB } from "@aws-sdk/client-dynamodb";
 
-const dynamo = new DynamoDB({});
+const dynamo = new DynamoDB({
+  region: 'us-east-1'
+});
 
 export const handler = async (
   event: CloudFrontRequestEvent,
