@@ -45,12 +45,12 @@ const migrateStack = (StackName, debug = false) => {
             .DistributionConfig.DefaultCacheBehavior
             .LambdaFunctionAssociations[0].LambdaFunctionARN
         : "";
-      if (!oldArn.endsWith(":20") || !oldArnRoamjs.endsWith(":20")) {
+      if (!oldArn.endsWith(":21") || !oldArnRoamjs.endsWith(":21")) {
         template.Resources.CloudfrontDistribution.Properties.DistributionConfig.DefaultCacheBehavior.LambdaFunctionAssociations[0].LambdaFunctionARN =
-          oldArn.replace(/:\d{1,2}$/, ":20");
+          oldArn.replace(/:\d{1,2}$/, ":21");
         if (hasRoamJS)
           template.Resources.CloudfrontDistributionRoamjs.Properties.DistributionConfig.DefaultCacheBehavior.LambdaFunctionAssociations[0].LambdaFunctionARN =
-            oldArnRoamjs.replace(/:\d{1,2}$/, ":20");
+            oldArnRoamjs.replace(/:\d{1,2}$/, ":21");
         console.log(
           "mapping",
           oldArn,
@@ -78,7 +78,7 @@ const migrateStack = (StackName, debug = false) => {
               .createChangeSet({
                 StackName,
                 TemplateBody: JSON.stringify(template),
-                ChangeSetName: `OriginUpdate-2022-03-21-11-35`,
+                ChangeSetName: `OriginUpdate-2022-03-21-22-51`,
                 Parameters: await cloudformation
                   .describeStacks({ StackName })
                   .promise()
