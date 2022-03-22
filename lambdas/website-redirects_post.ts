@@ -30,6 +30,7 @@ export const handler: APIGatewayProxyHandler = awsGetRoamJSUser(
                 date: s.date?.S, // Need date bc it's part of the table's primary key
               })),
             }),
+            headers,
           }))
           .catch((e) => ({
             body: e.message,
@@ -93,6 +94,7 @@ export const handler: APIGatewayProxyHandler = awsGetRoamJSUser(
         return {
           statusCode: 400,
           body: `Unsupported method ${method}`,
+          headers,
         };
     }
   }
