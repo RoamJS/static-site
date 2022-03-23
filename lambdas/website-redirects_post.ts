@@ -3,6 +3,8 @@ import { awsGetRoamJSUser } from "roamjs-components/backend/getRoamJSUser";
 import headers from "roamjs-components/backend/headers";
 import { dynamo } from "./common/common";
 
+const DYNAMO_MAX = 25;
+
 export const handler: APIGatewayProxyHandler = awsGetRoamJSUser(
   async ({ websiteGraph }, { method, ...rest }) => {
     switch (method) {
@@ -44,23 +46,33 @@ export const handler: APIGatewayProxyHandler = awsGetRoamJSUser(
           to: string;
           date: string;
         }[];
-        return dynamo
-          .batchWriteItem({
-            RequestItems: {
-              RoamJSWebsiteStatuses: redirects.map((r) => ({
-                PutRequest: {
-                  Item: {
-                    uuid: { S: r.uuid },
-                    date: { S: r.date },
-                    status: { S: r.from },
-                    status_props: { S: r.to },
-                    action_graph: { S: `redirect_${websiteGraph}` },
+        const batches = Math.ceil(redirects.length / DYNAMO_MAX);
+        return Promise.all(
+          Array(batches)
+            .fill(null)
+            .map((_, i) =>
+              dynamo
+                .batchWriteItem({
+                  RequestItems: {
+                    RoamJSWebsiteStatuses: redirects
+                      .slice(i * DYNAMO_MAX, (i + 1) * DYNAMO_MAX)
+                      .map((r) => ({
+                        PutRequest: {
+                          Item: {
+                            uuid: { S: r.uuid },
+                            date: { S: r.date },
+                            status: { S: r.from },
+                            status_props: { S: r.to },
+                            action_graph: { S: `redirect_${websiteGraph}` },
+                          },
+                        },
+                      })),
                   },
-                },
-              })),
-            },
-          })
-          .promise()
+                })
+                .promise()
+            )
+        )
+
           .then(() => ({
             statusCode: 200,
             body: JSON.stringify({ success: true }),
