@@ -65,7 +65,7 @@ export const handler: APIGatewayProxyHandler = (event) => {
         .promise();
       const Key =
         data &&
-        `static-site/${websiteGraph}/${format(date, "yyyyMMddhhmmss")}.json`;
+        `static-site/${graph}/${format(date, "yyyyMMddhhmmss")}.json`;
       if (Key) {
         await s3
           .upload({
@@ -79,7 +79,7 @@ export const handler: APIGatewayProxyHandler = (event) => {
       await invokeLambda({
         path: "deploy",
         data: {
-          roamGraph: websiteGraph,
+          roamGraph: graph,
           key: Key,
         },
       });
