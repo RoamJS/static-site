@@ -72,7 +72,9 @@ import apiGet from "roamjs-components/util/apiGet";
 import apiPost from "roamjs-components/util/apiPost";
 import axios, { AxiosError } from "axios";
 import getAuthorizationHeader from "roamjs-components/util/getAuthorizationHeader";
-import { apiDelete, apiPut } from "roamjs-components";
+import apiDelete from "roamjs-components/util/apiDelete";
+import apiPut from "roamjs-components/util/apiPut";
+import AutocompleteInput from "roamjs-components/components/AutocompleteInput";
 import { v4 } from "uuid";
 
 const allBlockMapper = (t: TreeNode): TreeNode[] => [
@@ -1403,6 +1405,7 @@ export const getDeployBody = (pageUid: string) => {
       config,
       references,
     }),
+    graph: getGraph(),
   };
 };
 
@@ -2504,7 +2507,7 @@ const RequestFilesContent: StageContent = ({ openPanel }) => {
   );
 };
 
-type Redirect = { uuid: string; from: string; to: string; date:string };
+type Redirect = { uuid: string; from: string; to: string; date: string };
 
 const RequestRedirectsContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
@@ -2582,7 +2585,11 @@ const RequestRedirectsContent: StageContent = ({ openPanel }) => {
                   minimal
                   onClick={() => {
                     setLoading(true);
-                    apiPost("website-redirects", { method: "DELETE", uuid, date })
+                    apiPost("website-redirects", {
+                      method: "DELETE",
+                      uuid,
+                      date,
+                    })
                       .then(() =>
                         setValues(values.filter((v) => v.uuid !== uuid))
                       )
@@ -2606,6 +2613,132 @@ const RequestRedirectsContent: StageContent = ({ openPanel }) => {
                 ])
               }
             />
+          </>
+        )}
+      </div>
+      <ServiceNextButton onClick={onSubmit} />
+    </div>
+  );
+};
+
+type Sharing = { uuid: string; user: string; permission: string; date: string };
+
+const RequestSharingContent: StageContent = ({ openPanel }) => {
+  const nextStage = useServiceNextStage(openPanel);
+  const [loading, setLoading] = useState(true);
+  const [values, setValues] = useState<Sharing[]>([]);
+  const onSubmit = useCallback(() => {
+    nextStage();
+  }, [values, nextStage]);
+  useEffect(() => {
+    apiPost("website-sharing", { method: "GET" })
+      .then((r) => setValues(r.data.perms))
+      .finally(() => setLoading(false));
+  }, []);
+  const userOptions = useMemo(
+    () =>
+      window.roamAlphaAPI.data.fast
+        .q(`[:find ?e :where [?u :user/email ?e]]`)
+        .map((p) => p[0] as string),
+    []
+  );
+  const [newUser, setNewUser] = useState("");
+  return (
+    <div>
+      <div style={{ marginBottom: 32, minHeight: 320 }}>
+        {loading ? (
+          <Spinner size={32} />
+        ) : (
+          <>
+            {values.map(({ user, permission, uuid, date }) => (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+                key={uuid}
+              >
+                <Label style={{ margin: "0 8px 15px", flexGrow: 1 }}>{user}</Label>
+                <Label style={{ margin: "0 8px 15px"}}>
+                  Permission
+                  <MenuItemSelect
+                    activeItem={permission}
+                    onItemSelect={(e) => {
+                      setLoading(true);
+                      apiPost("website-sharing", {
+                        method: "UPDATE",
+                        uuid,
+                        date,
+                        permission: e,
+                      })
+                        .then(() => {
+                          setValues(
+                            values.map((v) =>
+                              v.uuid === uuid
+                                ? {
+                                    uuid,
+                                    permission: e,
+                                    user,
+                                    date,
+                                  }
+                                : v
+                            )
+                          );
+                        })
+                        .finally(() => setLoading(false));
+                    }}
+                    items={["DEPLOY", "NONE"]}
+                  />
+                </Label>
+                <Button
+                  icon={"trash"}
+                  minimal
+                  onClick={() => {
+                    setLoading(true);
+                    apiPost("website-sharing", {
+                      method: "DELETE",
+                      uuid,
+                      date,
+                    })
+                      .then(() =>
+                        setValues(values.filter((v) => v.uuid !== uuid))
+                      )
+                      .finally(() => setLoading(false));
+                  }}
+                />
+              </div>
+            ))}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <AutocompleteInput
+                value={newUser}
+                setValue={setNewUser}
+                placeholder="Enter email..."
+                options={userOptions}
+              />
+              <Button
+                text={"Share With New User"}
+                intent={Intent.SUCCESS}
+                onClick={() => {
+                  setLoading(true);
+                  apiPost("website-sharing", {
+                    method: "CREATE",
+                    user: newUser,
+                  })
+                    .then((r) => {
+                      setNewUser("");
+                      setValues([...values, r.data]);
+                    })
+                    .finally(() => setLoading(false));
+                }}
+              />
+            </div>
           </>
         )}
       </div>
@@ -2655,6 +2788,7 @@ const StaticSiteDashboard = (): React.ReactElement => {
         },
         { component: RequestFilesContent, setting: "Files" },
         { component: RequestRedirectsContent, setting: "Redirects" },
+        { component: RequestSharingContent, setting: "Sharing" },
       ]}
     />
   );

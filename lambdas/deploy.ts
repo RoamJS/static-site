@@ -1443,7 +1443,7 @@ export const handler = async (event: {
 
   await logStatus("BUILDING SITE");
   return s3
-    .getObject({ Bucket: "roamjs-static-site-data", Key: event.key })
+    .getObject({ Bucket: "roamjs-data", Key: event.key })
     .promise()
     .then((data) => {
       const { pages, config, references } = JSON.parse(data.Body.toString());

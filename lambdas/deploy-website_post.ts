@@ -2,56 +2,97 @@ import { v4 } from "uuid";
 import format from "date-fns/format";
 import { APIGatewayProxyHandler } from "aws-lambda";
 import { dynamo, invokeLambda, s3 } from "./common/common";
-import { awsGetRoamJSUser } from "roamjs-components/backend/getRoamJSUser";
+import getRoamJSUser from "roamjs-components/backend/getRoamJSUser";
 import headers from "roamjs-components/backend/headers";
 
-export const handler: APIGatewayProxyHandler = awsGetRoamJSUser(
-  async (user, { data }) => {
-    const { websiteGraph } = user;
-    const date = new Date();
-    await dynamo
-      .putItem({
-        TableName: "RoamJSWebsiteStatuses",
-        Item: {
-          uuid: {
-            S: v4(),
+export const handler: APIGatewayProxyHandler = (event) => {
+  const token =
+    event.headers.Authorization || event.headers.authorization || "";
+  return getRoamJSUser(token, "")
+    .then((u) => [
+      { ...u, token },
+      {
+        ...event.queryStringParameters,
+        ...JSON.parse(event.body || "{}"),
+      },
+    ])
+    .then(async ([user, { data, graph }]) => {
+      const { websiteGraph } = user;
+      if (!websiteGraph || graph !== websiteGraph) {
+        const isShared = await dynamo
+          .query({
+            TableName: "RoamJSWebsiteStatuses",
+            IndexName: "status-index",
+            ExpressionAttributeNames: {
+              "#s": "status",
+              "#a": "action_graph",
+            },
+            ExpressionAttributeValues: {
+              ":s": { S: "DEPLOY" },
+              ":a": { S: `sharing_${graph}` },
+            },
+            KeyConditionExpression: "#a = :a AND #s = :s",
+          })
+          .promise()
+          .then((r) => r.Items.some((i) => i?.status_props?.S === user.email));
+        if (!isShared) {
+          return {
+            statusCode: 403,
+            body: `User not authorized to deploy website generated from graph ${websiteGraph}.`,
+            headers,
+          };
+        }
+      }
+      const date = new Date();
+      await dynamo
+        .putItem({
+          TableName: "RoamJSWebsiteStatuses",
+          Item: {
+            uuid: {
+              S: v4(),
+            },
+            action_graph: {
+              S: `deploy_${graph}`,
+            },
+            date: {
+              S: date.toJSON(),
+            },
+            status: {
+              S: "STARTING DEPLOY",
+            },
           },
-          action_graph: {
-            S: `deploy_${websiteGraph}`,
-          },
-          date: {
-            S: date.toJSON(),
-          },
-          status: {
-            S: "STARTING DEPLOY",
-          },
-        },
-      })
-      .promise();
-    const Key =
-      data && `${websiteGraph}/${format(date, "yyyyMMddhhmmss")}.json`;
-    if (Key) {
-      await s3
-        .upload({
-          Bucket: "roamjs-static-site-data",
-          Key,
-          Body: data,
         })
         .promise();
-    }
+      const Key =
+        data &&
+        `static-site/${websiteGraph}/${format(date, "yyyyMMddhhmmss")}.json`;
+      if (Key) {
+        await s3
+          .upload({
+            Bucket: "roamjs-data",
+            Key,
+            Body: data,
+          })
+          .promise();
+      }
 
-    await invokeLambda({
-      path: "deploy",
-      data: {
-        roamGraph: websiteGraph,
-        key: Key,
-      },
-    });
+      await invokeLambda({
+        path: "deploy",
+        data: {
+          roamGraph: websiteGraph,
+          key: Key,
+        },
+      });
 
-    return {
-      statusCode: 200,
-      body: JSON.stringify({ success: true }),
+      return {
+        statusCode: 200,
+        body: JSON.stringify({ success: true }),
+        headers,
+      };
+    })
+    .catch((e) => ({
+      statusCode: 401,
+      body: e.response?.data,
       headers,
-    };
-  }
-);
+    }));
+};

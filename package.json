@@ -48,7 +48,7 @@
     "react-codemirror2": "^7.2.1",
     "react-dom": "^17.0.2",
     "react-icons": "^4.3.1",
-    "roamjs-components": "^0.42.5",
+    "roamjs-components": "^0.55.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
