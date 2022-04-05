@@ -17,7 +17,9 @@ export const handler: APIGatewayProxyHandler = (event) => {
       },
     ])
     .then(async ([user, { data, graph }]) => {
-      const { websiteGraph } = user;
+      const websiteGraph = await getRoamJSUser(token)
+        .then((u) => u.websiteGraph)
+        .catch(() => "");
       if (!websiteGraph || graph !== websiteGraph) {
         const isShared = await dynamo
           .query({
@@ -64,8 +66,7 @@ export const handler: APIGatewayProxyHandler = (event) => {
         })
         .promise();
       const Key =
-        data &&
-        `static-site/${graph}/${format(date, "yyyyMMddhhmmss")}.json`;
+        data && `static-site/${graph}/${format(date, "yyyyMMddhhmmss")}.json`;
       if (Key) {
         await s3
           .upload({
