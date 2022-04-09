@@ -128,9 +128,7 @@ const RequestSubscriptionContent: StageContent = ({ openPanel }) => {
         })
         .then((r) => {
           setPricingMessage(
-            `$${r.data.price / 100}${r.data.perUse ? " per use" : ""}${
-              r.data.isMonthly ? " per month" : " per year"
-            }`
+            'You will be charged $12/website hosted on RoamJS'
           );
           setProductDescription(r.data.description);
         }),
@@ -281,7 +279,7 @@ const RequestSubscriptionContent: StageContent = ({ openPanel }) => {
       >
         {enabled
           ? `By clicking submit below, you will unsubscribe from the premium features of the RoamJS Extension: Static Site.`
-          : `By clicking submit below, you will subscribe to the premium features of the RoamJS Extension: Static Site for ${pricingMessage}. A window may appear for checkout if this is your first premium extension`}
+          : `By clicking submit below, you will subscribe to the premium features of the RoamJS Extension: Static Site.\n\n${pricingMessage}\n\nA window may appear for checkout if this is your first premium extension`}
       </Alert>
     </>
   );
@@ -2659,8 +2657,10 @@ const RequestSharingContent: StageContent = ({ openPanel }) => {
                 }}
                 key={uuid}
               >
-                <Label style={{ margin: "0 8px 15px", flexGrow: 1 }}>{user}</Label>
-                <Label style={{ margin: "0 8px 15px"}}>
+                <Label style={{ margin: "0 8px 15px", flexGrow: 1 }}>
+                  {user}
+                </Label>
+                <Label style={{ margin: "0 8px 15px" }}>
                   Permission
                   <MenuItemSelect
                     activeItem={permission}
