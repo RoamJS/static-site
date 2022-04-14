@@ -82,6 +82,7 @@ type InputConfig = {
   plugins?: Record<string, Record<string, string[]>>;
   theme?: { css?: string };
   files?: Record<string, string>;
+  version?: number;
 };
 
 declare global {
@@ -101,6 +102,7 @@ export const defaultConfig: Required<InputConfig> = {
   plugins: {},
   theme: {},
   files: {},
+  version: 1,
 };
 
 const DEFAULT_STYLE = `body {
@@ -440,6 +442,7 @@ const getConfigFromPage = (parsedTree: TreeNode[]) => {
     ...withPlugins,
     ...withTheme,
     ...withFiles,
+    version: 1,
   };
 };
 

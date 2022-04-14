@@ -128,9 +128,7 @@ const RequestSubscriptionContent: StageContent = ({ openPanel }) => {
           headers: { Authorization: getAuthorizationHeader() },
         })
         .then((r) => {
-          setPricingMessage(
-            'You will be charged $12/website hosted on RoamJS'
-          );
+          setPricingMessage("You will be charged $12/website hosted on RoamJS");
           setProductDescription(r.data.description);
         }),
       axios
@@ -1257,6 +1255,7 @@ export const getDeployBody = (pageUid: string) => {
     ...withPlugins,
     ...withTheme,
     ...withFiles,
+    version: 1,
   };
   const hasDaily = config.filter.some((s) => s.rule === "DAILY");
   const createFilterQuery = (freeVar: string) => `(or-join [${freeVar} ?f${
