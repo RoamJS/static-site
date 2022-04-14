@@ -76,6 +76,7 @@ import apiDelete from "roamjs-components/util/apiDelete";
 import apiPut from "roamjs-components/util/apiPut";
 import AutocompleteInput from "roamjs-components/components/AutocompleteInput";
 import { v4 } from "uuid";
+import getGraph from "roamjs-components/util/getGraph";
 
 const allBlockMapper = (t: TreeNode): TreeNode[] => [
   t,
@@ -1094,9 +1095,6 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
     </>
   );
 };
-
-const getGraph = () =>
-  new RegExp(`^#/app/(.*?)/page/`).exec(window.location.hash)[1];
 
 const getLaunchBody = (pageUid: string) => {
   const tree = getBasicTreeByParentUid(pageUid);
