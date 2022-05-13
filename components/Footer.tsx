@@ -89,7 +89,7 @@ const Footer = ({ links, copyright }: Props): React.ReactElement => {
             <a
               href="https://roamjs.com/extensions/static-site"
               target="_blank"
-              rel="noopener"
+              rel="noreferrer"
             >
               RoamJS
             </a>
@@ -97,7 +97,7 @@ const Footer = ({ links, copyright }: Props): React.ReactElement => {
           <ul className={"roamjs-footer-social-networks"}>
             {links.map((link) => (
               <li key={link}>
-                <a href={link} target="_blank" rel="noopener">
+                <a href={link} target="_blank" rel="noreferrer">
                   <span className={"roamjs-footer-icon"}>
                     {icons.find((i) => i.test.test(link)).component}
                   </span>

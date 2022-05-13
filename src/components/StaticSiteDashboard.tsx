@@ -1683,7 +1683,7 @@ const LiveContent: StageContent = () => {
                       <a
                         href={`https://${domain}`}
                         target="_blank"
-                        rel="noopener"
+                        rel="noreferrer"
                         style={{ color: "inherit" }}
                       >
                         LIVE
