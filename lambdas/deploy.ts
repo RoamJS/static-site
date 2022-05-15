@@ -32,6 +32,7 @@ import mime from "mime-types";
 import Mustache from "mustache";
 import { DEFAULT_TEMPLATE } from "./common/constants";
 import { v4 } from "uuid";
+import emailError from "roamjs-components/backend/emailError";
 
 const transformIfTrue = (s: string, f: boolean, t: (s: string) => string) =>
   f ? t(s) : s;
@@ -506,7 +507,7 @@ const convertContentToHtml = ({
             skipChildren = true;
             const template = node.match(HTML_REGEX)?.[1];
             if (!template) return false;
-            return template;/*Mustache.render(
+            return template; /*Mustache.render(
               template,
               {
                 // TODO deprecate
@@ -851,23 +852,50 @@ export const renderHtmlFromPage = ({
       const value = metadata[k.toLowerCase().replace(/_/g, "-")] || "";
       return typeof value === "object" ? JSON.stringify(value) : `${value}`;
     });
-  const hydratedHtml = Mustache.render(
-    preHydratedHtml,
-    {
-      // TODO deprecate
-      PAGES: Object.entries(pages).map(([name, { layout, metadata }]) => ({
-        name,
-        filter: typeof layout === "undefined" ? -1 : layout,
-        metadata,
-      })),
-      ...Object.fromEntries(
-        Object.entries(metadata).map(([k, v]) => [`PAG_${k.toUpperCase()}`, v])
+  const mustacheMetadata = Object.fromEntries(
+    Object.entries(metadata).map(([k, v]) => [`PAG_${k.toUpperCase()}`, v])
+  );
+  if (p === "Projects") {
+    emailError(
+      "Debugging",
+      // @ts-ignore
+      e,
+      `Page: ${p}
+Path: ${outputPath}
+HTML: ${preHydratedHtml}
+Metadata: ${JSON.stringify(mustacheMetadata, null, 4)}`
+    );
+  }
+  const hydratedHtml = inlineTryCatch(
+    () =>
+      Mustache.render(
+        preHydratedHtml,
+        {
+          // TODO deprecate
+          PAGES: Object.entries(pages).map(([name, { layout, metadata }]) => ({
+            name,
+            filter: typeof layout === "undefined" ? -1 : layout,
+            metadata,
+          })),
+          ...mustacheMetadata,
+        },
+        {},
+        {
+          tags: ["${", "}"],
+          escape: (s) => s,
+        }
       ),
-    },
-    {},
-    {
-      tags: ["${", "}"],
-      escape: (s) => s,
+    (e) => {
+      emailError(
+        "Failed to template static site",
+        // @ts-ignore
+        e,
+        `Page: ${p}
+Path: ${outputPath}
+HTML: ${preHydratedHtml}
+Metadata: ${JSON.stringify(mustacheMetadata, null, 4)}`
+      );
+      return preHydratedHtml;
     }
   );
   const dom = new JSDOM(hydratedHtml);
