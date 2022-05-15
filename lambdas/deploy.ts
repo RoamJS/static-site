@@ -507,24 +507,7 @@ const convertContentToHtml = ({
             skipChildren = true;
             const template = node.match(HTML_REGEX)?.[1];
             if (!template) return false;
-            return template; /*Mustache.render(
-              template,
-              {
-                // TODO deprecate
-                PAGES: Object.entries(pages).map(
-                  ([name, { layout, metadata }]) => ({
-                    name,
-                    filter: typeof layout === "undefined" ? -1 : layout,
-                    metadata,
-                  })
-                ),
-              },
-              {},
-              {
-                tags: ["${", "}"],
-                escape: (s) => s,
-              }
-            );*/
+            return template;
           }
         }
       }
@@ -847,25 +830,10 @@ export const renderHtmlFromPage = ({
             .replace(/\${LINK}/g, convertPageNameToPath(r))
         )
         .join("\n")
-    )
-    .replace(/\${PAGE_([A-Z_]+)}/g, (_, k: string) => {
-      const value = metadata[k.toLowerCase().replace(/_/g, "-")] || "";
-      return typeof value === "object" ? JSON.stringify(value) : `${value}`;
-    });
-  const mustacheMetadata = Object.fromEntries(
-    Object.entries(metadata).map(([k, v]) => [`PAG_${k.toUpperCase()}`, v])
-  );
-  if (p === "Projects") {
-    emailError(
-      "Debugging",
-      // @ts-ignore
-      new Error('no error'),
-      `Page: ${p}
-Path: ${outputPath}
-HTML: ${preHydratedHtml}
-Metadata: ${JSON.stringify(mustacheMetadata, null, 4)}`
     );
-  }
+  const mustacheMetadata = Object.fromEntries(
+    Object.entries(metadata).map(([k, v]) => [`PAGE_${k.toUpperCase()}`, v])
+  );
   const hydratedHtml = inlineTryCatch(
     () =>
       Mustache.render(
