@@ -506,9 +506,10 @@ const convertContentToHtml = ({
             skipChildren = true;
             const template = node.match(HTML_REGEX)?.[1];
             if (!template) return false;
-            return Mustache.render(
+            return template;/*Mustache.render(
               template,
               {
+                // TODO deprecate
                 PAGES: Object.entries(pages).map(
                   ([name, { layout, metadata }]) => ({
                     name,
@@ -522,7 +523,7 @@ const convertContentToHtml = ({
                 tags: ["${", "}"],
                 escape: (s) => s,
               }
-            );
+            );*/
           }
         }
       }
@@ -567,11 +568,14 @@ const convertContentToHtml = ({
   return `<${containerTag}>${items.join("\n")}</${containerTag}>`;
 };
 
+type Scalar = string | number | boolean | null | undefined;
+type Json = Scalar | { [key: string]: Scalar } | Json[];
+
 type PageContent = {
   content: PartialRecursive<TreeNode>[];
   viewType: ViewType;
   uid: string;
-  metadata: Record<string, string>;
+  metadata: Record<string, Json>;
   layout: number;
 };
 
@@ -827,7 +831,7 @@ export const renderHtmlFromPage = ({
     () => converter({ content }),
     (e) => `<div>Failed to render page: ${p}</div><div>${e.message}</div>`
   );
-  const hydratedHtml = config.template
+  const preHydratedHtml = config.template
     .replace(
       /\${PAGE_CONTENT}/g,
       layout.replace(/\${PAGE_CONTENT}/g, markedContent)
@@ -843,10 +847,29 @@ export const renderHtmlFromPage = ({
         )
         .join("\n")
     )
-    .replace(
-      /\${PAGE_([A-Z_]+)}/g,
-      (_, k: string) => metadata[k.toLowerCase().replace(/_/g, "-")] || ""
-    );
+    .replace(/\${PAGE_([A-Z_]+)}/g, (_, k: string) => {
+      const value = metadata[k.toLowerCase().replace(/_/g, "-")] || "";
+      return typeof value === "object" ? JSON.stringify(value) : `${value}`;
+    });
+  const hydratedHtml = Mustache.render(
+    preHydratedHtml,
+    {
+      // TODO deprecate
+      PAGES: Object.entries(pages).map(([name, { layout, metadata }]) => ({
+        name,
+        filter: typeof layout === "undefined" ? -1 : layout,
+        metadata,
+      })),
+      ...Object.fromEntries(
+        Object.entries(metadata).map(([k, v]) => [`PAG_${k.toUpperCase()}`, v])
+      ),
+    },
+    {},
+    {
+      tags: ["${", "}"],
+      escape: (s) => s,
+    }
+  );
   const dom = new JSDOM(hydratedHtml);
   pluginKeys.forEach((k) =>
     PLUGIN_RENDER[k]?.(dom, config.plugins[k], {
