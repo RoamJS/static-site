@@ -859,7 +859,7 @@ export const renderHtmlFromPage = ({
     emailError(
       "Debugging",
       // @ts-ignore
-      e,
+      new Error('no error'),
       `Page: ${p}
 Path: ${outputPath}
 HTML: ${preHydratedHtml}
