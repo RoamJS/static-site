@@ -838,15 +838,7 @@ export const renderHtmlFromPage = ({
     () =>
       Mustache.render(
         preHydratedHtml,
-        {
-          // TODO deprecate
-          PAGES: Object.entries(pages).map(([name, { layout, metadata }]) => ({
-            name,
-            filter: typeof layout === "undefined" ? -1 : layout,
-            metadata,
-          })),
-          ...mustacheMetadata,
-        },
+        mustacheMetadata,
         {},
         {
           tags: ["${", "}"],
