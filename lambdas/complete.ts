@@ -196,10 +196,21 @@ export const handler = async (event: SNSEvent) => {
       } else {
         console.error("Could not find Shutdown Callback Status");
       }
+    } else if (ResourceStatus === "ROLLBACK_COMPLETE") {
+      await logStatus("INACTIVE");
+      // TODO remove website from user metadata
+    } else if (ResourceStatus === "ROLLBACK_IN_PROGRESS") {
+      await logStatus("ROLLING BACK RESOURCES");
+      // TODO set user's site in "rolling back state"
     } else if (ResourceStatus === "CREATE_IN_PROGRESS") {
       await logStatus("CREATING RESOURCES");
     } else if (ResourceStatus === "DELETE_IN_PROGRESS") {
       await logStatus("BEGIN DESTROYING RESOURCES");
+    } else {
+      await logStatus(
+        "MAKING PROGRESS",
+        JSON.stringify(messageObject, null, 4)
+      );
     }
   } else if (ResourceStatusReason.startsWith(ACM_START_TEXT)) {
     await getHostedZoneByStackName(StackName).then(
@@ -285,6 +296,28 @@ export const handler = async (event: SNSEvent) => {
     await clearRecords(StackName);
   } else if (ResourceStatus === "ROLLBACK_FAILED") {
     await logStatus("ROLLBACK FAILED. MESSAGE support@roamjs.com FOR HELP");
+  } else if (ResourceStatus === "CREATE_FAILED") {
+    await logStatus("CREATE FAILED");
+    await ses
+      .sendEmail({
+        Destination: {
+          ToAddresses: ["support@roamjs.com"],
+        },
+        Message: {
+          Body: {
+            Text: {
+              Charset: "UTF-8",
+              Data: `Stack that failed: ${StackName}\nResource that failed: ${LogicalResourceId}\nReason that it failed: ${ResourceStatusReason}`,
+            },
+          },
+          Subject: {
+            Charset: "UTF-8",
+            Data: `User's Static Site failed to deploy`,
+          },
+        },
+        Source: "support@roamjs.com",
+      })
+      .promise();
   } else {
     const loggedStatus =
       STATUSES[LogicalResourceId as keyof typeof STATUSES]?.[
