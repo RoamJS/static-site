@@ -198,10 +198,12 @@ export const handler = async (event: SNSEvent) => {
       }
     } else if (ResourceStatus === "ROLLBACK_COMPLETE") {
       await logStatus("INACTIVE");
-      // TODO remove website from user metadata
+      // TODO delete stack
     } else if (ResourceStatus === "ROLLBACK_IN_PROGRESS") {
       await logStatus("ROLLING BACK RESOURCES");
       // TODO set user's site in "rolling back state"
+      // TODO email user that rollback is happening, adk RoamJS why
+      // TODO support a notification system within the Static Site Dashboard itself
     } else if (ResourceStatus === "CREATE_IN_PROGRESS") {
       await logStatus("CREATING RESOURCES");
     } else if (ResourceStatus === "DELETE_IN_PROGRESS") {
