@@ -116,7 +116,7 @@ resource "aws_lambda_function" "deploy_function" {
   function_name    = "RoamJS_deploy"
   role             = data.aws_iam_role.roamjs_lambda_role.arn
   handler          = "deploy.handler"
-  runtime          = "nodejs14.x"
+  runtime          = "nodejs16.x"
   filename         = "dummy.zip"
   publish          = false
   tags             = {
@@ -138,7 +138,7 @@ resource "aws_lambda_function" "launch_function" {
   function_name    = "RoamJS_launch"
   role             = data.aws_iam_role.roamjs_lambda_role.arn
   handler          = "launch.handler"
-  runtime          = "nodejs14.x"
+  runtime          = "nodejs16.x"
   filename         = "dummy.zip"
   publish          = false
   tags             = {
@@ -152,7 +152,7 @@ resource "aws_lambda_function" "shutdown_function" {
   function_name    = "RoamJS_shutdown"
   role             = data.aws_iam_role.roamjs_lambda_role.arn
   handler          = "shutdown.handler"
-  runtime          = "nodejs14.x"
+  runtime          = "nodejs16.x"
   filename         = "dummy.zip"
   publish          = false
   tags             = {
@@ -166,7 +166,7 @@ resource "aws_lambda_function" "update_function" {
   function_name    = "RoamJS_update"
   role             = data.aws_iam_role.roamjs_lambda_role.arn
   handler          = "update.handler"
-  runtime          = "nodejs14.x"
+  runtime          = "nodejs16.x"
   filename         = "dummy.zip"
   publish          = false
   tags             = {
@@ -180,7 +180,7 @@ resource "aws_lambda_function" "describe_function" {
   function_name    = "RoamJS_describe"
   role             = data.aws_iam_role.roamjs_lambda_role.arn
   handler          = "describe.handler"
-  runtime          = "nodejs14.x"
+  runtime          = "nodejs16.x"
   filename         = "dummy.zip"
   publish          = false
   tags             = {
@@ -194,7 +194,7 @@ resource "aws_lambda_function" "origin_request" {
   function_name    = "RoamJS_origin-request"
   role             = aws_iam_role.cloudfront_lambda.arn
   handler          = "origin-request.handler"
-  runtime          = "nodejs14.x"
+  runtime          = "nodejs16.x"
   publish          = true
   tags             = {
     Application = "Roam JS Extensions"
@@ -467,7 +467,7 @@ resource "aws_lambda_function" "complete_function" {
   function_name    = "RoamJS_complete"
   role             = data.aws_iam_role.roamjs_lambda_role.arn
   handler          = "complete.handler"
-  runtime          = "nodejs14.x"
+  runtime          = "nodejs16.x"
   filename         = "dummy.zip"
   publish          = false
   tags             = {
