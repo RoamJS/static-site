@@ -680,13 +680,21 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
                 };
                 setLoading(true);
                 apiPost(`website-records`, body)
-                  .then(() => {
-                    setRecords(records.concat(body));
-                    setNewRecordName("");
-                    setNewRecordValue("");
+                  .then((r) => {
+                    if (r.data.success) {
+                      setRecords(records.concat(body));
+                      setNewRecordName("");
+                      setNewRecordValue("");
+                    } else {
+                      throw new Error(`Could not find hosted zone. Email support@roamjs.com for assistance.`);
+                    }
                   })
                   .catch((e) =>
-                    setError(e.response?.data?.errorMessage || e.response?.data)
+                    setError(
+                      e.response?.data?.errorMessage ||
+                        e.response?.data ||
+                        e.message
+                    )
                   )
                   .finally(() => setLoading(false));
               }}

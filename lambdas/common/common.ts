@@ -208,7 +208,10 @@ export const changeRecordHandler = (Action: Route53.ChangeAction) =>
                   {
                     Action,
                     ResourceRecordSet: {
-                      Name: `${record.name.replace(/\.$/, "")}.${domain}.`,
+                      Name:
+                        record.name === domain
+                          ? `${domain}.`
+                          : `${record.name.replace(/\.$/, "")}.${domain}.`,
                       Type: record.type,
                       ResourceRecords: [{ Value: record.value }],
                       TTL: 300,
@@ -219,7 +222,7 @@ export const changeRecordHandler = (Action: Route53.ChangeAction) =>
             })
             .promise()
             .then((r) => {
-              return waitForChangeToSync({ Id: r.ChangeInfo.Id })
+              return waitForChangeToSync({ Id: r.ChangeInfo.Id });
             })
             .then(() => ({ success: true }));
         else return { success: false };
@@ -231,6 +234,6 @@ export const changeRecordHandler = (Action: Route53.ChangeAction) =>
       }))
       .catch((e) => {
         console.error(e);
-        return ({ statusCode: 500, body: e.mesage, headers })
+        return { statusCode: 500, body: e.mesage, headers };
       });
   });
