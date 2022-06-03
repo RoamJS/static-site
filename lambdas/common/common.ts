@@ -210,7 +210,7 @@ export const changeRecordHandler = (Action: Route53.ChangeAction) =>
           const existing = allExisting.ResourceRecordSets.find(
             (r) => r.Name === Name && r.Type === record.type
           );
-          if ((Action === "UPDATE" || Action === "DELETE") && !existing) {
+          if ((Action === "UPSERT" || Action === "DELETE") && !existing) {
             throw new Error(`Cannot update nonexistant record`);
           }
           const Changes =
@@ -219,7 +219,7 @@ export const changeRecordHandler = (Action: Route53.ChangeAction) =>
                   {
                     Action,
                     ResourceRecordSet: {
-                      Name: 'UPDATE',
+                      Name: 'UPSERT',
                       Type: record.type,
                       ResourceRecords: existing.ResourceRecords.concat([{ Value: record.value }]),
                       TTL: 300,
