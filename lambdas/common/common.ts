@@ -217,9 +217,9 @@ export const changeRecordHandler = (Action: Route53.ChangeAction) =>
             Action === "CREATE" && existing
               ? [
                   {
-                    Action,
+                    Action: "UPSERT",
                     ResourceRecordSet: {
-                      Name: 'UPSERT',
+                      Name,
                       Type: record.type,
                       ResourceRecords: existing.ResourceRecords.concat([{ Value: record.value }]),
                       TTL: 300,
