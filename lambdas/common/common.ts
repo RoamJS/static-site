@@ -198,38 +198,61 @@ export const changeRecordHandler = (Action: Route53.ChangeAction) =>
     }
 
     return getHostedZoneByGraphName(websiteGraph as string)
-      .then(({ HostedZoneId, domain }) => {
-        if (HostedZoneId)
-          return route53
-            .changeResourceRecordSets({
-              HostedZoneId,
-              ChangeBatch: {
-                Changes: [
+      .then(async ({ HostedZoneId, domain }) => {
+        if (HostedZoneId) {
+          const Name =
+            record.name === domain
+              ? `${domain}.`
+              : `${record.name.replace(/\.$/, "")}.${domain}.`;
+          const allExisting = await route53
+            .listResourceRecordSets({ HostedZoneId })
+            .promise();
+          const existing = allExisting.ResourceRecordSets.find(
+            (r) => r.Name === Name && r.Type === record.type
+          );
+          if ((Action === "UPDATE" || Action === "DELETE") && !existing) {
+            throw new Error(`Cannot update nonexistant record`);
+          }
+          const Changes =
+            Action === "CREATE" && existing
+              ? [
                   {
                     Action,
                     ResourceRecordSet: {
-                      Name:
-                        record.name === domain
-                          ? `${domain}.`
-                          : `${record.name.replace(/\.$/, "")}.${domain}.`,
+                      Name: 'UPDATE',
+                      Type: record.type,
+                      ResourceRecords: existing.ResourceRecords.concat([{ Value: record.value }]),
+                      TTL: 300,
+                    },
+                  },
+                ]
+              : [
+                  {
+                    Action,
+                    ResourceRecordSet: {
+                      Name,
                       Type: record.type,
                       ResourceRecords: [{ Value: record.value }],
                       TTL: 300,
                     },
                   },
-                ],
+                ];
+          return route53
+            .changeResourceRecordSets({
+              HostedZoneId,
+              ChangeBatch: {
+                Changes,
               },
             })
-            .promise()
-            .then((r) => {
-              return waitForChangeToSync({ Id: r.ChangeInfo.Id });
-            })
-            .then(() => ({ success: true }));
-        else return { success: false };
+            .promise();
+        } else throw new Error(`Could not find Hosted Zone`);
       })
-      .then((c) => ({
+      .then((r) => {
+        return waitForChangeToSync({ Id: r.ChangeInfo.Id });
+      })
+      .then(() => ({
         statusCode: 200,
-        body: JSON.stringify(c),
+        body: JSON.stringify({ success: true }),
         headers,
       }))
       .catch((e) => {

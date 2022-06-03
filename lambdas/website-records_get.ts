@@ -20,10 +20,12 @@ export const handler: APIGatewayProxyHandler = awsGetRoamJSUser(
               .listResourceRecordSets({ HostedZoneId })
               .promise()
               .then((c) => ({
-                records: c.ResourceRecordSets.filter((r) =>
-                  r.Name.endsWith(`${domain}.`)
-                )
-                  .map((r) => ({
+                records: c.ResourceRecordSets.filter(
+                  (r) =>
+                    r.Name.endsWith(`${domain}.`) &&
+                    !["NS", "SOA"].includes(r.Type)
+                ).flatMap((r) =>
+                  r.ResourceRecords.map((rec) => ({
                     name:
                       r.Name === `${domain}.`
                         ? domain
@@ -32,12 +34,9 @@ export const handler: APIGatewayProxyHandler = awsGetRoamJSUser(
                             ""
                           ),
                     type: r.Type,
-                    value: r.ResourceRecords[0]?.Value,
+                    value: rec.Value,
                   }))
-                  .filter(
-                    ({ value, type }) =>
-                      !!value && !["NS", "SOA"].includes(type)
-                  ),
+                ),
               }))
           : { records: [] }
       )

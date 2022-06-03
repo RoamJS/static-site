@@ -2,9 +2,7 @@ import { APIGatewayProxyHandler } from "aws-lambda";
 import AWS from "aws-sdk";
 import { dynamo, getActionGraph } from "./common/common";
 import headers from "roamjs-components/backend/headers";
-import getRoamJSUser, {
-  awsGetRoamJSUser,
-} from "roamjs-components/backend/getRoamJSUser";
+import getRoamJSUser from "roamjs-components/backend/getRoamJSUser";
 import putRoamJSUser from "roamjs-components/backend/putRoamJSUser";
 
 const getProgressProps = (
