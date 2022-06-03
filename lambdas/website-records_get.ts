@@ -24,14 +24,20 @@ export const handler: APIGatewayProxyHandler = awsGetRoamJSUser(
                   r.Name.endsWith(`${domain}.`)
                 )
                   .map((r) => ({
-                    name: r.Name.replace(
-                      new RegExp(`\\.?${domain.replace(".", "\\.")}\\.$`),
-                      ""
-                    ),
+                    name:
+                      r.Name === `${domain}.`
+                        ? domain
+                        : r.Name.replace(
+                            new RegExp(`\\.?${domain.replace(".", "\\.")}\\.$`),
+                            ""
+                          ),
                     type: r.Type,
-                    value: r.ResourceRecords[0]?.Value || '',
+                    value: r.ResourceRecords[0]?.Value,
                   }))
-                  .filter(({ name }) => !!name),
+                  .filter(
+                    ({ value, type }) =>
+                      !!value && !["NS", "SOA"].includes(type)
+                  ),
               }))
           : { records: [] }
       )
