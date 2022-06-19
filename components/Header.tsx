@@ -4,7 +4,6 @@ import ReactDOMServer from "react-dom/server";
 import extractTag from "roamjs-components/util/extractTag";
 import { ensureReact, ensureScript } from "../lambdas/common/components";
 import { RenderFunction } from "../lambdas/common/types";
-import { parseInline } from "roamjs-components/marked";
 
 type Props = {
   links: { title: string; href: string }[];
@@ -84,7 +83,7 @@ const Header = ({ links, home = "Home", icon }: Props): React.ReactElement => {
               href="/"
               className="roamjs-home-link"
               dangerouslySetInnerHTML={{
-                __html: parseInline(home),
+                __html: home,
               }}
             />
           </h6>
@@ -105,7 +104,7 @@ const Header = ({ links, home = "Home", icon }: Props): React.ReactElement => {
             <div
               className={"roamjs-header-icon"}
               dangerouslySetInnerHTML={{
-                __html: parseInline(icon),
+                __html: icon,
               }}
             />
           )}
@@ -132,8 +131,8 @@ export const render: RenderFunction = (dom, props, context) => {
       title,
       href: context.convertPageNameToPath(title),
     })),
-    home: props["home"]?.[0],
-    icon: props["right icon"]?.[0],
+    home: context.parseInline(props["home"]?.[0] || ''),
+    icon: context.parseInline(props["right icon"]?.[0]),
   };
   const innerHtml =
     cache[context.deployId] ||

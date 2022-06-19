@@ -1,5 +1,6 @@
 import type { JSDOM } from "jsdom";
 import type { TreeNode } from "roamjs-components/types";
+import type { RoamContext } from "roamjs-components/marked";
 
 export type PartialRecursive<T> = T extends object
   ? { [K in keyof T]?: PartialRecursive<T[K]> }
@@ -13,5 +14,6 @@ export type RenderFunction = (
     references: { title: string; node: PartialRecursive<TreeNode> }[];
     pageName: string;
     deployId: string;
+    parseInline: (str: string, ctx?: Omit<RoamContext, "marked">) => string;
   }
 ) => void;

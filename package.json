@@ -32,7 +32,6 @@
     "@actions/core": "^1.6.0",
     "@actions/github": "^5.0.0",
     "@aws-sdk/client-dynamodb": "^3.54.1",
-    "@blueprintjs/core": "^3.44.3",
     "aws-sdk": "^2.826.0",
     "axios": "^0.21.4",
     "codemirror": "^5.61.1",
@@ -44,11 +43,9 @@
     "puppeteer": "^5.4.0",
     "puppeteer-core": "^5.5.0",
     "randomstring": "^1.2.1",
-    "react": "^17.0.2",
     "react-codemirror2": "^7.2.1",
-    "react-dom": "^17.0.2",
     "react-icons": "^4.3.1",
-    "roamjs-components": "^0.55.0",
+    "roamjs-components": "^0.65.3",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
@@ -61,8 +58,6 @@
     "@types/puppeteer": "^5.4.4",
     "@types/puppeteer-core": "^5.4.0",
     "@types/randomstring": "^1.1.7",
-    "@types/react": "^17.0.6",
-    "@types/react-dom": "^17.0.5",
     "@types/url-regex-safe": "^1.0.0",
     "@types/uuid": "^8.3.0",
     "concurrently": "^6.4.0",
@@ -72,7 +67,7 @@
     "jest": "^27.3.1",
     "localhost-lambdas": "^0.5.5",
     "node-polyfill-webpack-plugin": "^1.1.4",
-    "roamjs-scripts": "^0.13.2",
+    "roamjs-scripts": "^0.19.8",
     "ts-jest": "^27.1.1",
     "typescript": "^4.1.2"
   }

@@ -158,21 +158,17 @@ export const handler = async (event: SNSEvent) => {
         );
       if (shutdownCallback) {
         const { userToken, dev } = JSON.parse(shutdownCallback);
-        const { websiteGraph, email } = await getRoamJSUser(
-          userToken,
-          process.env.ROAMJS_EXTENSION_ID,
-          process.env.ROAMJS_USER,
-          dev
-        );
-        await putRoamJSUser(
-          userToken,
-          {
+        const { websiteGraph, email } = await getRoamJSUser({
+          token: userToken,
+          dev,
+        });
+        await putRoamJSUser({
+          token: userToken,
+          data: {
             websiteGraph: undefined,
           },
-          process.env.ROAMJS_EXTENSION_ID,
-          process.env.ROAMJS_USER,
-          dev
-        );
+          dev,
+        });
         await ses
           .sendEmail({
             Destination: {

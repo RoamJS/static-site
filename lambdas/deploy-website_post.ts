@@ -8,7 +8,7 @@ import headers from "roamjs-components/backend/headers";
 export const handler: APIGatewayProxyHandler = (event) => {
   const token =
     event.headers.Authorization || event.headers.authorization || "";
-  return getRoamJSUser(token, "")
+  return getRoamJSUser({ token, extensionId: "" })
     .then((u) => [
       { ...u, token },
       {
@@ -17,7 +17,7 @@ export const handler: APIGatewayProxyHandler = (event) => {
       },
     ])
     .then(async ([user, { data, graph }]) => {
-      const websiteGraph = await getRoamJSUser(token)
+      const websiteGraph = await getRoamJSUser({ token })
         .then((u) => u.websiteGraph)
         .catch(() => "");
       if (!websiteGraph || graph !== websiteGraph) {

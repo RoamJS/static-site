@@ -39,7 +39,7 @@ const getProgressProps = (
 export const handler: APIGatewayProxyHandler = (event) => {
   const token =
     event.headers.Authorization || event.headers.authorization || "";
-  return getRoamJSUser(token, "")
+  return getRoamJSUser({ token, extensionId: "" })
     .then((u) => [
       { ...u, token },
       {
@@ -48,10 +48,9 @@ export const handler: APIGatewayProxyHandler = (event) => {
       },
     ])
     .then(async ([user, { graph }]) => {
-      const authUser = await getRoamJSUser(
-        user.token,
-        process.env.ROAMJS_EXTENSION_ID
-      )
+      const authUser = await getRoamJSUser({
+        token: user.token,
+      })
         .then((u) => ({
           websiteGraph: u.websiteGraph as string,
           authenticated: true,
@@ -149,8 +148,11 @@ export const handler: APIGatewayProxyHandler = (event) => {
         ? statuses.Items[0].status.S
         : "INITIALIZING";
       if (status === "INACTIVE")
-        await putRoamJSUser(user.token, {
-          websiteGraph: undefined,
+        await putRoamJSUser({
+          token: user.token,
+          data: {
+            websiteGraph: undefined,
+          },
         });
 
       return {

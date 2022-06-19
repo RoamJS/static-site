@@ -76,7 +76,6 @@ import apiDelete from "roamjs-components/util/apiDelete";
 import apiPut from "roamjs-components/util/apiPut";
 import AutocompleteInput from "roamjs-components/components/AutocompleteInput";
 import { v4 } from "uuid";
-import getGraph from "roamjs-components/util/getGraph";
 
 const allBlockMapper = (t: TreeNode): TreeNode[] => [
   t,
@@ -515,7 +514,9 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
   const [loading, setLoading] = useState(false);
   const [newRecordValue, setNewRecordValue] = useState("");
   useEffect(() => {
-    apiGet("website-records").then((r) => setRecords(r.data.records));
+    apiGet<{ records: DNSRecord[] }>("website-records").then((r) =>
+      setRecords(r.records)
+    );
   }, []);
   return (
     <>
@@ -679,14 +680,16 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
                   value: newRecordValue,
                 };
                 setLoading(true);
-                apiPost(`website-records`, body)
+                apiPost<{ success: boolean }>(`website-records`, body)
                   .then((r) => {
-                    if (r.data.success) {
+                    if (r.success) {
                       setRecords(records.concat(body));
                       setNewRecordName("");
                       setNewRecordValue("");
                     } else {
-                      throw new Error(`Could not find hosted zone. Email support@roamjs.com for assistance.`);
+                      throw new Error(
+                        `Could not find hosted zone. Email support@roamjs.com for assistance.`
+                      );
                     }
                   })
                   .catch((e) =>
@@ -1105,7 +1108,7 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
 const getLaunchBody = (pageUid: string) => {
   const tree = getBasicTreeByParentUid(pageUid);
   return {
-    graph: getGraph(),
+    graph: window.roamAlphaAPI.graph.name,
     domain: tree.find((t) => /domain/i.test(t.text))?.children?.[0]?.text,
   };
 };
@@ -1408,7 +1411,7 @@ export const getDeployBody = (pageUid: string) => {
       config,
       references,
     }),
-    graph: getGraph(),
+    graph: window.roamAlphaAPI.graph.name,
   };
 };
 
@@ -1490,6 +1493,8 @@ const WebsiteButton: React.FunctionComponent<
   );
 };
 
+type Deploy = { status: string; date: string; uuid: string };
+
 const LiveContent: StageContent = () => {
   const pageUid = usePageUid();
   const [error, setError] = useState("");
@@ -1498,37 +1503,44 @@ const LiveContent: StageContent = () => {
   const [statusProps, setStatusProps] = useState<string>();
   const [cfVariableDiffs, setCfVariableDiffs] = useState<CfVariableDiff[]>([]);
   const [status, setStatus] = useState<string>();
-  const [deploys, setDeploys] = useState<
-    { status: string; date: string; uuid: string }[]
-  >([]);
+  const [deploys, setDeploys] = useState<Deploy[]>([]);
   const [progress, setProgress] = useState(0);
   const [progressType, setProgressType] = useState("");
   const timeoutRef = useRef(0);
 
   const getWebsite = useCallback(
     () =>
-      apiGet(`website-status?graph=${getGraph()}`).then((r) => {
-        if (r.data) {
-          setStatusProps(r.data.statusProps);
-          setStatus(r.data.status);
-          setDeploys(r.data.deploys);
-          setProgress(r.data.progress);
-          if (!isWebsiteReady(r.data)) {
-            setProgressType(r.data.progressType);
+      apiGet<{
+        statusProps: string;
+        status: string;
+        deploys: Deploy[];
+        progress: number;
+        progressType: string;
+      }>(`website-status?graph=${window.roamAlphaAPI.graph.name}`).then((r) => {
+        if (r) {
+          setStatusProps(r.statusProps);
+          setStatus(r.status);
+          setDeploys(r.deploys);
+          setProgress(r.progress);
+          if (!isWebsiteReady(r)) {
+            setProgressType(r.progressType);
             timeoutRef.current = window.setTimeout(getWebsite, 5000);
           } else {
             setProgressType("");
-            apiGet(`website-variables?graph=${getGraph()}`)
+            apiGet<{
+              DomainName: string;
+              CustomDomain: string;
+            }>(`website-variables?graph=${window.roamAlphaAPI.graph.name}`)
               .then((r) => {
                 const diffs = [];
                 const tree = getBasicTreeByParentUid(pageUid);
                 const newDomain = tree.find((t) =>
                   toFlexRegex("domain").test(t.text)
                 )?.children?.[0]?.text;
-                if (newDomain !== r.data.DomainName) {
+                if (newDomain !== r.DomainName) {
                   diffs.push({
                     field: "Domain",
-                    old: r.data.DomainName,
+                    old: r.DomainName,
                     value: newDomain,
                     key: "DomainName",
                   });
@@ -1536,10 +1548,10 @@ const LiveContent: StageContent = () => {
                 const newIsCustomDomain = `${!newDomain.endsWith(
                   ".roamjs.com"
                 )}`;
-                if (newIsCustomDomain !== r.data.CustomDomain) {
+                if (newIsCustomDomain !== r.CustomDomain) {
                   diffs.push({
                     field: "Is Custom Domain",
-                    old: r.data.CustomDomain,
+                    old: r.CustomDomain,
                     value: newIsCustomDomain,
                     key: "CustomDomain",
                   });
@@ -1612,14 +1624,14 @@ const LiveContent: StageContent = () => {
   const shutdownWebsite = useCallback(
     () =>
       wrapPost("shutdown-website", () => ({
-        graph: getGraph(),
+        graph: window.roamAlphaAPI.graph.name,
       })),
     [wrapPost]
   );
   const updateSite = useCallback(
     () =>
       wrapPost("update-website", () => ({
-        graph: getGraph(),
+        graph: window.roamAlphaAPI.graph.name,
         diffs: cfVariableDiffs,
       })),
     [wrapPost, cfVariableDiffs]
@@ -2239,22 +2251,27 @@ const SecretFeature: React.FC = ({ children }) => {
   );
 };
 
+type Theme = {
+  name: string;
+  description: string;
+  thumbnail: string;
+  value: string;
+};
+
 const ThemeBrowser = ({
   importTheme,
 }: {
   importTheme: (s: string) => void;
 }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [themes, setThemes] = useState<
-    { name: string; description: string; thumbnail: string; value: string }[]
-  >([]);
+  const [themes, setThemes] = useState<Theme[]>([]);
   const [selectedTheme, setSelectedTheme] = useState<number>();
   const [loading, setLoading] = useState(false);
   const openBrowser = useCallback(() => {
     setIsOpen(true);
     setLoading(true);
-    apiGet(`themes`)
-      .then((r) => setThemes(r.data.themes))
+    apiGet<{ themes: Theme[] }>(`themes`)
+      .then((r) => setThemes(r.themes))
       .finally(() => setLoading(false));
   }, [setIsOpen, setLoading, setThemes]);
   const closeBrowser = useCallback(() => setIsOpen(false), [setIsOpen]);
@@ -2523,8 +2540,8 @@ const RequestRedirectsContent: StageContent = ({ openPanel }) => {
       .catch(() => setLoading(false));
   }, [values, nextStage]);
   useEffect(() => {
-    apiPost("website-redirects", { method: "GET" })
-      .then((r) => setValues(r.data.redirects))
+    apiPost<{ redirects: Redirect[] }>("website-redirects", { method: "GET" })
+      .then((r) => setValues(r.redirects))
       .finally(() => setLoading(false));
   }, []);
   return (
@@ -2634,8 +2651,8 @@ const RequestSharingContent: StageContent = ({ openPanel }) => {
     nextStage();
   }, [values, nextStage]);
   useEffect(() => {
-    apiPost("website-sharing", { method: "GET" })
-      .then((r) => setValues(r.data.perms))
+    apiPost<{ perms: Sharing[] }>("website-sharing", { method: "GET" })
+      .then((r) => setValues(r.perms))
       .finally(() => setLoading(false));
   }, []);
   const userOptions = useMemo(

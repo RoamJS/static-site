@@ -9,12 +9,11 @@ import {
 } from "./common/common";
 import { RenderFunction, PartialRecursive } from "./common/types";
 import puppeteer from "puppeteer";
-import parseRoamDate from "roamjs-components/date/parseRoamDate";
 import type { RoamBlock, TreeNode, ViewType } from "roamjs-components/types";
 import extractTag from "roamjs-components/util/extractTag";
 import extractRef from "roamjs-components/util/extractRef";
 import {
-  parseInline,
+  getParseInline,
   RoamContext as RoamMarkedContext,
 } from "roamjs-components/marked";
 import { BLOCK_REF_REGEX } from "roamjs-components/dom/constants";
@@ -33,6 +32,25 @@ import Mustache from "mustache";
 import { DEFAULT_TEMPLATE } from "./common/constants";
 import { v4 } from "uuid";
 import emailError from "roamjs-components/backend/emailError";
+
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+const parseRoamDate = (s: string): Date => {
+  const [month, date, year] = s.split(/(?:(?:st|nd|rd|th),)?\s/);
+  return new Date(Number(year), MONTHS.indexOf(month), Number(date));
+};
 
 const transformIfTrue = (s: string, f: boolean, t: (s: string) => string) =>
   f ? t(s) : s;
@@ -468,10 +486,12 @@ const convertContentToHtml = ({
   level,
   context,
   pages,
+  parseInline,
 }: {
   level: number;
-  context: Required<RoamMarkedContext>;
+  context: Required<Omit<RoamMarkedContext, "marked">>;
   pages: Record<string, PageContent>;
+  parseInline: (text: string, ctxt?: Omit<RoamMarkedContext, "marked">) => string;
 } & Pick<PageContent, "content" | "viewType">): string => {
   if (content.length === 0) {
     return "";
@@ -530,6 +550,7 @@ const convertContentToHtml = ({
           level: level + 1,
           context,
           pages,
+          parseInline,
         });
     const rawHeading = HEADINGS[t.heading || 0];
     const headingTag =
@@ -619,6 +640,7 @@ export const renderHtmlFromPage = ({
   blockReferencesCache,
   linkedReferencesCache,
   deployId,
+  parseInline,
 }: {
   outputPath: string;
   pages: Record<string, PageContent>;
@@ -634,6 +656,7 @@ export const renderHtmlFromPage = ({
     { title: string; node: PartialRecursive<TreeNode> }[]
   >;
   deployId: string;
+  parseInline: (text: string, ctxt?: Omit<RoamMarkedContext, "marked">) => string
 }): void => {
   const { content, metadata = {}, viewType } = pages[p];
   const references = linkedReferencesCache[p] || [];
@@ -698,6 +721,7 @@ export const renderHtmlFromPage = ({
     content: PartialRecursive<TreeNode>[];
   }): string => {
     return convertContentToHtml({
+      parseInline,
       content,
       viewType,
       pages,
@@ -865,6 +889,7 @@ Metadata: ${JSON.stringify(mustacheMetadata, null, 4)}`
       references,
       pageName: p,
       deployId,
+      parseInline,
     })
   );
   const cssContent = `${DEFAULT_STYLE}\n${
@@ -954,6 +979,7 @@ export const processSiteData = async ({
       ];
     });
 
+  const parseInline = await getParseInline();
   pageNames.map((p) => {
     renderHtmlFromPage({
       outputPath,
@@ -964,6 +990,7 @@ export const processSiteData = async ({
       blockReferencesCache,
       linkedReferencesCache,
       deployId,
+      parseInline,
     });
   });
 
