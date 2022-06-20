@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: install
-        run: npm install
+        run: npm install --force
       - name: build
         run: npm run build
       - name: RoamJS Publish
