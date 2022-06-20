@@ -491,7 +491,10 @@ const convertContentToHtml = ({
   level: number;
   context: Required<Omit<RoamMarkedContext, "marked">>;
   pages: Record<string, PageContent>;
-  parseInline: (text: string, ctxt?: Omit<RoamMarkedContext, "marked">) => string;
+  parseInline: (
+    text: string,
+    ctxt?: Omit<RoamMarkedContext, "marked">
+  ) => string;
 } & Pick<PageContent, "content" | "viewType">): string => {
   if (content.length === 0) {
     return "";
@@ -656,7 +659,10 @@ export const renderHtmlFromPage = ({
     { title: string; node: PartialRecursive<TreeNode> }[]
   >;
   deployId: string;
-  parseInline: (text: string, ctxt?: Omit<RoamMarkedContext, "marked">) => string
+  parseInline: (
+    text: string,
+    ctxt?: Omit<RoamMarkedContext, "marked">
+  ) => string;
 }): void => {
   const { content, metadata = {}, viewType } = pages[p];
   const references = linkedReferencesCache[p] || [];
@@ -1628,5 +1634,6 @@ export const handler = async (event: {
     .catch(async (e) => {
       console.error(e);
       await logStatus("FAILURE", JSON.stringify({ message: e.message }));
+      await emailError("Deploy Failed", e);
     });
 };
