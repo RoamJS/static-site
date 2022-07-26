@@ -5,6 +5,7 @@ import runExtension from "roamjs-components/util/runExtension";
 import apiPost from "roamjs-components/util/apiPost";
 import getPageUidByPageTitle from "roamjs-components/queries/getPageUidByPageTitle";
 import toConfigPageName from "roamjs-components/util/toConfigPageName";
+import registerSmartBlocksCommand from "roamjs-components/util/registerSmartBlocksCommand";
 
 addStyle(`.bp3-tab-panel {
   width: 100%;
@@ -35,11 +36,21 @@ runExtension(ID, () => {
     Dashboard,
   });
 
+  const deploy = () =>
+    apiPost(
+      "deploy-website",
+      getDeployBody(getPageUidByPageTitle(toConfigPageName(ID)))
+    );
+
   window.roamjs.extension.staticSite = {
-    deploy: () =>
-      apiPost(
-        "deploy-website",
-        getDeployBody(getPageUidByPageTitle(toConfigPageName(ID)))
-      ),
+    deploy,
   };
+
+  registerSmartBlocksCommand({
+    text: "DEPLOYSITE",
+    handler: () => () =>
+      deploy()
+        .then(() => "Successfully deployed website!")
+        .catch((e) => "Error generating the report: " + e.message),
+  });
 });
