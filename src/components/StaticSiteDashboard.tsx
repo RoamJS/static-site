@@ -1356,7 +1356,7 @@ export const getDeployBody = (pageUid: string) => {
       ]) => ({
         title,
         node: formatRoamNodes([
-          { ...node, text: node.title || node.text || "" },
+          { ...node, text: node?.title || node?.text || "" },
         ])[0],
         refText,
         refTitle,
