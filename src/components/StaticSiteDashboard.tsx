@@ -1349,18 +1349,18 @@ export const getDeployBody = (pageUid: string) => {
       ...(hasDaily ? [DAILY_NOTE_PAGE_TITLE_REGEX] : [])
     )
     .map(
-      ([{ title }, node, { title: refTitle, string: refText, uid: refUid }]: [
+      ([refPage, ref, node]: [
         Record<string, string>,
         Omit<Partial<TreeNode>, "text"> & { title?: string; text?: string },
         Record<string, string>
       ]) => ({
-        title,
+        title: refPage?.title,
         node: formatRoamNodes([
-          { ...node, text: node?.title || node?.text || "" },
+          { ...ref, text: ref?.title || ref?.text || "" },
         ])[0],
-        refText,
-        refTitle,
-        refUid,
+        refText: node?.title,
+        refTitle: node?.text,
+        refUid: node?.uid,
       })
     );
 
