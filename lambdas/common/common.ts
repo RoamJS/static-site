@@ -40,7 +40,7 @@ export const invokeLambda =
           })
           .promise()
     : ({ path, data }: InvokeLambdaProps) =>
-        axios.post(`${process.env.API_URL}/${path}`, data);
+        axios.post(`http://localhost:3003/dev/${path}`, data);
 
 export const SHUTDOWN_CALLBACK_STATUS = "PREPARING TO DELETE STACK";
 

@@ -23,7 +23,3 @@ jobs:
         run: npm run build:components
       - name: Upload
         run: aws s3 sync build s3://roamjs.com/static-site
-      - name: Invalidate Cache
-        run: |
-          CLOUDFRONT_ID=$(aws cloudfront list-distributions --query "DistributionList.Items[*].{Alias:Aliases.Items[0],Id:Id}[?Alias=='roamjs.com'].Id" --output text)
-          aws cloudfront create-invalidation --distribution-id $CLOUDFRONT_ID --paths "/static-site/*"

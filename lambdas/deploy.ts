@@ -640,7 +640,7 @@ export const renderHtmlFromPage = ({
   p,
   layout,
   config,
-  blockReferencesCache,
+  blockInfoCache,
   linkedReferencesCache,
   deployId,
   parseInline,
@@ -650,7 +650,7 @@ export const renderHtmlFromPage = ({
   layout: string;
   p: string;
   config: Required<InputConfig>;
-  blockReferencesCache: Record<
+  blockInfoCache: Record<
     string,
     { node: PartialRecursive<TreeNode>; page: string } | string
   >;
@@ -707,7 +707,7 @@ export const renderHtmlFromPage = ({
   const pluginKeys = Object.keys(config.plugins);
 
   const blockReferences = (u: string) => {
-    const ref = blockReferencesCache[u];
+    const ref = blockInfoCache[u];
     if (ref) {
       return typeof ref === "string"
         ? {
@@ -813,7 +813,7 @@ export const renderHtmlFromPage = ({
           } else if (/embed/i.test(s)) {
             const uid = BLOCK_REF_REGEX.exec(ac.trim())?.[1];
             if (uid) {
-              const ref = blockReferencesCache[uid];
+              const ref = blockInfoCache[uid];
               return (
                 ref &&
                 (typeof ref === "string"
@@ -844,6 +844,12 @@ export const renderHtmlFromPage = ({
   const markedContent = inlineTryCatch(
     () => converter({ content }),
     (e) => `<div>Failed to render page: ${p}</div><div>${e.message}</div>`
+  );
+  console.log(
+    "REFERENCES FOR",
+    p,
+    "INCLUDE",
+    JSON.stringify(references, null, 4)
   );
   const preHydratedHtml = config.template
     .replace(
@@ -949,30 +955,32 @@ export const processSiteData = async ({
     `resolving ${pageNames.length} pages ${new Date().toLocaleTimeString()}`
   );
   info(`Here are some: ${pageNames.slice(0, 5)}`);
-  const blockReferencesCache: Parameters<
+  console.log("References", references);
+  const blockInfoCache: Parameters<
     typeof renderHtmlFromPage
-  >[0]["blockReferencesCache"] = {};
+  >[0]["blockInfoCache"] = {};
   pageNames.forEach((page) => {
     const { content } = pages[page];
     const forEach = (node: PartialRecursive<TreeNode>) => {
-      blockReferencesCache[node.uid] = { node, page };
+      blockInfoCache[node.uid] = { node, page };
       (node.children || []).forEach(forEach);
     };
     content.forEach(forEach);
   });
+  console.log("blockInfoCache", blockInfoCache);
   const linkedReferencesCache: Parameters<
     typeof renderHtmlFromPage
   >[0]["linkedReferencesCache"] = {};
   references
     .filter(({ refText }) => !!refText)
     .forEach((node) => {
-      blockReferencesCache[node.refUid] =
-        blockReferencesCache[node.refUid] || node.refText;
+      blockInfoCache[node.refUid] = blockInfoCache[node.refUid] || node.refText;
     });
+  console.log("blockInfoCache", blockInfoCache);
   references
     .filter(({ refTitle }) => !!refTitle)
     .forEach((node) => {
-      const block = blockReferencesCache[node?.node?.uid || node.uid];
+      const block = blockInfoCache[node?.node?.uid || node.uid];
       linkedReferencesCache[node.refTitle] = [
         ...(linkedReferencesCache[node.refTitle] || []),
         {
@@ -984,6 +992,7 @@ export const processSiteData = async ({
         },
       ];
     });
+  console.log("linkedReferencesCache", linkedReferencesCache);
 
   const parseInline = await getParseInline();
   pageNames.map((p) => {
@@ -993,7 +1002,7 @@ export const processSiteData = async ({
       pages,
       layout: config.filter[pages[p].layout]?.layout || "${PAGE_CONTENT}",
       p,
-      blockReferencesCache,
+      blockInfoCache,
       linkedReferencesCache,
       deployId,
       parseInline,
@@ -1212,9 +1221,11 @@ export const run = async ({
             page
               .evaluate(
                 (uid) =>
-                  window.roamAlphaAPI.q(
-                    `[:find (pull ?e [:block/string]) :where [?e :block/uid "${uid}"]]`
-                  )?.[0]?.[0]?.string,
+                  (
+                    window.roamAlphaAPI.q(
+                      `[:find (pull ?e [:block/string]) :where [?e :block/uid "${uid}"]]`
+                    )?.[0]?.[0] as { string: string }
+                  )?.string,
                 uid
               )
               .then((url) => [u, UPLOAD_REGEX.exec(url)?.[1] || ""])
@@ -1478,10 +1489,7 @@ export const handler = async (event: {
   debug?: boolean;
 }): Promise<void> => {
   const logStatus = createLogStatus(event.roamGraph, "deploy");
-  const outputPath =
-    process.env.NODE_ENV === "production"
-      ? path.join("/tmp", event.roamGraph)
-      : path.resolve("dist", event.key);
+  const outputPath = path.join("/tmp", event.roamGraph, event.key);
   if (!event.key) {
     console.warn("Daily deploys deprecated - `key` is required");
     await logStatus("SUCCESS");

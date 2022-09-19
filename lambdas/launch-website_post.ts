@@ -3,7 +3,6 @@ import { createLogStatus, invokeLambda } from "./common/common";
 import { awsGetRoamJSUser } from "roamjs-components/backend/getRoamJSUser";
 import putRoamJSUser from "roamjs-components/backend/putRoamJSUser";
 import headers from "roamjs-components/backend/headers";
-import meterRoamJSUser from "roamjs-components/backend/meterRoamJSUser";
 
 export const handler: APIGatewayProxyHandler = awsGetRoamJSUser<{
   graph: string;

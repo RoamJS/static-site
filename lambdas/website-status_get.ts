@@ -91,7 +91,7 @@ export const handler: APIGatewayProxyHandler = (event) => {
 
       if (graph !== authUser.websiteGraph) {
         return {
-          statusCode: 401,
+          statusCode: 403,
           body: "This user has a deployed website in another graph.",
           headers,
         };

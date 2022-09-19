@@ -7,7 +7,11 @@ import getPageUidByPageTitle from "roamjs-components/queries/getPageUidByPageTit
 import toConfigPageName from "roamjs-components/util/toConfigPageName";
 import registerSmartBlocksCommand from "roamjs-components/util/registerSmartBlocksCommand";
 
-addStyle(`.bp3-tab-panel {
+const ID = "static-site";
+
+export default runExtension({
+  run: () => {
+    const style = addStyle(`.bp3-tab-panel {
   width: 100%;
 }
 
@@ -25,32 +29,31 @@ addStyle(`.bp3-tab-panel {
 }
 
 .roamjs-codemirror-wrapper .CodeMirror-code::-webkit-scrollbar {
-   width: 8px;
+    width: 8px;
 }`);
 
-const ID = "static-site";
+    runService({
+      id: ID,
+      Dashboard,
+    });
 
-runExtension(ID, () => {
-  runService({
-    id: ID,
-    Dashboard,
-  });
+    const deploy = () =>
+      apiPost(
+        "deploy-website",
+        getDeployBody(getPageUidByPageTitle(toConfigPageName(ID)))
+      );
 
-  const deploy = () =>
-    apiPost(
-      "deploy-website",
-      getDeployBody(getPageUidByPageTitle(toConfigPageName(ID)))
-    );
+    window.roamjs.extension.staticSite = {
+      deploy,
+    };
 
-  window.roamjs.extension.staticSite = {
-    deploy,
-  };
-
-  registerSmartBlocksCommand({
-    text: "DEPLOYSITE",
-    handler: () => () =>
-      deploy()
-        .then(() => "Successfully deployed website!")
-        .catch((e) => "Error generating the report: " + e.message),
-  });
+    registerSmartBlocksCommand({
+      text: "DEPLOYSITE",
+      handler: () => () =>
+        deploy()
+          .then(() => "Successfully deployed website!")
+          .catch((e) => "Error generating the report: " + e.message),
+    });
+    return { elements: [style] };
+  },
 });

@@ -20,10 +20,10 @@ import {
   TextArea,
   Tooltip,
 } from "@blueprintjs/core";
-import { Controlled as CodeMirror } from "react-codemirror2";
-import "codemirror/mode/xml/xml";
-import "codemirror/mode/css/css";
-import "codemirror/mode/javascript/javascript";
+import { Controlled as CodeMirror } from "@dvargas92495/react-codemirror2";
+import "@dvargas92495/codemirror/mode/xml/xml";
+import "@dvargas92495/codemirror/mode/css/css";
+import "@dvargas92495/codemirror/mode/javascript/javascript";
 import React, {
   useCallback,
   useEffect,
@@ -76,6 +76,8 @@ import apiDelete from "roamjs-components/util/apiDelete";
 import apiPut from "roamjs-components/util/apiPut";
 import AutocompleteInput from "roamjs-components/components/AutocompleteInput";
 import { v4 } from "uuid";
+import { getApiUrlEnv } from "roamjs-components/util/env";
+import getToken from "roamjs-components/util/getToken";
 
 const allBlockMapper = (t: TreeNode): TreeNode[] => [
   t,
@@ -110,7 +112,7 @@ const RequestSubscriptionContent: StageContent = ({ openPanel }) => {
   const [productDescription, setProductDescription] = useState("");
   const [pricingMessage, setPricingMessage] = useState("");
   const dev = useMemo(
-    () => (process.env.API_URL.includes("dev") ? "&dev=true" : ""),
+    () => (getApiUrlEnv().includes("dev") ? "&dev=true" : ""),
     []
   );
 
@@ -1358,8 +1360,8 @@ export const getDeployBody = (pageUid: string) => {
         node: formatRoamNodes([
           { ...ref, text: ref?.title || ref?.text || "" },
         ])[0],
-        refText: node?.title,
-        refTitle: node?.text,
+        refText: node?.text,
+        refTitle: node?.title,
         refUid: node?.uid,
       })
     );
@@ -1520,7 +1522,7 @@ const LiveContent: StageContent = () => {
         if (r) {
           setStatusProps(r.statusProps);
           setStatus(r.status);
-          setDeploys(r.deploys);
+          setDeploys(r.deploys || []);
           setProgress(r.progress);
           if (!isWebsiteReady(r)) {
             setProgressType(r.progressType);
@@ -2778,6 +2780,7 @@ const StaticSiteDashboard = (): React.ReactElement => {
         {
           component: RequestSubscriptionContent,
           setting: "Subscribed",
+          check: () => !!getToken(),
         },
         {
           component: RequestDomainContent,
