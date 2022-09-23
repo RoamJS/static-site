@@ -1325,7 +1325,8 @@ export const getDeployBody = (pageUid: string) => {
         uid,
         layout,
       };
-    });
+    })
+    .filter((p) => !!p.pageName);
 
   // either the source or the destination needs to match the title filter
   const references = window.roamAlphaAPI
@@ -1387,7 +1388,7 @@ export const getDeployBody = (pageUid: string) => {
               value: match[2].trim() || node.children?.[0]?.text || "",
             }))
             .map(({ key, value }) => [key, extractValue(value, uid)])
-            .concat([["name", title.split("/").slice(-1)[0]]])
+            .concat([["name", (title || "Unknown").split("/").slice(-1)[0]]])
         ),
         ...Object.fromEntries(
           Object.entries(config.filter[layout]?.variables || {}).map(
