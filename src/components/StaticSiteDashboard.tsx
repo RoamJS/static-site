@@ -1361,7 +1361,7 @@ export const getDeployBody = (pageUid: string) => {
         node: formatRoamNodes([
           { ...ref, text: ref?.title || ref?.text || "" },
         ])[0],
-        refText: node?.text,
+        refText: node?.string,
         refTitle: node?.title,
         refUid: node?.uid,
       })

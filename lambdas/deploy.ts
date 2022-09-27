@@ -845,12 +845,6 @@ export const renderHtmlFromPage = ({
     () => converter({ content }),
     (e) => `<div>Failed to render page: ${p}</div><div>${e.message}</div>`
   );
-  console.log(
-    "REFERENCES FOR",
-    p,
-    "INCLUDE",
-    JSON.stringify(references, null, 4)
-  );
   const preHydratedHtml = config.template
     .replace(
       /\${PAGE_CONTENT}/g,
@@ -955,7 +949,6 @@ export const processSiteData = async ({
     `resolving ${pageNames.length} pages ${new Date().toLocaleTimeString()}`
   );
   info(`Here are some: ${pageNames.slice(0, 5)}`);
-  console.log("References", references);
   const blockInfoCache: Parameters<
     typeof renderHtmlFromPage
   >[0]["blockInfoCache"] = {};
@@ -967,7 +960,6 @@ export const processSiteData = async ({
     };
     content.forEach(forEach);
   });
-  console.log("blockInfoCache", blockInfoCache);
   const linkedReferencesCache: Parameters<
     typeof renderHtmlFromPage
   >[0]["linkedReferencesCache"] = {};
@@ -976,7 +968,6 @@ export const processSiteData = async ({
     .forEach((node) => {
       blockInfoCache[node.refUid] = blockInfoCache[node.refUid] || node.refText;
     });
-  console.log("blockInfoCache", blockInfoCache);
   references
     .filter(({ refTitle }) => !!refTitle)
     .forEach((node) => {
@@ -992,7 +983,6 @@ export const processSiteData = async ({
         },
       ];
     });
-  console.log("linkedReferencesCache", linkedReferencesCache);
 
   const parseInline = await getParseInline();
   pageNames.map((p) => {
