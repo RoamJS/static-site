@@ -143,7 +143,7 @@ export const getStackParameter = (key: string, StackName: string) =>
     .catch(() => "");
 
 export const graphToStackName = (graph: string) =>
-  `roamjs-${graph.replace("_", "-")}`;
+  `roamjs-${graph.replace(/_/g, "-")}`;
 
 export const getHostedZone = async (
   domain: string

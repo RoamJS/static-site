@@ -1,4 +1,5 @@
 import { Handler } from "aws-lambda";
+import emailError from "roamjs-components/backend/emailError";
 import { createLogStatus, cf, graphToStackName } from "./common/common";
 
 export const handler: Handler<{
@@ -7,337 +8,348 @@ export const handler: Handler<{
   email: string;
 }> = async ({ roamGraph, domain, email }) => {
   const logStatus = createLogStatus(roamGraph);
+  try {
+    await logStatus("ALLOCATING HOST");
+    const isCustomDomain = !domain.endsWith(".roamjs.com");
 
-  await logStatus("ALLOCATING HOST");
-  const isCustomDomain = !domain.endsWith(".roamjs.com");
+    await logStatus("CREATING WEBSITE");
+    const Tags = [
+      {
+        Key: "Application",
+        Value: "Roam JS Extensions",
+      },
+    ];
+    const AliasTarget = {
+      HostedZoneId: "Z2FDTNDATAQYW2",
+      DNSName: {
+        "Fn::GetAtt": ["CloudfrontDistribution", "DomainName"],
+      },
+    };
+    const DomainName = { Ref: "DomainName" };
 
-  await logStatus("CREATING WEBSITE");
-  const Tags = [
-    {
-      Key: "Application",
-      Value: "Roam JS Extensions",
-    },
-  ];
-  const AliasTarget = {
-    HostedZoneId: "Z2FDTNDATAQYW2",
-    DNSName: {
-      "Fn::GetAtt": ["CloudfrontDistribution", "DomainName"],
-    },
-  };
-  const DomainName = { Ref: "DomainName" };
-
-  await cf
-    .createStack({
-      NotificationARNs: [process.env.SNS_TOPIC_ARN],
-      Parameters: [
-        {
-          ParameterKey: "Email",
-          ParameterValue: email,
-        },
-        {
-          ParameterKey: "CustomDomain",
-          ParameterValue: `${isCustomDomain}`,
-        },
-        {
-          ParameterKey: "DomainName",
-          ParameterValue: domain,
-        },
-        {
-          ParameterKey: "RoamGraph",
-          ParameterValue: roamGraph,
-        },
-      ],
-      RoleARN: process.env.CLOUDFORMATION_ROLE_ARN,
-      StackName: graphToStackName(roamGraph),
-      Tags,
-      TemplateBody: JSON.stringify({
-        Parameters: {
-          Email: {
-            Type: "String",
+    await cf
+      .createStack({
+        NotificationARNs: [process.env.SNS_TOPIC_ARN],
+        Parameters: [
+          {
+            ParameterKey: "Email",
+            ParameterValue: email,
           },
-          CustomDomain: {
-            Type: "String",
+          {
+            ParameterKey: "CustomDomain",
+            ParameterValue: `${isCustomDomain}`,
           },
-          DomainName: {
-            Type: "String",
+          {
+            ParameterKey: "DomainName",
+            ParameterValue: domain,
           },
-          RoamGraph: {
-            Type: "String",
+          {
+            ParameterKey: "RoamGraph",
+            ParameterValue: roamGraph,
           },
-        },
-        Conditions: {
-          HasCustomDomain: {
-            "Fn::Equals": [
-              {
-                Ref: "CustomDomain",
-              },
-              "true",
-            ],
-          },
-          HasRoamjsDomain: {
-            "Fn::Equals": [
-              {
-                Ref: "CustomDomain",
-              },
-              "false",
-            ],
-          },
-        },
-        Resources: {
-          HostedZone: {
-            Type: "AWS::Route53::HostedZone",
-            Condition: "HasCustomDomain",
-            Properties: {
-              HostedZoneConfig: {
-                Comment: `RoamJS Static Site For ${roamGraph}`,
-              },
-              Name: DomainName,
+        ],
+        RoleARN: process.env.CLOUDFORMATION_ROLE_ARN,
+        StackName: graphToStackName(roamGraph),
+        Tags,
+        TemplateBody: JSON.stringify({
+          Parameters: {
+            Email: {
+              Type: "String",
+            },
+            CustomDomain: {
+              Type: "String",
+            },
+            DomainName: {
+              Type: "String",
+            },
+            RoamGraph: {
+              Type: "String",
             },
           },
-          AcmCertificate: {
-            Type: "AWS::CertificateManager::Certificate",
-            Condition: "HasCustomDomain",
-            Properties: {
-              DomainName,
-              SubjectAlternativeNames: [],
-              Tags,
-              ValidationMethod: "DNS",
-              DomainValidationOptions: [
+          Conditions: {
+            HasCustomDomain: {
+              "Fn::Equals": [
                 {
-                  DomainName,
-                  HostedZoneId: { "Fn::GetAtt": ["HostedZone", "Id"] },
+                  Ref: "CustomDomain",
                 },
+                "true",
+              ],
+            },
+            HasRoamjsDomain: {
+              "Fn::Equals": [
+                {
+                  Ref: "CustomDomain",
+                },
+                "false",
               ],
             },
           },
-          AcmCertificateRoamjs: {
-            Type: "AWS::CertificateManager::Certificate",
-            Condition: "HasRoamjsDomain",
-            Properties: {
-              DomainName,
-              SubjectAlternativeNames: [],
-              Tags,
-              ValidationMethod: "DNS",
-              DomainValidationOptions: [
-                {
-                  DomainName,
-                  HostedZoneId: process.env.ROAMJS_ZONE_ID,
+          Resources: {
+            HostedZone: {
+              Type: "AWS::Route53::HostedZone",
+              Condition: "HasCustomDomain",
+              Properties: {
+                HostedZoneConfig: {
+                  Comment: `RoamJS Static Site For ${roamGraph}`,
                 },
-              ],
+                Name: DomainName,
+              },
             },
-          },
-          CloudfrontDistribution: {
-            Type: "AWS::CloudFront::Distribution",
-            Condition: "HasCustomDomain",
-            Properties: {
-              DistributionConfig: {
-                Aliases: [DomainName],
-                Comment: `CloudFront CDN for RoamJS ${roamGraph}`,
-                CustomErrorResponses: [
+            AcmCertificate: {
+              Type: "AWS::CertificateManager::Certificate",
+              Condition: "HasCustomDomain",
+              Properties: {
+                DomainName,
+                SubjectAlternativeNames: [],
+                Tags,
+                ValidationMethod: "DNS",
+                DomainValidationOptions: [
                   {
-                    ErrorCode: 404,
-                    ResponseCode: 200,
-                    ResponsePagePath: "/404.html",
-                  },
-                  {
-                    ErrorCode: 403,
-                    ResponseCode: 200,
-                    ResponsePagePath: "/index.html",
+                    DomainName,
+                    HostedZoneId: { "Fn::GetAtt": ["HostedZone", "Id"] },
                   },
                 ],
-                DefaultCacheBehavior: {
-                  AllowedMethods: ["GET", "HEAD", "OPTIONS"],
-                  CachedMethods: ["GET", "HEAD", "OPTIONS"],
-                  Compress: true,
-                  DefaultTTL: 86400,
-                  ForwardedValues: {
-                    Cookies: {
-                      Forward: "none",
-                    },
-                    QueryString: false,
+              },
+            },
+            AcmCertificateRoamjs: {
+              Type: "AWS::CertificateManager::Certificate",
+              Condition: "HasRoamjsDomain",
+              Properties: {
+                DomainName,
+                SubjectAlternativeNames: [],
+                Tags,
+                ValidationMethod: "DNS",
+                DomainValidationOptions: [
+                  {
+                    DomainName,
+                    HostedZoneId: process.env.ROAMJS_ZONE_ID,
                   },
-                  LambdaFunctionAssociations: [
+                ],
+              },
+            },
+            CloudfrontDistribution: {
+              Type: "AWS::CloudFront::Distribution",
+              Condition: "HasCustomDomain",
+              Properties: {
+                DistributionConfig: {
+                  Aliases: [DomainName],
+                  Comment: `CloudFront CDN for RoamJS ${roamGraph}`,
+                  CustomErrorResponses: [
                     {
-                      EventType: "origin-request",
-                      IncludeBody: false,
-                      LambdaFunctionARN: process.env.ORIGIN_LAMBDA_ARN,
+                      ErrorCode: 404,
+                      ResponseCode: 200,
+                      ResponsePagePath: "/404.html",
+                    },
+                    {
+                      ErrorCode: 403,
+                      ResponseCode: 200,
+                      ResponsePagePath: "/index.html",
                     },
                   ],
-                  MaxTTL: 31536000,
-                  MinTTL: 0,
-                  TargetOriginId: `S3-${domain}`,
-                  ViewerProtocolPolicy: "redirect-to-https",
-                },
-                DefaultRootObject: `${roamGraph}/index.html`,
-                Enabled: true,
-                IPV6Enabled: true,
-                Origins: [
-                  {
-                    CustomOriginConfig: {
-                      HTTPPort: 80,
-                      HTTPSPort: 443,
-                      OriginProtocolPolicy: "http-only",
-                      OriginSSLProtocols: ["TLSv1", "TLSv1.2"],
-                    },
-                    DomainName: process.env.S3_WEBSITE_ENDPOINT,
-                    Id: `S3-${domain}`,
-                    OriginCustomHeaders: [
-                      {
-                        HeaderName: "User-Agent",
-                        HeaderValue: process.env.CLOUDFRONT_SECRET,
+                  DefaultCacheBehavior: {
+                    AllowedMethods: ["GET", "HEAD", "OPTIONS"],
+                    CachedMethods: ["GET", "HEAD", "OPTIONS"],
+                    Compress: true,
+                    DefaultTTL: 86400,
+                    ForwardedValues: {
+                      Cookies: {
+                        Forward: "none",
                       },
+                      QueryString: false,
+                    },
+                    LambdaFunctionAssociations: [
                       {
-                        HeaderName: "X-Roam-Graph",
-                        HeaderValue: roamGraph,
+                        EventType: "origin-request",
+                        IncludeBody: false,
+                        LambdaFunctionARN: process.env.ORIGIN_LAMBDA_ARN,
                       },
                     ],
+                    MaxTTL: 31536000,
+                    MinTTL: 0,
+                    TargetOriginId: `S3-${domain}`,
+                    ViewerProtocolPolicy: "redirect-to-https",
                   },
-                ],
-                PriceClass: "PriceClass_All",
-                ViewerCertificate: {
-                  AcmCertificateArn: {
-                    Ref: "AcmCertificate",
-                  },
-                  MinimumProtocolVersion: "TLSv1_2016",
-                  SslSupportMethod: "sni-only",
-                },
-              },
-              Tags,
-            },
-          },
-          CloudfrontDistributionRoamjs: {
-            Type: "AWS::CloudFront::Distribution",
-            Condition: "HasRoamjsDomain",
-            Properties: {
-              DistributionConfig: {
-                Aliases: [DomainName],
-                Comment: `CloudFront CDN for ${domain}`,
-                CustomErrorResponses: [
-                  {
-                    ErrorCode: 404,
-                    ResponseCode: 200,
-                    ResponsePagePath: "/404.html",
-                  },
-                  {
-                    ErrorCode: 403,
-                    ResponseCode: 200,
-                    ResponsePagePath: "/index.html",
-                  },
-                ],
-                DefaultCacheBehavior: {
-                  AllowedMethods: ["GET", "HEAD", "OPTIONS"],
-                  CachedMethods: ["GET", "HEAD", "OPTIONS"],
-                  Compress: true,
-                  DefaultTTL: 86400,
-                  ForwardedValues: {
-                    Cookies: {
-                      Forward: "none",
-                    },
-                    QueryString: false,
-                  },
-                  LambdaFunctionAssociations: [
+                  DefaultRootObject: `${roamGraph}/index.html`,
+                  Enabled: true,
+                  IPV6Enabled: true,
+                  Origins: [
                     {
-                      EventType: "origin-request",
-                      IncludeBody: false,
-                      LambdaFunctionARN: process.env.ORIGIN_LAMBDA_ARN,
+                      CustomOriginConfig: {
+                        HTTPPort: 80,
+                        HTTPSPort: 443,
+                        OriginProtocolPolicy: "http-only",
+                        OriginSSLProtocols: ["TLSv1", "TLSv1.2"],
+                      },
+                      DomainName: process.env.S3_WEBSITE_ENDPOINT,
+                      Id: `S3-${domain}`,
+                      OriginCustomHeaders: [
+                        {
+                          HeaderName: "User-Agent",
+                          HeaderValue: process.env.CLOUDFRONT_SECRET,
+                        },
+                        {
+                          HeaderName: "X-Roam-Graph",
+                          HeaderValue: roamGraph,
+                        },
+                      ],
                     },
                   ],
-                  MaxTTL: 31536000,
-                  MinTTL: 0,
-                  TargetOriginId: `S3-${domain}`,
-                  ViewerProtocolPolicy: "redirect-to-https",
-                },
-                DefaultRootObject: `${roamGraph}/index.html`,
-                Enabled: true,
-                IPV6Enabled: true,
-                Origins: [
-                  {
-                    CustomOriginConfig: {
-                      HTTPPort: 80,
-                      HTTPSPort: 443,
-                      OriginProtocolPolicy: "http-only",
-                      OriginSSLProtocols: ["TLSv1", "TLSv1.2"],
+                  PriceClass: "PriceClass_All",
+                  ViewerCertificate: {
+                    AcmCertificateArn: {
+                      Ref: "AcmCertificate",
                     },
-                    DomainName: process.env.S3_WEBSITE_ENDPOINT,
-                    Id: `S3-${domain}`,
-                    OriginCustomHeaders: [
-                      {
-                        HeaderName: "User-Agent",
-                        HeaderValue: process.env.CLOUDFRONT_SECRET,
+                    MinimumProtocolVersion: "TLSv1_2016",
+                    SslSupportMethod: "sni-only",
+                  },
+                },
+                Tags,
+              },
+            },
+            CloudfrontDistributionRoamjs: {
+              Type: "AWS::CloudFront::Distribution",
+              Condition: "HasRoamjsDomain",
+              Properties: {
+                DistributionConfig: {
+                  Aliases: [DomainName],
+                  Comment: `CloudFront CDN for ${domain}`,
+                  CustomErrorResponses: [
+                    {
+                      ErrorCode: 404,
+                      ResponseCode: 200,
+                      ResponsePagePath: "/404.html",
+                    },
+                    {
+                      ErrorCode: 403,
+                      ResponseCode: 200,
+                      ResponsePagePath: "/index.html",
+                    },
+                  ],
+                  DefaultCacheBehavior: {
+                    AllowedMethods: ["GET", "HEAD", "OPTIONS"],
+                    CachedMethods: ["GET", "HEAD", "OPTIONS"],
+                    Compress: true,
+                    DefaultTTL: 86400,
+                    ForwardedValues: {
+                      Cookies: {
+                        Forward: "none",
                       },
+                      QueryString: false,
+                    },
+                    LambdaFunctionAssociations: [
                       {
-                        HeaderName: "X-Roam-Graph",
-                        HeaderValue: roamGraph,
+                        EventType: "origin-request",
+                        IncludeBody: false,
+                        LambdaFunctionARN: process.env.ORIGIN_LAMBDA_ARN,
                       },
                     ],
+                    MaxTTL: 31536000,
+                    MinTTL: 0,
+                    TargetOriginId: `S3-${domain}`,
+                    ViewerProtocolPolicy: "redirect-to-https",
                   },
-                ],
-                PriceClass: "PriceClass_All",
-                ViewerCertificate: {
-                  AcmCertificateArn: {
-                    Ref: "AcmCertificateRoamjs",
+                  DefaultRootObject: `${roamGraph}/index.html`,
+                  Enabled: true,
+                  IPV6Enabled: true,
+                  Origins: [
+                    {
+                      CustomOriginConfig: {
+                        HTTPPort: 80,
+                        HTTPSPort: 443,
+                        OriginProtocolPolicy: "http-only",
+                        OriginSSLProtocols: ["TLSv1", "TLSv1.2"],
+                      },
+                      DomainName: process.env.S3_WEBSITE_ENDPOINT,
+                      Id: `S3-${domain}`,
+                      OriginCustomHeaders: [
+                        {
+                          HeaderName: "User-Agent",
+                          HeaderValue: process.env.CLOUDFRONT_SECRET,
+                        },
+                        {
+                          HeaderName: "X-Roam-Graph",
+                          HeaderValue: roamGraph,
+                        },
+                      ],
+                    },
+                  ],
+                  PriceClass: "PriceClass_All",
+                  ViewerCertificate: {
+                    AcmCertificateArn: {
+                      Ref: "AcmCertificateRoamjs",
+                    },
+                    MinimumProtocolVersion: "TLSv1_2016",
+                    SslSupportMethod: "sni-only",
                   },
-                  MinimumProtocolVersion: "TLSv1_2016",
-                  SslSupportMethod: "sni-only",
                 },
+                Tags,
               },
-              Tags,
             },
-          },
-          Route53ARecord: {
-            Type: "AWS::Route53::RecordSet",
-            Condition: "HasCustomDomain",
-            Properties: {
-              AliasTarget,
-              HostedZoneId: { "Fn::GetAtt": ["HostedZone", "Id"] },
-              Name: DomainName,
-              Type: "A",
+            Route53ARecord: {
+              Type: "AWS::Route53::RecordSet",
+              Condition: "HasCustomDomain",
+              Properties: {
+                AliasTarget,
+                HostedZoneId: { "Fn::GetAtt": ["HostedZone", "Id"] },
+                Name: DomainName,
+                Type: "A",
+              },
             },
-          },
-          Route53AAAARecord: {
-            Type: "AWS::Route53::RecordSet",
-            Condition: "HasCustomDomain",
-            Properties: {
-              AliasTarget,
-              HostedZoneId: { "Fn::GetAtt": ["HostedZone", "Id"] },
-              Name: DomainName,
-              Type: "AAAA",
+            Route53AAAARecord: {
+              Type: "AWS::Route53::RecordSet",
+              Condition: "HasCustomDomain",
+              Properties: {
+                AliasTarget,
+                HostedZoneId: { "Fn::GetAtt": ["HostedZone", "Id"] },
+                Name: DomainName,
+                Type: "AAAA",
+              },
             },
-          },
-          Route53ARecordRoamjs: {
-            Type: "AWS::Route53::RecordSet",
-            Condition: "HasRoamjsDomain",
-            Properties: {
-              AliasTarget: {
-                HostedZoneId: "Z2FDTNDATAQYW2",
-                DNSName: {
-                  "Fn::GetAtt": ["CloudfrontDistributionRoamjs", "DomainName"],
+            Route53ARecordRoamjs: {
+              Type: "AWS::Route53::RecordSet",
+              Condition: "HasRoamjsDomain",
+              Properties: {
+                AliasTarget: {
+                  HostedZoneId: "Z2FDTNDATAQYW2",
+                  DNSName: {
+                    "Fn::GetAtt": [
+                      "CloudfrontDistributionRoamjs",
+                      "DomainName",
+                    ],
+                  },
                 },
+                HostedZoneId: process.env.ROAMJS_ZONE_ID,
+                Name: DomainName,
+                Type: "A",
               },
-              HostedZoneId: process.env.ROAMJS_ZONE_ID,
-              Name: DomainName,
-              Type: "A",
             },
-          },
-          Route53AAAARecordRoamjs: {
-            Type: "AWS::Route53::RecordSet",
-            Condition: "HasRoamjsDomain",
-            Properties: {
-              AliasTarget: {
-                HostedZoneId: "Z2FDTNDATAQYW2",
-                DNSName: {
-                  "Fn::GetAtt": ["CloudfrontDistributionRoamjs", "DomainName"],
+            Route53AAAARecordRoamjs: {
+              Type: "AWS::Route53::RecordSet",
+              Condition: "HasRoamjsDomain",
+              Properties: {
+                AliasTarget: {
+                  HostedZoneId: "Z2FDTNDATAQYW2",
+                  DNSName: {
+                    "Fn::GetAtt": [
+                      "CloudfrontDistributionRoamjs",
+                      "DomainName",
+                    ],
+                  },
                 },
+                HostedZoneId: process.env.ROAMJS_ZONE_ID,
+                Name: DomainName,
+                Type: "AAAA",
               },
-              HostedZoneId: process.env.ROAMJS_ZONE_ID,
-              Name: DomainName,
-              Type: "AAAA",
             },
           },
-        },
-      }),
-    })
-    .promise();
+        }),
+      })
+      .promise();
 
-  return { success: true };
+    return { success: true };
+  } catch (e) {
+    await logStatus("FAILURE", JSON.stringify({ message: e.message }));
+    await emailError("Launch Failed", e);
+    return { success: false };
+  }
 };
