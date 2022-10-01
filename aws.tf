@@ -448,7 +448,7 @@ data "aws_iam_policy_document" "cloudformation_extra" {
 
     resources = [
       aws_lambda_function.origin_request.arn,
-      aws_lambda_function.origin_request.qualified_arn,
+      "${aws_lambda_function.origin_request.arn}:*",
     ]
   }
 }
