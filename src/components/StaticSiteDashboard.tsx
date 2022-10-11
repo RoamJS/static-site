@@ -1122,7 +1122,7 @@ type Filter = {
   variables: Record<string, string>;
 };
 const TITLE_REGEX = new RegExp(`roam/js/static-site/title::(.*)`);
-const METADATA_REGEX = /roam\/js\/static-site\/([a-z-]+)::(.*)/;
+const METADATA_REGEX = /roam\/js\/static-site\/([a-zA-Z0-9-]+)::(.*)/;
 const HTML_REGEX = new RegExp("```html\n(.*)```", "s");
 const JS_REGEX = new RegExp("```javascript\n(.*)```", "s");
 const CODE_BLOCK_REGEX = new RegExp("```([a-z]+)\n(.*)```", "s");
