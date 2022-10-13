@@ -1438,37 +1438,6 @@ const getDistributionIdByDomain = async (domain: string) => {
   return null;
 };
 
-const waitForCloudfront = (props: {
-  trial?: number;
-  Id: string;
-  DistributionId: string;
-  resolve: (s: string) => void;
-}) => {
-  const { trial = 0, resolve, ...args } = props;
-  cloudfront
-    .getInvalidation(args)
-    .promise()
-    .then((r) => r.Invalidation.Status)
-    .then((status) => {
-      if (status === "Completed") {
-        resolve("Done!");
-      } else if (trial === 100) {
-        resolve("Ran out of time waiting for cloudfront...");
-      } else {
-        console.log(
-          "Still waiting for invalidation. Found",
-          status,
-          "on trial",
-          trial
-        );
-        setTimeout(
-          () => waitForCloudfront({ ...args, trial: trial + 1, resolve }),
-          5000
-        );
-      }
-    });
-};
-
 export const readDir = (s: string): string[] =>
   fs
     .readdirSync(s, { withFileTypes: true })
@@ -1540,7 +1509,6 @@ export const handler = async (event: {
         finished = !IsTruncated;
         ContinuationToken = NextContinuationToken;
       }
-      const filesToInvalidate = new Set<string>(keysToDelete);
       if (keysToDelete.size) {
         console.log("Files to Delete", keysToDelete.size);
         const DeleteObjects = Array.from(keysToDelete).map((Key) => ({ Key }));
@@ -1564,72 +1532,9 @@ export const handler = async (event: {
           justType && justType === "text/html"
             ? "text/html;charset=UTF-8"
             : justType || "text/plain";
-        const { ETag } = await s3
-          .upload({ Bucket, Key, Body, ContentType })
-          .promise();
-        if (eTags[key] && ETag !== eTags[key]) {
-          filesToInvalidate.add(key);
-        }
+        await s3.upload({ Bucket, Key, Body, ContentType }).promise();
       }
 
-      console.log("Files to Invalidate", filesToInvalidate.size);
-      await logStatus("INVALIDATING CACHE");
-      const DistributionId = await getDistributionIdByDomain(
-        await getStackParameter("DomainName", graphToStackName(event.roamGraph))
-      ).catch((e) => {
-        console.error(
-          `Failed to get Distribution Id for ${graphToStackName(
-            event.roamGraph
-          )}`
-        );
-        console.error(e);
-        return "";
-      });
-      if (DistributionId) {
-        const invalidatingItems =
-          filesToInvalidate.size === filesToUpload.length
-            ? ["*"]
-            : Array.from(filesToInvalidate);
-        for (let i = 0; i < invalidatingItems.length; i += INVALIDATION_MAX) {
-          const Items = invalidatingItems
-            .slice(i, i + INVALIDATION_MAX)
-            .flatMap((k) =>
-              k === "index.html"
-                ? ["/", "/index.html"]
-                : [`/${k.replace(/\.html$/, "")}`, `/${k}`]
-            );
-          await cloudfront
-            .createInvalidation({
-              DistributionId,
-              InvalidationBatch: {
-                CallerReference: new Date().toJSON(),
-                Paths: {
-                  Quantity: Items.length,
-                  Items,
-                },
-              },
-            })
-            .promise()
-            .then(
-              (r) =>
-                new Promise<string>((resolve) =>
-                  waitForCloudfront({
-                    Id: r.Invalidation.Id,
-                    DistributionId,
-                    resolve,
-                  })
-                )
-            )
-            .catch((e) => {
-              console.error(
-                "Failed to invalidate these paths:\n[\n   ",
-                Items.join(",\n    "),
-                "\n]"
-              );
-              console.error(e);
-            });
-        }
-      }
       await logStatus("SUCCESS");
     })
     .catch(async (e) => {
