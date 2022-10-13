@@ -700,10 +700,13 @@ export const renderHtmlFromPage = ({
     }`;
 
   const htmlFileName = convertPageNameToPath(p);
-  const pagesToHrefs = (name: string, r?: string) =>
-    pageNameSet.has(name)
-      ? `${convertPageNameToPath(name).replace(/^\/$/, "")}${r ? `#${r}` : ""}`
-      : "";
+  const pagesToHrefs = (name: string, r?: string) => {
+    if (!pageNameSet.has(name)) return "";
+    const convertedPath = convertPageNameToPath(name);
+    return convertedPath === `/`
+      ? `/${r ? `#${r}` : ""}`
+      : `${convertedPath.replace(/^\/$/, "")}${r ? `#${r}` : ""}`;
+  };
   const pluginKeys = Object.keys(config.plugins);
 
   const blockReferences = (u: string) => {
