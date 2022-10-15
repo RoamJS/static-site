@@ -1,7 +1,7 @@
 {
   "name": "roamjs-static-site",
   "version": "1.0.1",
-  "description": "AWS Lambda Function generating and deploying Roam graphs as public sites",
+  "description": "Deploying your Roam graph as a public website!",
   "main": "out/deploy.js",
   "scripts": {
     "action": "node scripts/buildActions.js",
