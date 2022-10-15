@@ -1,12 +1,7 @@
 import path from "path";
 import fs from "fs";
 import AWS from "aws-sdk";
-import {
-  cloudfront,
-  createLogStatus,
-  getStackParameter,
-  graphToStackName,
-} from "./common/common";
+import { createLogStatus } from "./common/common";
 import { RenderFunction, PartialRecursive } from "./common/types";
 import puppeteer from "puppeteer";
 import type { RoamBlock, TreeNode, ViewType } from "roamjs-components/types";
@@ -21,7 +16,6 @@ import React from "react";
 import ReactDOMServer from "react-dom/server";
 import { JSDOM } from "jsdom";
 import DailyLog from "../components/DailyLog";
-import InlineBlockReference from "../components/InlineBlockReference";
 import { render as renderHeader } from "../components/Header";
 import { render as renderFooter } from "../components/Footer";
 import { render as renderSidebar } from "../components/Sidebar";
@@ -1410,33 +1404,12 @@ export const run = async ({
 
 export default run;
 
-// https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Invalidation.html#invalidation-specifying-objects
-const INVALIDATION_MAX = 1499;
-
 const credentials = {
   accessKeyId: process.env.AWS_ACCESS_KEY_ID,
   secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
 };
 
 const s3 = new AWS.S3({ apiVersion: "2006-03-01", credentials });
-
-const getDistributionIdByDomain = async (domain: string) => {
-  let finished = false;
-  let Marker: string = undefined;
-  while (!finished) {
-    const {
-      DistributionList: { IsTruncated, NextMarker, Items },
-    } = await cloudfront.listDistributions({ Marker }).promise();
-    const distribution = Items.find((i) => i.Aliases.Items.includes(domain));
-    if (distribution) {
-      return distribution.Id;
-    }
-    finished = !IsTruncated;
-    Marker = NextMarker;
-  }
-
-  return null;
-};
 
 export const readDir = (s: string): string[] =>
   fs

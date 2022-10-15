@@ -19,19 +19,19 @@ import React, {
   useState,
 } from "react";
 import ReactDOM from "react-dom";
-import getRenderRoot from "../util/getRenderRoot";
-import idToTitle from "../util/idToTitle";
-import toFlexRegex from "../util/toFlexRegex";
-import setInputSetting from "../util/setInputSetting";
-import getToken from "../util/getToken";
-import createPageTitleObserver from "../dom/createPageTitleObserver";
-import getBasicTreeByParentUid from "../queries/getBasicTreeByParentUid";
-import getPageUidByPageTitle from "../queries/getPageUidByPageTitle";
-import localStorageGet from "../util/localStorageGet";
-import localStorageRemove from "../util/localStorageRemove";
-import localStorageSet from "../util/localStorageSet";
-import createPage from "../writes/createPage";
-import type { RoamBasicNode, TreeNode } from "../types";
+import getRenderRoot from "roamjs-components/util/getRenderRoot";
+import idToTitle from "roamjs-components/util/idToTitle";
+import toFlexRegex from "roamjs-components/util/toFlexRegex";
+import setInputSetting from "roamjs-components/util/setInputSetting";
+import getToken from "roamjs-components/util/getToken";
+import createPageTitleObserver from "roamjs-components/dom/createPageTitleObserver";
+import getBasicTreeByParentUid from "roamjs-components/queries/getBasicTreeByParentUid";
+import getPageUidByPageTitle from "roamjs-components/queries/getPageUidByPageTitle";
+import localStorageGet from "roamjs-components/util/localStorageGet";
+import localStorageRemove from "roamjs-components/util/localStorageRemove";
+import localStorageSet from "roamjs-components/util/localStorageSet";
+import createPage from "roamjs-components/writes/createPage";
+import type { RoamBasicNode, TreeNode } from "roamjs-components/types";
 
 declare global {
   interface Window {

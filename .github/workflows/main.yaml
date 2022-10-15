@@ -11,6 +11,7 @@ env:
   API_URL: https://lambda.roamjs.com
   ROAMJS_DEVELOPER_TOKEN: ${{ secrets.ROAMJS_DEVELOPER_TOKEN }}
   ROAMJS_EMAIL: support@roamjs.com
+  ROAMJS_EXTENSION_ID: static-site
   ROAMJS_RELEASE_TOKEN: ${{ secrets.ROAMJS_RELEASE_TOKEN }}
 
 jobs:
@@ -21,6 +22,6 @@ jobs:
       - name: install
         run: npm install
       - name: build
-        run: npx roamjs-scripts build
+        run: npx roamjs-scripts build --depot
       - name: publish
-        run: npx roamjs-scripts publish
+        run: npx roamjs-scripts publish --depot
