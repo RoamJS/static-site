@@ -66,12 +66,10 @@ import {
   useNextStage as useServiceNextStage,
   usePageUid as useServicePageUid,
   usePageUid,
-} from "roamjs-components/components/ServiceComponents";
+} from "./ServiceComponents";
 import { DEFAULT_TEMPLATE } from "../../lambdas/common/constants";
 import apiGet from "roamjs-components/util/apiGet";
 import apiPost from "roamjs-components/util/apiPost";
-import axios, { AxiosError } from "axios";
-import getAuthorizationHeader from "roamjs-components/util/getAuthorizationHeader";
 import apiDelete from "roamjs-components/util/apiDelete";
 import apiPut from "roamjs-components/util/apiPut";
 import AutocompleteInput from "roamjs-components/components/AutocompleteInput";
@@ -117,36 +115,32 @@ const RequestSubscriptionContent: StageContent = ({ openPanel }) => {
   );
 
   const intervalListener = useRef(0);
-  const catchError = useCallback(
-    (e: AxiosError) =>
-      setError(e.response?.data?.message || e.response?.data || e.message),
-    [setError]
-  );
+  const catchError = useCallback((e: Error) => setError(e.message), [setError]);
   useEffect(() => {
     Promise.all([
-      axios
-        .get(`https://lambda.roamjs.com/price?extensionId=static-site${dev}`, {
-          headers: { Authorization: getAuthorizationHeader() },
-        })
-        .then((r) => {
-          setPricingMessage("You will be charged $12/website hosted on RoamJS");
-          setProductDescription(r.data.description);
-        }),
-      axios
-        .get(`https://lambda.roamjs.com/check?extensionId=static-site${dev}`, {
-          headers: { Authorization: getAuthorizationHeader() },
-        })
-        .then((r) => {
-          setEnabled(r.data.success);
-          const subscribedUids = getShallowTreeByParentUid(pageUid)
-            .filter((n) => toFlexRegex("subscribed").test(n.text))
-            .map((n) => n.uid);
-          if (!r.data.success) {
-            subscribedUids.forEach(deleteBlock);
-          } else if (r.data.success && !subscribedUids.length) {
-            onNext();
-          }
-        }),
+      apiGet<{ description: string }>({
+        domain: `https://lambda.roamjs.com`,
+        path: `price`,
+        data: { extensionId: "static-site" },
+      }).then((r) => {
+        setPricingMessage("You will be charged $12/website hosted on RoamJS");
+        setProductDescription(r.description);
+      }),
+      apiGet<{ success: boolean }>({
+        domain: `https://lambda.roamjs.com`,
+        path: `check`,
+        data: { extensionId: "static-site" },
+      }).then((r) => {
+        setEnabled(r.success);
+        const subscribedUids = getShallowTreeByParentUid(pageUid)
+          .filter((n) => toFlexRegex("subscribed").test(n.text))
+          .map((n) => n.uid);
+        if (!r.success) {
+          subscribedUids.forEach(deleteBlock);
+        } else if (r.success && !subscribedUids.length) {
+          onNext();
+        }
+      }),
     ])
       .catch(catchError)
       .finally(() => setLoading(false));
@@ -182,15 +176,13 @@ const RequestSubscriptionContent: StageContent = ({ openPanel }) => {
           setLoading(true);
           setError("");
           if (enabled) {
-            axios
-              .post(
-                `https://lambda.roamjs.com/unsubscribe`,
-                {
-                  extensionId: "static-site",
-                  dev: !!dev,
-                },
-                { headers: { Authorization: getAuthorizationHeader() } }
-              )
+            apiPost({
+              domain: `https://lambda.roamjs.com`,
+              path: `unsubscribe`,
+              data: {
+                extensionId: "static-site",
+              },
+            })
               .then(() => {
                 Promise.all(
                   getShallowTreeByParentUid(pageUid)
@@ -204,35 +196,34 @@ const RequestSubscriptionContent: StageContent = ({ openPanel }) => {
                 setIsOpen(false);
               });
           } else {
-            axios
-              .post(
-                `https://lambda.roamjs.com/subscribe`,
-                {
-                  extensionId: "static-site",
-                  dev: !!dev,
-                },
-                { headers: { Authorization: getAuthorizationHeader() } }
-              )
+            apiPost<{ url?: string; success: boolean }>({
+              domain: `https://lambda.roamjs.com`,
+              path: `subscribe`,
+              data: {
+                extensionId: "static-site",
+                dev: !!dev,
+              },
+            })
               .then((r) => {
-                if (r.data.url) {
+                if (r.url) {
                   const width = 600;
                   const height = 525;
                   const left = window.screenX + (window.innerWidth - width) / 2;
                   const top =
                     window.screenY + (window.innerHeight - height) / 2;
                   window.open(
-                    r.data.url,
+                    r.url,
                     `roamjs:roamjs:stripe`,
                     `left=${left},top=${top},width=${width},height=${height},status=1`
                   );
                   const authInterval = () => {
-                    axios
-                      .get(
-                        `https://lambda.roamjs.com/check?extensionId=static-site${dev}`,
-                        { headers: { Authorization: getAuthorizationHeader() } }
-                      )
+                    apiGet<{ success: boolean }>({
+                      domain: `https://lambda.roamjs.com`,
+                      path: `check`,
+                      data: { extensionId: "static-site" },
+                    })
                       .then((r) => {
-                        if (r.data.success) {
+                        if (r.success) {
                           setEnabled(true);
                           setLoading(false);
                           setIsOpen(false);
@@ -251,7 +242,7 @@ const RequestSubscriptionContent: StageContent = ({ openPanel }) => {
                       });
                   };
                   authInterval();
-                } else if (r.data.success) {
+                } else if (r.success) {
                   setEnabled(true);
                   setLoading(false);
                   setIsOpen(false);

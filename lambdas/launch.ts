@@ -2,6 +2,9 @@ import { Handler } from "aws-lambda";
 import emailError from "roamjs-components/backend/emailError";
 import { createLogStatus, cf, graphToStackName } from "./common/common";
 
+// Remix Cache Policy ID
+const CachePolicyId = "b66124f0-5072-4fc7-b1c8-805a29798e82";
+
 export const handler: Handler<{
   roamGraph: string;
   domain: string;
@@ -149,8 +152,8 @@ export const handler: Handler<{
                   DefaultCacheBehavior: {
                     AllowedMethods: ["GET", "HEAD", "OPTIONS"],
                     CachedMethods: ["GET", "HEAD", "OPTIONS"],
+                    CachePolicyId,
                     Compress: true,
-                    DefaultTTL: 86400,
                     ForwardedValues: {
                       Cookies: {
                         Forward: "none",
@@ -164,8 +167,6 @@ export const handler: Handler<{
                         LambdaFunctionARN: process.env.ORIGIN_LAMBDA_ARN,
                       },
                     ],
-                    MaxTTL: 31536000,
-                    MinTTL: 0,
                     TargetOriginId: `S3-${domain}`,
                     ViewerProtocolPolicy: "redirect-to-https",
                   },
@@ -228,8 +229,8 @@ export const handler: Handler<{
                   DefaultCacheBehavior: {
                     AllowedMethods: ["GET", "HEAD", "OPTIONS"],
                     CachedMethods: ["GET", "HEAD", "OPTIONS"],
+                    CachePolicyId,
                     Compress: true,
-                    DefaultTTL: 86400,
                     ForwardedValues: {
                       Cookies: {
                         Forward: "none",
@@ -243,8 +244,6 @@ export const handler: Handler<{
                         LambdaFunctionARN: process.env.ORIGIN_LAMBDA_ARN,
                       },
                     ],
-                    MaxTTL: 31536000,
-                    MinTTL: 0,
                     TargetOriginId: `S3-${domain}`,
                     ViewerProtocolPolicy: "redirect-to-https",
                   },
