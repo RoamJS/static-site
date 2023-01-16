@@ -90,11 +90,7 @@ const Header = ({ links, home = "Home", icon }: Props): React.ReactElement => {
           <div>
             <div className="roamjs-links-container">
               {links.map((l) => (
-                <a
-                  href={l.href}
-                  className={"roamjs-nav-link"}
-                  key={l.title}
-                >
+                <a href={l.href} className={"roamjs-nav-link"} key={l.title}>
                   {l.title}
                 </a>
               ))}
@@ -123,7 +119,7 @@ if (process.env.CLIENT_SIDE) {
   );
 }
 
-let cache: Record<string,string> = {};
+let cache: Record<string, string> = {};
 
 export const render: RenderFunction = (dom, props, context) => {
   const componentProps = {
@@ -131,12 +127,14 @@ export const render: RenderFunction = (dom, props, context) => {
       title,
       href: context.convertPageNameToPath(title),
     })),
-    home: context.parseInline(props["home"]?.[0] || ''),
-    icon: context.parseInline(props["right icon"]?.[0]),
+    home: context.parseInline(props["home"]?.[0] || ""),
+    icon: context.parseInline(props["right icon"]?.[0] || ""),
   };
   const innerHtml =
     cache[context.deployId] ||
-    (cache[context.deployId] = ReactDOMServer.renderToString(<Header {...componentProps} />));
+    (cache[context.deployId] = ReactDOMServer.renderToString(
+      <Header {...componentProps} />
+    ));
   const { document } = dom.window;
   const { body, head } = document;
   const container = document.createElement("div");
