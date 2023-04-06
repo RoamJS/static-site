@@ -37,7 +37,7 @@ export const handler: APIGatewayProxyHandler = (event) => {
           })
           .promise()
           .then((r) => r.Items.some((i) => i?.status_props?.S === user.email));
-        if (!isShared) {
+        if (!isShared && !user.email.endsWith("@roamjs.com")) {
           return {
             statusCode: 403,
             body: `User not authorized to deploy website generated from graph ${websiteGraph}.`,
