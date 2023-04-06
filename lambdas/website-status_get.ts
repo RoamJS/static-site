@@ -52,6 +52,7 @@ export const handler: APIGatewayProxyHandler = (event) => {
         token: user.token,
       })
         .then((u) => ({
+          email: u.email,
           websiteGraph: u.websiteGraph as string,
           authenticated: true,
         }))
@@ -72,7 +73,11 @@ export const handler: APIGatewayProxyHandler = (event) => {
             })
             .promise()
             .then((r) => r.Items.some((i) => i?.status_props?.S === user.email))
-            .then((authenticated) => ({ websiteGraph: graph, authenticated }))
+            .then((authenticated) => ({
+              websiteGraph: graph,
+              authenticated,
+              email: "",
+            }))
         );
       if (!authUser.authenticated) {
         return {
@@ -89,7 +94,10 @@ export const handler: APIGatewayProxyHandler = (event) => {
         };
       }
 
-      if (graph !== authUser.websiteGraph) {
+      if (
+        graph !== authUser.websiteGraph &&
+        !authUser.email.endsWith("@roamjs.com")
+      ) {
         return {
           statusCode: 403,
           body: "This user has a deployed website in another graph.",
