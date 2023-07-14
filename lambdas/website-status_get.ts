@@ -6,8 +6,8 @@ import getRoamJSUser from "roamjs-components/backend/getRoamJSUser";
 import putRoamJSUser from "roamjs-components/backend/putRoamJSUser";
 
 const getProgressProps = (
-  items?: AWS.DynamoDB.ItemList,
-  deployItems?: AWS.DynamoDB.ItemList
+  items: AWS.DynamoDB.ItemList = [],
+  deployItems: AWS.DynamoDB.ItemList = []
 ) => {
   if (!items) {
     return { progress: 0, progressType: "LAUNCHING" };
@@ -23,7 +23,7 @@ const getProgressProps = (
   const minIndex = Math.min(launchIndex, updateIndex, shutdownIndex);
   if (launchIndex === minIndex) {
     const deployIndex = deployItems.findIndex((s) =>
-      ["SUCCESS", "FAILURE"].includes(s.status.S)
+      ["SUCCESS", "FAILURE"].includes(s.status.S || "")
     );
     if (deployIndex) {
       return { progress: deployIndex / 5, progressType: "DEPLOYING" };
@@ -55,8 +55,9 @@ export const handler: APIGatewayProxyHandler = (event) => {
           email: u.email,
           websiteGraph: u.websiteGraph as string,
           authenticated: true,
+          error: undefined,
         }))
-        .catch(() =>
+        .catch((e) =>
           dynamo
             .query({
               TableName: "RoamJSWebsiteStatuses",
@@ -72,24 +73,27 @@ export const handler: APIGatewayProxyHandler = (event) => {
               KeyConditionExpression: "#a = :a AND #s = :s",
             })
             .promise()
-            .then((r) => r.Items.some((i) => i?.status_props?.S === user.email))
+            .then((r) =>
+              (r.Items || []).some((i) => i?.status_props?.S === user.email)
+            )
             .then((authenticated) => ({
               websiteGraph: graph,
               authenticated,
               email: "",
+              error: e,
             }))
         );
       if (!authUser.authenticated) {
         return {
           statusCode: 403,
-          body: `User not authorized to get status of website from graph ${graph}.`,
+          body: `User not authorized to get status of website from graph ${graph}. (${authUser.error})`,
           headers,
         };
       }
       if (!authUser.websiteGraph) {
         return {
           statusCode: 204,
-          body: JSON.stringify({}),
+          body: JSON.stringify({authUser}),
           headers,
         };
       }
@@ -123,7 +127,7 @@ export const handler: APIGatewayProxyHandler = (event) => {
           console.error(e);
           return { Items: [] };
         });
-      if (!statuses.Items.length) {
+      if (!statuses.Items?.length) {
         return {
           statusCode: 204,
           body: JSON.stringify({}),
@@ -145,13 +149,16 @@ export const handler: APIGatewayProxyHandler = (event) => {
         })
         .promise();
 
-      const successDeployStatuses = deployStatuses.Items.filter((s) =>
-        ["SUCCESS", "FAILURE"].includes(s.status.S)
+      const successDeployStatuses = (deployStatuses.Items || []).filter((s) =>
+        ["SUCCESS", "FAILURE"].includes(s.status.S || "")
       );
+      const first = deployStatuses.Items?.[0];
       const deploys =
-        successDeployStatuses[0] === deployStatuses.Items[0]
+        successDeployStatuses[0] === first
           ? successDeployStatuses
-          : [deployStatuses.Items[0], ...successDeployStatuses];
+          : first
+          ? [first, ...successDeployStatuses]
+          : [];
       const status = statuses.Items
         ? statuses.Items[0].status.S
         : "INITIALIZING";

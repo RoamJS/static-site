@@ -35,7 +35,6 @@ import BlockInput from "roamjs-components/components/BlockInput";
 import Description from "roamjs-components/components/Description";
 import MenuItemSelect from "roamjs-components/components/MenuItemSelect";
 import PageInput from "roamjs-components/components/PageInput";
-import useRoamJSTokenWarning from "roamjs-components/hooks/useRoamJSTokenWarning";
 import useSubTree from "roamjs-components/hooks/useSubTree";
 import extractRef from "roamjs-components/util/extractRef";
 import extractTag from "roamjs-components/util/extractTag";
@@ -105,7 +104,7 @@ const DNS_TYPES = [
   "SRV",
   "TXT",
 ] as const;
-type DNSRecordType = typeof DNS_TYPES[number];
+type DNSRecordType = (typeof DNS_TYPES)[number];
 type DNSRecord = { name: string; type: DNSRecordType; value: string };
 
 const DNSRecordView = ({
@@ -351,13 +350,13 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
           onKeyDown={onKeyDown}
           onBlur={onBlur}
           rightElement={
-            !domainSwitch && (
+            !domainSwitch ? (
               <span
                 style={{ opacity: 0.5, margin: 4, display: "inline-block" }}
               >
                 .roamjs.com
               </span>
-            )
+            ) : undefined
           }
         />
       </Label>
@@ -577,7 +576,7 @@ const FilterLayout = ({
     [setFilterLayoutOpen]
   );
   const [nodes, setNodes] = useState(initialNodes);
-  const [tab, setTab] = useState<TabId>(nodes[0].uid);
+  const [tab, setTab] = useState<TabId>(nodes[0].uid || "");
   const [newTab, setNewTab] = useState("");
   return (
     <>
@@ -598,7 +597,7 @@ const FilterLayout = ({
         >
           <Tabs selectedTabId={tab} onChange={(t) => setTab(t)}>
             {nodes.map((n, i) => {
-              const preValue = n.children?.[0]?.text;
+              const preValue = n.children?.[0]?.text || "";
               const value =
                 i === 0 && !HTML_REGEX.test(preValue)
                   ? `\`\`\`html\n${preValue}\`\`\``
@@ -663,7 +662,8 @@ const FilterLayout = ({
                 <>
                   <Checkbox
                     checked={CODE_BLOCK_REGEX.test(
-                      nodes.find((n) => n.uid === tab)?.children?.[0]?.text
+                      nodes.find((n) => n.uid === tab)?.children?.[0]?.text ||
+                        ""
                     )}
                     style={{
                       marginBottom: 0,
@@ -680,10 +680,12 @@ const FilterLayout = ({
                                 ...n,
                                 children: [
                                   {
-                                    ...n.children[0],
+                                    ...n.children?.[0],
                                     text: (e.target as HTMLInputElement).checked
-                                      ? `\`\`\`javascript\n${n.children[0]?.text}\`\`\``
-                                      : JS_REGEX.exec(n.children[0]?.text)?.[1],
+                                      ? `\`\`\`javascript\n${n.children?.[0]?.text}\`\`\``
+                                      : JS_REGEX.exec(
+                                          n.children?.[0]?.text || ""
+                                        )?.[1] || "",
                                   },
                                 ],
                               }
@@ -703,7 +705,7 @@ const FilterLayout = ({
                     }}
                     onClick={() => {
                       setNodes(nodes.filter((n) => n.uid !== tab));
-                      setTab(nodes[0].uid);
+                      setTab(nodes[0].uid || "");
                     }}
                   />
                 </>
@@ -842,14 +844,14 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
             <div style={{ minWidth: 220 }}>
               {f.text === "TAGGED WITH" ? (
                 <PageInput
-                  value={f.children[0]?.text}
+                  value={f.children?.[0]?.text}
                   setValue={(text) =>
                     setFilters(
                       filters.map((filter) =>
                         f.uid === filter.uid
                           ? {
                               ...filter,
-                              children: [{ ...f.children[0], text }],
+                              children: [{ ...f.children?.[0], text }],
                             }
                           : filter
                       )
@@ -858,7 +860,7 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
                 />
               ) : f.text === "STARTS WITH" ? (
                 <InputGroup
-                  value={f.children[0]?.text}
+                  value={f.children?.[0]?.text}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
                     setFilters(
                       filters.map((filter) =>
@@ -866,7 +868,10 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
                           ? {
                               ...filter,
                               children: [
-                                { ...filter.children[0], text: e.target.value },
+                                {
+                                  ...filter.children?.[0],
+                                  text: e.target.value,
+                                },
                               ],
                             }
                           : filter
@@ -880,7 +885,7 @@ const RequestFiltersContent: StageContent = ({ openPanel }) => {
             </div>
             <FilterLayout
               filterType={f.text}
-              initialNodes={f.children}
+              initialNodes={f.children || []}
               saveNodes={(v) =>
                 setFilters(
                   filters.map((filter) =>
@@ -940,17 +945,17 @@ const inlineTryCatch = (
     return tryFcn();
   } catch (e) {
     console.error(e);
-    return catchFcn(e);
+    return catchFcn(e as Error);
   }
 };
 
 const extractValue = (s: string, pageUid: string) => {
   const postTag = extractTag(s.trim());
   const postImage = IMAGE_REGEX.test(postTag)
-    ? IMAGE_REGEX.exec(postTag)?.[1]
+    ? IMAGE_REGEX.exec(postTag)?.[1] || ""
     : postTag;
   const postHtml = HTML_REGEX.test(postTag)
-    ? HTML_REGEX.exec(postImage)?.[1]
+    ? HTML_REGEX.exec(postImage)?.[1] || ""
     : postImage;
   const postJs = JS_REGEX.test(postHtml)
     ? inlineTryCatch(
@@ -970,7 +975,7 @@ type MinimalRoamNode = Omit<Partial<TreeNode>, "order" | "children"> & {
 
 const formatRoamNodes = (nodes: Partial<TreeNode>[]): MinimalRoamNode[] =>
   nodes
-    .sort(({ order: a }, { order: b }) => a - b)
+    .sort(({ order: a = 0 }, { order: b = 0 }) => a - b)
     .filter((t) => !(t.text || "").includes(IGNORE_BLOCKS))
     .map(({ order, ...node }) => ({
       ...node,
@@ -1002,7 +1007,7 @@ export const getDeployBody = (pageUid: string) => {
   const referenceTemplate = getCode(referenceTemplateNode);
   const withIndex = indexNode?.children?.length
     ? { index: extractTag(indexNode.children[0].text.trim()) }
-    : {};
+    : { index: "Website Index" };
   if (!withIndex?.index) {
     throw new Error("The Website Index is not set and is required.");
   }
@@ -1064,7 +1069,6 @@ export const getDeployBody = (pageUid: string) => {
     : {};
 
   const config = {
-    index: "Website Index",
     filter: [] as Filter[],
     ...withIndex,
     ...withFilter,
@@ -1120,7 +1124,7 @@ export const getDeployBody = (pageUid: string) => {
     )
     .map((p) => {
       const [
-        { title: pageName, uid, children = [], viewType = "bullet" },
+        { title: pageName, uid = "", children = [], viewType = "bullet" },
         layout,
       ] = p as [Omit<Partial<TreeNode>, "text"> & { title?: string }, number];
       return {
@@ -1134,8 +1138,8 @@ export const getDeployBody = (pageUid: string) => {
     .filter((p) => !!p.pageName);
 
   // either the source or the destination needs to match the title filter
-  const references = window.roamAlphaAPI
-    .q(
+  const references = (
+    window.roamAlphaAPI.q(
       `[:find 
         (pull ?refpage [:node/title]) 
         (pull ?ref [
@@ -1155,22 +1159,18 @@ export const getDeployBody = (pageUid: string) => {
           hasDaily ? " ?regex" : ""
         }] ${createFilterQuery("?node")} ${createFilterQuery("?refpage")})]`,
       ...(hasDaily ? [DAILY_NOTE_PAGE_TITLE_REGEX] : [])
-    )
-    .map(
-      ([refPage, ref, node]: [
-        Record<string, string>,
-        Omit<Partial<TreeNode>, "text"> & { title?: string; text?: string },
-        Record<string, string>
-      ]) => ({
-        title: refPage?.title,
-        node: formatRoamNodes([
-          { ...ref, text: ref?.title || ref?.text || "" },
-        ])[0],
-        refText: node?.string,
-        refTitle: node?.title,
-        refUid: node?.uid,
-      })
-    );
+    ) as [
+      Record<string, string>,
+      Omit<Partial<TreeNode>, "text"> & { title?: string; text?: string },
+      Record<string, string>
+    ][]
+  ).map(([refPage, ref, node]) => ({
+    title: refPage?.title,
+    node: formatRoamNodes([{ ...ref, text: ref?.title || ref?.text || "" }])[0],
+    refText: node?.string,
+    refTitle: node?.title,
+    refUid: node?.uid,
+  }));
 
   const pages = Object.fromEntries(
     entries.map(({ content, pageName, layout, uid, ...props }) => {
@@ -1189,8 +1189,8 @@ export const getDeployBody = (pageUid: string) => {
             }))
             .filter(({ match }) => !!match && match.length >= 3)
             .map(({ match, node }) => ({
-              key: match[1],
-              value: match[2].trim() || node.children?.[0]?.text || "",
+              key: match?.[1],
+              value: match?.[2].trim() || node.children?.[0]?.text || "",
             }))
             .map(({ key, value }) => [key, extractValue(value, uid)])
             .concat([["name", (title || "Unknown").split("/").slice(-1)[0]]])
@@ -1239,7 +1239,10 @@ type CfVariableDiff = {
   key: string;
 };
 
-const isWebsiteReady = (w: { status: string; deploys: { status: string }[] }) =>
+const isWebsiteReady = (w: {
+  status?: string;
+  deploys: { status: string }[];
+}) =>
   w.status === "LIVE" &&
   (!w.deploys.length || ["SUCCESS", "FAILURE"].includes(w.deploys[0].status));
 
@@ -1342,9 +1345,9 @@ const LiveContent: StageContent = () => {
               .then((r) => {
                 const diffs = [];
                 const tree = getBasicTreeByParentUid(pageUid);
-                const newDomain = tree.find((t) =>
-                  toFlexRegex("domain").test(t.text)
-                )?.children?.[0]?.text;
+                const newDomain =
+                  tree.find((t) => toFlexRegex("domain").test(t.text))
+                    ?.children?.[0]?.text || "";
                 if (newDomain !== r.DomainName) {
                   diffs.push({
                     field: "Domain",
@@ -1423,10 +1426,9 @@ const LiveContent: StageContent = () => {
   );
   const launchWebsite = useCallback(
     () =>
-      wrapPost("launch-website", getLaunchBody).then(
-        (success) =>
-          success && apiPost("deploy-website", getDeployBody(pageUid))
-      ),
+      wrapPost("launch-website", getLaunchBody).then((success) => {
+        if (success) apiPost("deploy-website", getDeployBody(pageUid));
+      }),
     [wrapPost, pageUid]
   );
   const shutdownWebsite = useCallback(
@@ -1820,7 +1822,7 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
   const outerTabById = useMemo(
     () =>
       Object.fromEntries(
-        outerTabSelected.tabs.map(({ id, ...rest }) => [id, rest])
+        outerTabSelected?.tabs.map(({ id, ...rest }) => [id, rest]) || []
       ),
     [outerTabSelected]
   );
@@ -1899,12 +1901,12 @@ const RequestPluginsContent: StageContent = ({ openPanel }) => {
                       />
                       <br />
                       <span style={{ fontSize: 12, marginTop: 16 }}>
-                        {outerTabSelected.description}
+                        {outerTabSelected?.description}
                       </span>
                     </>
                   }
                 />
-                {outerTabSelected.tabs.map(
+                {outerTabSelected?.tabs.map(
                   ({ id: subtabId, options = [], multi }) => {
                     const onConfirm = () => {
                       const { [subtabId]: activeValues = [], ...rest } =
@@ -2138,7 +2140,7 @@ const ThemeBrowser = ({
               intent={Intent.PRIMARY}
               disabled={typeof selectedTheme !== "number"}
               onClick={() => {
-                importTheme(themes[selectedTheme].value);
+                importTheme(themes[selectedTheme || 0].value);
                 closeBrowser();
               }}
             />
@@ -2258,11 +2260,11 @@ const RequestFilesContent: StageContent = ({ openPanel }) => {
   }, [values, nextStage, fileUid, fileChildren]);
   const getAllBlocks = useCallback(
     () =>
-      window.roamAlphaAPI
-        .q(
+      (
+        window.roamAlphaAPI.q(
           `[:find ?u ?contents :where [?p :block/uid ?u] [?p :block/string ?contents] [(clojure.string/includes? ?contents "https")]]`
-        )
-        .map(([uid, text]: string[]) => ({ uid, text })),
+        ) as [string, string][]
+      ).map(([uid, text]) => ({ uid, text })),
     []
   );
   return (
@@ -2293,7 +2295,7 @@ const RequestFilesContent: StageContent = ({ openPanel }) => {
               URL
               <BlockInput
                 value={url}
-                setValue={(val, urlUid) =>
+                setValue={(val, urlUid = "") =>
                   setValues({
                     ...values,
                     [uid]: { url: val, path, uid: urlUid },
@@ -2578,7 +2580,6 @@ const RequestSharingContent: StageContent = ({ openPanel }) => {
 };
 
 const StaticSiteDashboard = (): React.ReactElement => {
-  useRoamJSTokenWarning();
   return (
     <ServiceDashboard
       service={"static-site"}

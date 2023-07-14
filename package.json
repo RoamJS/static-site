@@ -5,14 +5,14 @@
   "main": "out/deploy.js",
   "scripts": {
     "action": "node scripts/buildActions.js",
-    "test": "roamjs-scripts test",
+    "test": "samepage test",
     "lambdas": "cross-env NODE_ENV=production roamjs-scripts lambdas",
-    "prebuild:roam": "npm install",
-    "build:roam": "roamjs-scripts build --depot",
+    "prebuild:roam": "npm install --force",
+    "build:roam": "samepage build --dry",
     "build:components": "node scripts/buildComponents.js",
     "precomponents": "npm run build:components",
     "components": "http-server -p 3007 build",
-    "dev": "API_URL=http://localhost:3003/dev roamjs-scripts dev --labs",
+    "dev": "API_URL=http://localhost:3003/dev npm start",
     "preserver": "cross-env NODE_ENV=development roamjs-scripts lambdas --build",
     "server": "localhost-lambdas --port 3003",
     "start": "concurrently npm:dev npm:server npm:components"
@@ -36,7 +36,6 @@
     "aws-sdk": "^2.826.0",
     "axios": "^0.21.4",
     "cytoscape": "^3.19.1",
-    "jsdom": "^16.6.0",
     "mime-types": "^2.1.32",
     "mustache": "^4.2.0",
     "namor": "^2.0.2",
@@ -44,14 +43,13 @@
     "puppeteer-core": "^5.5.0",
     "randomstring": "^1.2.1",
     "react-icons": "^4.3.1",
-    "roamjs-components": "^0.73.14",
+    "roamjs-components": "^0.81.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@playwright/test": "^1.25.2",
     "@types/aws-lambda": "^8.10.70",
     "@types/cytoscape": "^3.14.17",
-    "@types/jsdom": "^16.2.13",
     "@types/mime-types": "^2.1.1",
     "@types/mustache": "^4.1.2",
     "@types/puppeteer": "^5.4.4",
@@ -61,7 +59,9 @@
     "concurrently": "^6.4.0",
     "cross-env": "^7.0.3",
     "http-server": "^13.0.2",
-    "localhost-lambdas": "^0.6.3",
-    "roamjs-scripts": "^0.23.1"
+    "localhost-lambdas": "^0.6.3"
+  },
+  "samepage": {
+    "extends": "./node_modules/roamjs-components/package.json"
   }
 }

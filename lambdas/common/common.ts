@@ -5,8 +5,8 @@ import headers from "roamjs-components/backend/headers";
 import { v4 } from "uuid";
 
 const credentials = {
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID || "",
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "",
 };
 export const dynamo = new AWS.DynamoDB({
   apiVersion: "2012-08-10",
@@ -125,7 +125,7 @@ export const clearRecordsById = async (HostedZoneId?: string) => {
 
 export const clearRecords = async (StackName: string) => {
   const summaries = await getStackSummaries(StackName);
-  const HostedZoneId = summaries.find(
+  const HostedZoneId = (summaries || []).find(
     (s) => s.LogicalResourceId === "HostedZone"
   )?.PhysicalResourceId;
   await clearRecordsById(HostedZoneId);
@@ -137,8 +137,9 @@ export const getStackParameter = (key: string, StackName: string) =>
     .promise()
     .then(
       (c) =>
-        c.Stacks[0].Parameters.find(({ ParameterKey }) => ParameterKey === key)
-          .ParameterValue
+        (c.Stacks?.[0].Parameters || []).find(
+          ({ ParameterKey }) => ParameterKey === key
+        )?.ParameterValue || ""
     )
     .catch(() => "");
 
@@ -146,20 +147,24 @@ export const graphToStackName = (graph: string) =>
   `roamjs-${graph.replace(/_/g, "-")}`;
 
 export const getHostedZone = async (
-  domain: string
+  domain?: string
 ): Promise<string | undefined> => {
+  if (!domain) return undefined;
   let finished = false;
-  let Marker: string = undefined;
+  let Marker: string | undefined = undefined;
   while (!finished) {
-    const { HostedZones, IsTruncated, NextMarker } = await route53
-      .listHostedZones({ Marker })
-      .promise();
+    const {
+      HostedZones,
+      IsTruncated,
+      // @ts-ignore
+      NextMarker: nm,
+    } = await route53.listHostedZones({ Marker }).promise();
     const zone = HostedZones.find((i) => i.Name === `${domain}.`);
     if (zone) {
       return zone.Id;
     }
     finished = !IsTruncated;
-    Marker = NextMarker;
+    Marker = nm;
   }
 
   return undefined;
@@ -221,7 +226,9 @@ export const changeRecordHandler = (Action: Route53.ChangeAction) =>
                     ResourceRecordSet: {
                       Name,
                       Type: record.type,
-                      ResourceRecords: existing.ResourceRecords.concat([{ Value: record.value }]),
+                      ResourceRecords: (existing.ResourceRecords || []).concat([
+                        { Value: record.value },
+                      ]),
                       TTL: 300,
                     },
                   },

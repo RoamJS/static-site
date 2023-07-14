@@ -12,7 +12,11 @@ env:
   ROAMJS_DEVELOPER_TOKEN: ${{ secrets.ROAMJS_DEVELOPER_TOKEN }}
   ROAMJS_EMAIL: support@roamjs.com
   ROAMJS_EXTENSION_ID: static-site
-  ROAMJS_RELEASE_TOKEN: ${{ secrets.ROAMJS_RELEASE_TOKEN }}
+  # GITHUB_TOKEN: ${{ secrets.ROAMJS_RELEASE_TOKEN }} - no need for releases and roam depot pushes for now
+  AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+  AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  ROAMJS_PROXY: ${{ vars.ROAMJS_PROXY }}
 
 jobs:
   deploy:
@@ -22,6 +26,4 @@ jobs:
       - name: install
         run: npm install
       - name: build
-        run: npx roamjs-scripts build --depot
-      - name: publish
-        run: npx roamjs-scripts publish --depot
+        run: npx samepage build
