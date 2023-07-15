@@ -1,3 +1,7 @@
+# DEPRECATED
+
+Instead of deploying this extension to Roam Depot, we plan to merge this extension into [SamePage](https://samepage.network) as part of its publishing offering. 
+
 # RoamJS Static Site
 
 Deploying your Roam graph as a public website!

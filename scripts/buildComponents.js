@@ -24,4 +24,4 @@ esbuild
       "process.env.BLUEPRINT_NAMESPACE": "\"bp3\"",
     },
   })
-  .then((e) => console.log("done", e));
+  .then((e) => console.log("Components built!", e));

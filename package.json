@@ -61,6 +61,7 @@
     "localhost-lambdas": "^0.6.3"
   },
   "samepage": {
-    "extends": "./node_modules/roamjs-components/package.json"
+    "extends": "./node_modules/roamjs-components/package.json",
+    "preview": "./scripts/buildComponents.js"
   }
 }
