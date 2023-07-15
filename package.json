@@ -34,7 +34,6 @@
     "@dvargas92495/codemirror": "^5.65.11",
     "@dvargas92495/react-codemirror2": "^7.2.9",
     "aws-sdk": "^2.826.0",
-    "axios": "^0.21.4",
     "cytoscape": "^3.19.1",
     "mime-types": "^2.1.32",
     "mustache": "^4.2.0",

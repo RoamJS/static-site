@@ -24,6 +24,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: install
-        run: npm install
+        run: npm install --force
       - name: build
         run: npx samepage build
