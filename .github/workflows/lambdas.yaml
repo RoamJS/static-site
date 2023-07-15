@@ -31,4 +31,4 @@ jobs:
       - name: install
         run: npm install --force
       - name: Deploy
-        run: npm run lambdas
+        run: echo "npm run lambdas"
