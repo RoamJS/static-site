@@ -1354,7 +1354,7 @@ const LiveContent: StageContent = () => {
 
   const getWebsite = useCallback(
     () =>
-      apiGet<{
+      samePageApiGet<{
         statusProps: string;
         status: string;
         deploys: Deploy[];
