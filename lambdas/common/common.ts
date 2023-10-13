@@ -1,7 +1,5 @@
 import AWS, { Route53 } from "aws-sdk";
 import axios from "axios";
-import { awsGetRoamJSUser } from "roamjs-components/backend/getRoamJSUser";
-import headers from "roamjs-components/backend/headers";
 import { v4 } from "uuid";
 
 const credentials = {
@@ -188,6 +186,9 @@ export const getHostedZoneByStackName = async (StackName: string) => {
 export const getHostedZoneByGraphName = (graph: string) =>
   getHostedZoneByStackName(graphToStackName(graph));
 
+const headers = {};
+
+
 export const changeRecordHandler = (Action: Route53.ChangeAction) =>
   awsGetRoamJSUser<{
     name: string;
@@ -267,3 +268,7 @@ export const changeRecordHandler = (Action: Route53.ChangeAction) =>
         return { statusCode: 500, body: e.mesage, headers };
       });
   });
+function awsGetRoamJSUser<T>(arg0: ({ websiteGraph }: { websiteGraph: any; }, record: any) => Promise<{ statusCode: number; body: any; headers: {}; }>) {
+  throw new Error("Function not implemented.");
+}
+

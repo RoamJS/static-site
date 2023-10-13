@@ -157,9 +157,7 @@ export type StageContent = (props: StageProps) => React.ReactElement;
 type GetStage = (setting?: string) => StageContent;
 type StageConfig = {
   component: StageContent;
-  check?: (tree: RoamBasicNode[], service: string) => boolean;
   setting?: string;
-  isMain?: boolean;
 };
 
 const ServiceContext = React.createContext<{
@@ -267,7 +265,6 @@ const RequestTokenContent: StageContent = ({ openPanel }) => {
       </Label>
       <Checkbox
         label={"Store Locally"}
-        checked={useLocal}
         onChange={(e) => setUseLocal((e.target as HTMLInputElement).checked)}
       />
       <NextButton onClick={onSubmit} disabled={!value} />
@@ -302,13 +299,11 @@ const SettingsContent: StageContent = ({ openPanel }) => {
 };
 
 export const TOKEN_STAGE = {
-  check: (_: TreeNode[], service: string): boolean => !!getToken(service),
   component: RequestTokenContent,
   setting: "Token",
 } as const;
 
 export const MainStage = (Content: StageContent): StageConfig => ({
-  isMain: true,
   component: ((props) => (
     <>
       <Content {...props} />
@@ -332,9 +327,6 @@ export const ServiceDashboard: React.FC<{
 }> = ({ service, stages }) => {
   const title = `roam/js/${service}`;
   const pageUid = useMemo(() => getPageUidByPageTitle(title), [title]);
-  const mainIndex = useMemo(() => stages.findIndex((s) => s.isMain), [stages]);
-  const [progress, setProgress] = useState(0);
-  const [showProgress, setShowProgress] = useState(false);
   const getStage = useCallback(
     (setting?: string) => {
       if (setting) {
@@ -343,19 +335,9 @@ export const ServiceDashboard: React.FC<{
           return stage.component;
         }
       }
-      const tree = getBasicTreeByParentUid(pageUid);
-      const index = stages.findIndex((s) =>
-        s.check
-          ? !s.check(tree, service)
-          : s.isMain || !isFieldInTree(s.setting)(tree)
-      );
-      setProgress(index / mainIndex);
-      if (index < mainIndex) {
-        setShowProgress(true);
-      }
-      return stages.slice(index)[0].component;
+      return stages[0].component;
     },
-    [pageUid, stages, setProgress, setShowProgress, service]
+    [stages, service]
   );
   const settings = useMemo(
     () =>
@@ -366,11 +348,6 @@ export const ServiceDashboard: React.FC<{
     [stages]
   );
   const renderPanel = useMemo(getStage, [getStage]);
-  useEffect(() => {
-    if (progress === 1) {
-      setTimeout(() => setShowProgress(false), 3000);
-    }
-  }, [progress, setShowProgress]);
   const [hideBlocks, setHideBlocks] = useState(true);
   const showBlocks = useCallback(() => setHideBlocks(false), [setHideBlocks]);
   return (
@@ -411,13 +388,6 @@ export const ServiceDashboard: React.FC<{
             }}
             className={"roamjs-service-panel"}
           />
-          {showProgress && (
-            <ProgressBar
-              value={progress}
-              animate={false}
-              intent={Intent.PRIMARY}
-            />
-          )}
         </ServiceContext.Provider>
       </Card>
       {hideBlocks && (

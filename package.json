@@ -6,16 +6,11 @@
   "scripts": {
     "action": "node scripts/buildActions.js",
     "test": "samepage test",
-    "lambdas": "cross-env NODE_ENV=production roamjs-scripts lambdas",
     "prebuild:roam": "npm install --force",
     "build:roam": "samepage build --dry",
     "build:components": "node scripts/buildComponents.js",
     "precomponents": "npm run build:components",
-    "components": "http-server -p 3007 build",
-    "dev": "API_URL=http://localhost:3003/dev npm start",
-    "preserver": "cross-env NODE_ENV=development roamjs-scripts lambdas --build",
-    "server": "localhost-lambdas --port 3003",
-    "start": "concurrently npm:dev npm:server npm:components"
+    "start": "samepage dev"
   },
   "repository": {
     "type": "git",
@@ -42,7 +37,7 @@
     "puppeteer-core": "^5.5.0",
     "randomstring": "^1.2.1",
     "react-icons": "^4.3.1",
-    "roamjs-components": "^0.81.0",
+    "roamjs-components": "^0.82.11",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
@@ -54,11 +49,7 @@
     "@types/puppeteer": "^5.4.4",
     "@types/puppeteer-core": "^5.4.0",
     "@types/randomstring": "^1.1.7",
-    "@types/uuid": "^8.3.0",
-    "concurrently": "^6.4.0",
-    "cross-env": "^7.0.3",
-    "http-server": "^13.0.2",
-    "localhost-lambdas": "^0.6.3"
+    "@types/uuid": "^8.3.0"
   },
   "samepage": {
     "extends": "./node_modules/roamjs-components/package.json",

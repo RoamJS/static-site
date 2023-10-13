@@ -73,8 +73,41 @@ import apiDelete from "roamjs-components/util/apiDelete";
 import apiPut from "roamjs-components/util/apiPut";
 import AutocompleteInput from "roamjs-components/components/AutocompleteInput";
 import { v4 } from "uuid";
-import { getApiUrlEnv } from "roamjs-components/util/env";
-import getToken from "roamjs-components/util/getToken";
+import { getNodeEnv } from "roamjs-components/util/env";
+
+const samePageApiWrapper =
+  <T extends ArrayBuffer | Record<string, unknown>>(
+    fcn: (body: Record<string, unknown>) => Promise<T>
+  ) =>
+  (path: string, data?: Record<string, unknown>) =>
+    fcn({
+      path,
+      data,
+      domain: `${
+        getNodeEnv() === "development"
+          ? "http://localhost:3003"
+          : "https://api.samepage.network"
+      }/publishing`,
+    });
+
+function samePageApiPost<T extends ArrayBuffer | Record<string, unknown>>(
+  path: string,
+  data?: Record<string, unknown>
+) {
+  return samePageApiWrapper<T>(apiPost)(path, data);
+}
+function samePageApiPut<T extends ArrayBuffer | Record<string, unknown>>(
+  path: string,
+  data?: Record<string, unknown>
+) {
+  return samePageApiWrapper<T>(apiPut)(path, data);
+}
+function samePageApiGet<T extends ArrayBuffer | Record<string, unknown>>(
+  path: string,
+  data?: Record<string, unknown>
+) {
+  return samePageApiWrapper<T>(apiGet)(path, data);
+}
 
 const allBlockMapper = (t: TreeNode): TreeNode[] => [
   t,
@@ -320,7 +353,7 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
   const [loading, setLoading] = useState(false);
   const [newRecordValue, setNewRecordValue] = useState("");
   useEffect(() => {
-    apiGet<{ records: DNSRecord[] }>("website-records").then((r) =>
+    samePageApiGet<{ records: DNSRecord[] }>("website-records").then((r) =>
       setRecords(r.records)
     );
   }, []);
@@ -2461,7 +2494,7 @@ const RequestSharingContent: StageContent = ({ openPanel }) => {
     nextStage();
   }, [values, nextStage]);
   useEffect(() => {
-    apiPost<{ perms: Sharing[] }>("website-sharing", { method: "GET" })
+    samePageApiPost<{ perms: Sharing[] }>("website-sharing", { method: "GET" })
       .then((r) => setValues(r.perms))
       .finally(() => setLoading(false));
   }, []);
@@ -2498,7 +2531,7 @@ const RequestSharingContent: StageContent = ({ openPanel }) => {
                     activeItem={permission}
                     onItemSelect={(e) => {
                       setLoading(true);
-                      apiPost("website-sharing", {
+                      samePageApiPost("website-sharing", {
                         method: "UPDATE",
                         uuid,
                         date,
@@ -2528,7 +2561,7 @@ const RequestSharingContent: StageContent = ({ openPanel }) => {
                   minimal
                   onClick={() => {
                     setLoading(true);
-                    apiPost("website-sharing", {
+                    samePageApiPost("website-sharing", {
                       method: "DELETE",
                       uuid,
                       date,
@@ -2559,13 +2592,13 @@ const RequestSharingContent: StageContent = ({ openPanel }) => {
                 intent={Intent.SUCCESS}
                 onClick={() => {
                   setLoading(true);
-                  apiPost("website-sharing", {
+                  samePageApiPost("website-sharing", {
                     method: "CREATE",
                     user: newUser,
                   })
                     .then((r) => {
                       setNewUser("");
-                      setValues([...values, r.data]);
+                      setValues([...values, r as Sharing]);
                     })
                     .finally(() => setLoading(false));
                 }}
@@ -2584,6 +2617,7 @@ const StaticSiteDashboard = (): React.ReactElement => {
     <ServiceDashboard
       service={"static-site"}
       stages={[
+        WrapServiceMainStage(LiveContent),
         {
           component: RequestDomainContent,
           setting: "Domain",
@@ -2596,7 +2630,6 @@ const StaticSiteDashboard = (): React.ReactElement => {
           component: RequestFiltersContent,
           setting: "Filter",
         },
-        WrapServiceMainStage(LiveContent),
         {
           component: RequestThemeContent,
           setting: "Theme",
