@@ -294,14 +294,16 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
   const [value, setValue] = useState(useServiceField("domain"));
   const [error, setError] = useState("");
   const [domainSwitch, setDomainSwitch] = useState(
-    !value.endsWith(".roamjs.com")
+    !value.endsWith(".samepage.network")
   );
   const onSwitchChange = useCallback(
     (e: React.FormEvent<HTMLInputElement>) => {
       const { checked } = e.target as HTMLInputElement;
       setDomainSwitch(checked);
       setValue(
-        checked ? value.replace(".roamjs.com", "") : `${value}.roamjs.com`
+        checked
+          ? value.replace(".samepage.network", "")
+          : `${value}.samepage.network`
       );
     },
     [setDomainSwitch, value]
@@ -309,7 +311,9 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
   const onChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setValue(
-        `${e.target.value.toLowerCase()}${domainSwitch ? "" : ".roamjs.com"}`
+        `${e.target.value.toLowerCase()}${
+          domainSwitch ? "" : ".samepage.network"
+        }`
       ),
     [setValue, domainSwitch]
   );
@@ -318,7 +322,7 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
       return setError("Invalid domain. Try a .com!");
     } else if (
       !domainSwitch &&
-      !SUBDOMAIN_REGEX.test(value.replace(".roamjs.com", ""))
+      !SUBDOMAIN_REGEX.test(value.replace(".samepage.network", ""))
     ) {
       return setError("Invalid subdomain. Remove the period");
     }
@@ -377,7 +381,7 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
       <Label>
         {domainSwitch ? "Custom Domain" : "RoamJS Subdomain"}
         <InputGroup
-          value={domainSwitch ? value : value.replace(".roamjs.com", "")}
+          value={domainSwitch ? value : value.replace(".samepage.network", "")}
           onChange={onChange}
           onFocus={onFocus}
           onKeyDown={onKeyDown}
@@ -387,7 +391,7 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
               <span
                 style={{ opacity: 0.5, margin: 4, display: "inline-block" }}
               >
-                .roamjs.com
+                .samepage.network
               </span>
             ) : undefined
           }
@@ -527,7 +531,7 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
                       setNewRecordValue("");
                     } else {
                       throw new Error(
-                        `Could not find hosted zone. Email support@roamjs.com for assistance.`
+                        `Could not find hosted zone. Email support@samepage.network for assistance.`
                       );
                     }
                   })
@@ -1338,6 +1342,12 @@ const WebsiteButton: React.FunctionComponent<
 };
 
 type Deploy = { status: string; date: string; uuid: string };
+type WebsiteProgressType =
+  | "LAUNCHING"
+  | "SHUTTING DOWN"
+  | "DEPLOYING"
+  | "UPDATING"
+  | "";
 
 const LiveContent: StageContent = () => {
   const pageUid = usePageUid();
@@ -1346,85 +1356,69 @@ const LiveContent: StageContent = () => {
   const [initialLoad, setInitialLoad] = useState(true);
   const [statusProps, setStatusProps] = useState<string>();
   const [cfVariableDiffs, setCfVariableDiffs] = useState<CfVariableDiff[]>([]);
-  const [status, setStatus] = useState<string>();
+  const [status, setStatus] = useState<string>("");
   const [deploys, setDeploys] = useState<Deploy[]>([]);
   const [progress, setProgress] = useState(0);
-  const [progressType, setProgressType] = useState("");
+  const [progressType, setProgressType] = useState<WebsiteProgressType>("");
   const timeoutRef = useRef(0);
 
-  const getWebsite = useCallback(
-    () =>
-      samePageApiGet<{
-        statusProps: string;
-        status: string;
-        deploys: Deploy[];
-        progress: number;
-        progressType: string;
-      }>(`website-status?graph=${window.roamAlphaAPI.graph.name}`).then((r) => {
-        if (r) {
-          setStatusProps(r.statusProps);
-          setStatus(r.status);
-          setDeploys(r.deploys || []);
-          setProgress(r.progress);
-          if (!isWebsiteReady(r)) {
-            setProgressType(r.progressType);
-            timeoutRef.current = window.setTimeout(getWebsite, 5000);
-          } else {
-            setProgressType("");
-            apiGet<{
-              DomainName: string;
-              CustomDomain: string;
-            }>(`website-variables?graph=${window.roamAlphaAPI.graph.name}`)
-              .then((r) => {
-                const diffs = [];
-                const tree = getBasicTreeByParentUid(pageUid);
-                const newDomain =
-                  tree.find((t) => toFlexRegex("domain").test(t.text))
-                    ?.children?.[0]?.text || "";
-                if (newDomain !== r.DomainName) {
-                  diffs.push({
-                    field: "Domain",
-                    old: r.DomainName,
-                    value: newDomain,
-                    key: "DomainName",
-                  });
-                }
-                const newIsCustomDomain = `${!newDomain.endsWith(
-                  ".roamjs.com"
-                )}`;
-                if (newIsCustomDomain !== r.CustomDomain) {
-                  diffs.push({
-                    field: "Is Custom Domain",
-                    old: r.CustomDomain,
-                    value: newIsCustomDomain,
-                    key: "CustomDomain",
-                  });
-                }
-                setCfVariableDiffs(diffs);
-              })
-              .catch((e) => {
-                console.error(e);
-                setCfVariableDiffs([]);
-              });
-          }
-        } else {
-          setStatusProps("{}");
-          setStatus("");
-          setDeploys([]);
-          setProgress(0);
-          setProgressType("");
-        }
-      }),
-    [
-      setStatus,
-      setDeploys,
-      timeoutRef,
-      setStatusProps,
-      setProgressType,
-      setProgress,
-      pageUid,
-    ]
-  );
+  const getWebsite = useCallback(async () => {
+    const r = await samePageApiGet<{
+      statusProps: string;
+      websiteStatus: string;
+      deploys: Deploy[];
+      progress: number;
+      progressType: WebsiteProgressType;
+    }>(`website-status?graph=${window.roamAlphaAPI.graph.name}`);
+    setStatusProps(r.statusProps);
+    setStatus(r.websiteStatus);
+    setDeploys(r.deploys);
+    setProgress(r.progress);
+    setProgressType(r.progressType);
+    if (isWebsiteReady(r)) {
+      const { DomainName, CustomDomain } = await samePageApiGet<{
+        DomainName: string;
+        CustomDomain: string;
+      }>(`website-variables?graph=${window.roamAlphaAPI.graph.name}`);
+
+      const diffs = [];
+      const tree = getBasicTreeByParentUid(pageUid);
+
+      const newDomain =
+        tree.find((t) => toFlexRegex("domain").test(t.text))?.children?.[0]
+          ?.text || "";
+      if (newDomain !== DomainName) {
+        diffs.push({
+          field: "Domain",
+          old: DomainName,
+          value: newDomain,
+          key: "DomainName",
+        });
+      }
+
+      const newIsCustomDomain = `${!newDomain.endsWith(".samepage.network")}`;
+      if (newIsCustomDomain !== CustomDomain) {
+        diffs.push({
+          field: "Is Custom Domain",
+          old: CustomDomain,
+          value: newIsCustomDomain,
+          key: "CustomDomain",
+        });
+      }
+
+      setCfVariableDiffs(diffs);
+    } else if (r.websiteStatus !== "SETUP") {
+      timeoutRef.current = window.setTimeout(getWebsite, 5000);
+    }
+  }, [
+    setStatus,
+    setDeploys,
+    timeoutRef,
+    setStatusProps,
+    setProgressType,
+    setProgress,
+    pageUid,
+  ]);
   const wrapPost = useCallback(
     (path: string, getData: (uid: string) => Record<string, unknown>) => {
       setError("");
@@ -1500,167 +1494,162 @@ const LiveContent: StageContent = () => {
     <>
       {loading && <Spinner />}
       {error && <div style={{ color: "darkred" }}>{error}</div>}
-      {!initialLoad && (
-        <>
-          {status ? (
-            <>
-              <div style={{ marginBottom: 8 }}>
-                <span>Status</span>
-                {status === "AWAITING VALIDATION" &&
-                statusProps &&
-                statusProps !== "{}" ? (
-                  <div style={{ color: "darkblue" }}>
-                    <span>{status}</span>
-                    <br />
-                    {statusProps.includes("nameServers") && (
-                      <>
-                        To continue, add the following Name Servers to your
-                        Domain Management Settings:
-                        <ul>
-                          {getNameServers(statusProps).map((n) => (
-                            <li key={n}>{n}</li>
-                          ))}
-                        </ul>
-                      </>
-                    )}
-                    {statusProps.includes("cname") && (
-                      <>
-                        To continue, add the following CNAME to your Domain
-                        Management Settings:
-                        <p>
-                          <b>Name: </b>
-                          {JSON.parse(statusProps).cname.name}
-                        </p>
-                        <p>
-                          <b>Value: </b>
-                          {JSON.parse(statusProps).cname.value}
-                        </p>
-                      </>
-                    )}
-                  </div>
-                ) : (
-                  <span
-                    style={{ marginLeft: 16, color: getStatusColor(status) }}
-                  >
-                    {status === "LIVE" ? (
-                      <a
-                        href={`https://${domain}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ color: "inherit" }}
-                      >
-                        LIVE
-                      </a>
-                    ) : (
-                      status
-                    )}
-                  </span>
-                )}
-              </div>
-              {progressType && (
-                <div style={{ margin: "8px 0" }}>
-                  <ProgressBar
-                    value={progress}
-                    intent={progressTypeToIntent(progressType)}
-                  />
-                </div>
-              )}
-              <div style={{ marginTop: 8 }}>
-                {!!cfVariableDiffs.length && (
-                  <WebsiteButton
-                    onConfirm={updateSite}
-                    disabled={siteDeploying}
-                    buttonText={"Update Site"}
-                    intent={Intent.WARNING}
-                  >
-                    <p>A site update would make the following changes:</p>
-                    <table>
-                      <tbody>
-                        {cfVariableDiffs.map((diff) => (
-                          <tr key={diff.field}>
-                            <td>
-                              <b>Field: </b>
-                              {diff.field}
-                            </td>
-                            <td>
-                              <b>From: </b>
-                              {diff.old}
-                            </td>
-                            <td>
-                              <Icon icon={"arrow-right"} />
-                            </td>
-                            <td>
-                              <b>To: </b>
-                              {diff.value}
-                            </td>
-                          </tr>
+      {!initialLoad &&
+        (status ? (
+          <>
+            <div style={{ marginBottom: 8 }}>
+              <span>Status</span>
+              {status === "AWAITING VALIDATION" &&
+              statusProps &&
+              statusProps !== "{}" ? (
+                <div style={{ color: "darkblue" }}>
+                  <span>{status}</span>
+                  <br />
+                  {statusProps.includes("nameServers") && (
+                    <>
+                      To continue, add the following Name Servers to your Domain
+                      Management Settings:
+                      <ul>
+                        {getNameServers(statusProps).map((n) => (
+                          <li key={n}>{n}</li>
                         ))}
-                      </tbody>
-                    </table>
-                    <p style={{ marginTop: 10 }}>
-                      Are you sure you want to make these changes? This
-                      operation could take several minutes.
-                    </p>
-                  </WebsiteButton>
-                )}
-                <Button
-                  style={{ marginRight: 32 }}
-                  disabled={siteDeploying}
-                  onClick={manualDeploy}
-                  intent={Intent.PRIMARY}
-                >
-                  Deploy
-                </Button>
+                      </ul>
+                    </>
+                  )}
+                  {statusProps.includes("cname") && (
+                    <>
+                      To continue, add the following CNAME to your Domain
+                      Management Settings:
+                      <p>
+                        <b>Name: </b>
+                        {JSON.parse(statusProps).cname.name}
+                      </p>
+                      <p>
+                        <b>Value: </b>
+                        {JSON.parse(statusProps).cname.value}
+                      </p>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <span style={{ marginLeft: 16, color: getStatusColor(status) }}>
+                  {status === "LIVE" ? (
+                    <a
+                      href={`https://${domain}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: "inherit" }}
+                    >
+                      LIVE
+                    </a>
+                  ) : (
+                    status
+                  )}
+                </span>
+              )}
+            </div>
+            {progressType && (
+              <div style={{ margin: "8px 0" }}>
+                <ProgressBar
+                  value={progress}
+                  intent={progressTypeToIntent(progressType)}
+                />
+              </div>
+            )}
+            <div style={{ marginTop: 8 }}>
+              {!!cfVariableDiffs.length && (
                 <WebsiteButton
+                  onConfirm={updateSite}
                   disabled={siteDeploying}
-                  onConfirm={shutdownWebsite}
-                  buttonText={"Shutdown"}
-                  intent={Intent.DANGER}
+                  buttonText={"Update Site"}
+                  intent={Intent.WARNING}
                 >
-                  <p>
-                    Are you sure you want to shut down this RoamJS website? This
-                    operation is irreversible.
+                  <p>A site update would make the following changes:</p>
+                  <table>
+                    <tbody>
+                      {cfVariableDiffs.map((diff) => (
+                        <tr key={diff.field}>
+                          <td>
+                            <b>Field: </b>
+                            {diff.field}
+                          </td>
+                          <td>
+                            <b>From: </b>
+                            {diff.old}
+                          </td>
+                          <td>
+                            <Icon icon={"arrow-right"} />
+                          </td>
+                          <td>
+                            <b>To: </b>
+                            {diff.value}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p style={{ marginTop: 10 }}>
+                    Are you sure you want to make these changes? This operation
+                    could take several minutes.
                   </p>
                 </WebsiteButton>
-              </div>
-              <hr style={{ margin: "16px 0" }} />
-              <h6>Deploys</h6>
-              <ul>
-                {deploys.map((d) => (
-                  <div key={d.uuid}>
-                    <span style={{ display: "inline-block", minWidth: "35%" }}>
-                      At {new Date(d.date).toLocaleString()}
-                    </span>
-                    <span
-                      style={{
-                        marginLeft: 16,
-                        color: getStatusColor(d.status),
-                      }}
-                    >
-                      {d.status}
-                    </span>
-                  </div>
-                ))}
-              </ul>
-            </>
-          ) : (
-            <>
-              <p>
-                You're ready to launch your new site! Click the button below to
-                start.
-              </p>
+              )}
               <Button
-                disabled={loading}
-                onClick={launchWebsite}
+                style={{ marginRight: 32 }}
+                disabled={siteDeploying}
+                onClick={manualDeploy}
                 intent={Intent.PRIMARY}
-                style={{ maxWidth: 240 }}
               >
-                LAUNCH
+                Deploy
               </Button>
-            </>
-          )}
-        </>
-      )}
+              <WebsiteButton
+                disabled={siteDeploying}
+                onConfirm={shutdownWebsite}
+                buttonText={"Shutdown"}
+                intent={Intent.DANGER}
+              >
+                <p>
+                  Are you sure you want to shut down this RoamJS website? This
+                  operation is irreversible.
+                </p>
+              </WebsiteButton>
+            </div>
+            <hr style={{ margin: "16px 0" }} />
+            <h6>Deploys</h6>
+            <ul>
+              {deploys.map((d) => (
+                <div key={d.uuid}>
+                  <span style={{ display: "inline-block", minWidth: "35%" }}>
+                    At {new Date(d.date).toLocaleString()}
+                  </span>
+                  <span
+                    style={{
+                      marginLeft: 16,
+                      color: getStatusColor(d.status),
+                    }}
+                  >
+                    {d.status}
+                  </span>
+                </div>
+              ))}
+            </ul>
+          </>
+        ) : (
+          <>
+            <p>
+              You're ready to launch your new site! Click the button below to
+              start.
+            </p>
+            <Button
+              disabled={loading}
+              onClick={launchWebsite}
+              intent={Intent.PRIMARY}
+              style={{ maxWidth: 240 }}
+            >
+              LAUNCH
+            </Button>
+          </>
+        ))}
     </>
   );
 };
