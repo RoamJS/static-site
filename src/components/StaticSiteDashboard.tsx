@@ -109,6 +109,16 @@ function samePageApiGet<T extends ArrayBuffer | Record<string, unknown>>(
   return samePageApiWrapper<T>(apiGet)(path, data);
 }
 
+const defer =
+  <R extends unknown, P extends unknown[]>(fcn: (...args: P) => R) =>
+  async (...args: P) =>
+    new Promise<R>((r) =>
+      setTimeout(() => {
+        const ret = fcn(...args);
+        r(ret);
+      }, 1)
+    );
+
 const allBlockMapper = (t: TreeNode): TreeNode[] => [
   t,
   ...(t.children || []).flatMap(allBlockMapper),
@@ -1420,44 +1430,31 @@ const LiveContent: StageContent = () => {
     pageUid,
   ]);
   const wrapPost = useCallback(
-    (path: string, getData: (uid: string) => Record<string, unknown>) => {
+    async (path: string, getData: (uid: string) => Record<string, unknown>) => {
       setError("");
       setLoading(true);
-      return new Promise<Record<string, unknown>>((resolve, reject) =>
-        setTimeout(() => {
-          try {
-            const data = getData(pageUid);
-            resolve(data);
-          } catch (e) {
-            console.error(e);
-            reject(e);
-          }
-        }, 1)
-      )
-        .then((data) => apiPost(path, data))
-        .then(getWebsite)
-        .then(() => true)
-        .catch((e) => {
-          setError(
-            e.response?.data?.errorMessage || e.response?.data || e.message
-          );
-          return false;
-        })
-        .finally(() => setLoading(false));
+      try {
+        const data = await defer(getData)(pageUid);
+        await apiPost(path, data);
+        await getWebsite();
+        setLoading(false);
+        return true;
+      } catch (e) {
+        setError((e as Error).message);
+        setLoading(false);
+        return false;
+      }
     },
     [setError, setLoading, getWebsite, pageUid]
   );
-  const manualDeploy = useCallback(
+  const deploy = useCallback(
     () => wrapPost("deploy-website", getDeployBody),
     [wrapPost]
   );
-  const launchWebsite = useCallback(
-    () =>
-      wrapPost("launch-website", getLaunchBody).then((success) => {
-        if (success) apiPost("deploy-website", getDeployBody(pageUid));
-      }),
-    [wrapPost, pageUid]
-  );
+  const launchWebsite = useCallback(async () => {
+    const success = await wrapPost("launch-website", getLaunchBody);
+    if (success) await wrapPost("deploy-website", getDeployBody);
+  }, [wrapPost, deploy]);
   const shutdownWebsite = useCallback(
     () =>
       wrapPost("shutdown-website", () => ({
@@ -1597,7 +1594,7 @@ const LiveContent: StageContent = () => {
               <Button
                 style={{ marginRight: 32 }}
                 disabled={siteDeploying}
-                onClick={manualDeploy}
+                onClick={deploy}
                 intent={Intent.PRIMARY}
               >
                 Deploy
