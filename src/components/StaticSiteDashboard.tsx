@@ -75,6 +75,8 @@ import AutocompleteInput from "roamjs-components/components/AutocompleteInput";
 import { v4 } from "uuid";
 import { getNodeEnv } from "roamjs-components/util/env";
 
+const hostedDomain = ".publishing.samepage.network";
+
 const samePageApiWrapper =
   <T extends ArrayBuffer | Record<string, unknown>>(
     fcn: (body: Record<string, unknown>) => Promise<T>
@@ -304,16 +306,14 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
   const [value, setValue] = useState(useServiceField("domain"));
   const [error, setError] = useState("");
   const [domainSwitch, setDomainSwitch] = useState(
-    !value.endsWith(".samepage.network")
+    !value.endsWith(hostedDomain)
   );
   const onSwitchChange = useCallback(
     (e: React.FormEvent<HTMLInputElement>) => {
       const { checked } = e.target as HTMLInputElement;
       setDomainSwitch(checked);
       setValue(
-        checked
-          ? value.replace(".samepage.network", "")
-          : `${value}.samepage.network`
+        checked ? value.replace(hostedDomain, "") : `${value}${hostedDomain}`
       );
     },
     [setDomainSwitch, value]
@@ -321,9 +321,7 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
   const onChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) =>
       setValue(
-        `${e.target.value.toLowerCase()}${
-          domainSwitch ? "" : ".samepage.network"
-        }`
+        `${e.target.value.toLowerCase()}${domainSwitch ? "" : hostedDomain}`
       ),
     [setValue, domainSwitch]
   );
@@ -332,7 +330,7 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
       return setError("Invalid domain. Try a .com!");
     } else if (
       !domainSwitch &&
-      !SUBDOMAIN_REGEX.test(value.replace(".samepage.network", ""))
+      !SUBDOMAIN_REGEX.test(value.replace(hostedDomain, ""))
     ) {
       return setError("Invalid subdomain. Remove the period");
     }
@@ -391,7 +389,7 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
       <Label>
         {domainSwitch ? "Custom Domain" : "RoamJS Subdomain"}
         <InputGroup
-          value={domainSwitch ? value : value.replace(".samepage.network", "")}
+          value={domainSwitch ? value : value.replace(hostedDomain, "")}
           onChange={onChange}
           onFocus={onFocus}
           onKeyDown={onKeyDown}
@@ -401,7 +399,7 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
               <span
                 style={{ opacity: 0.5, margin: 4, display: "inline-block" }}
               >
-                .samepage.network
+                {hostedDomain}
               </span>
             ) : undefined
           }
@@ -1406,7 +1404,7 @@ const LiveContent: StageContent = () => {
         });
       }
 
-      const newIsCustomDomain = `${!newDomain.endsWith(".samepage.network")}`;
+      const newIsCustomDomain = `${!newDomain.endsWith(hostedDomain)}`;
       if (newIsCustomDomain !== CustomDomain) {
         diffs.push({
           field: "Is Custom Domain",
@@ -1435,7 +1433,7 @@ const LiveContent: StageContent = () => {
       setLoading(true);
       try {
         const data = await defer(getData)(pageUid);
-        await apiPost(path, data);
+        await samePageApiPost(path, data);
         await getWebsite();
         setLoading(false);
         return true;
@@ -1480,13 +1478,22 @@ const LiveContent: StageContent = () => {
       .catch((e) => setError(e.response?.data || e.message))
       .finally(() => setLoading(false));
   }, [setError, setLoading, setInitialLoad, getWebsite]);
-  const domain = useMemo(
-    () =>
-      getBasicTreeByParentUid(pageUid).find((t) =>
-        toFlexRegex("domain").test(t.text)
-      )?.children?.[0]?.text,
-    [pageUid]
-  );
+  const domain = useMemo(() => {
+    const value = getBasicTreeByParentUid(pageUid).find((t) =>
+      toFlexRegex("domain").test(t.text)
+    )?.children?.[0]?.text;
+    if (!value) {
+      const newDomain = `${window.roamAlphaAPI.util.generateUID()}${hostedDomain}`;
+      setInputSetting({
+        blockUid: pageUid,
+        key: "domain",
+        value: newDomain,
+        index: 1,
+      });
+      return newDomain;
+    }
+    return value;
+  }, [pageUid]);
   return (
     <>
       {loading && <Spinner />}
@@ -1631,7 +1638,7 @@ const LiveContent: StageContent = () => {
               ))}
             </ul>
           </>
-        ) : (
+        ) : domain ? (
           <>
             <p>
               You're ready to launch your new site! Click the button below to
@@ -1641,6 +1648,32 @@ const LiveContent: StageContent = () => {
               disabled={loading}
               onClick={launchWebsite}
               intent={Intent.PRIMARY}
+              className="mb-16"
+              style={{ maxWidth: 240 }}
+            >
+              LAUNCH
+            </Button>
+            <div>
+              <h4>Summary</h4>
+              <p>
+                Your website will available at <b>{domain}</b>
+              </p>
+              <hr />
+              <p>
+                Click the settings icon on the top right to edit these settings.
+              </p>
+            </div>
+          </>
+        ) : (
+          <>
+            <p>
+              You're missing a domain! Click the settings icon on the top right
+              to get started.
+            </p>
+            <Button
+              disabled
+              intent={Intent.PRIMARY}
+              className="mb-16"
               style={{ maxWidth: 240 }}
             >
               LAUNCH

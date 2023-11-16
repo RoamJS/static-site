@@ -101,34 +101,6 @@ export const waitForChangeToSync = ({
     );
 };
 
-export const clearRecordsById = async (HostedZoneId?: string) => {
-  if (HostedZoneId) {
-    const CNAME = await route53
-      .listResourceRecordSets({ HostedZoneId })
-      .promise()
-      .then((sets) => sets.ResourceRecordSets.find((r) => r.Type === "CNAME"));
-    if (CNAME) {
-      await route53
-        .changeResourceRecordSets({
-          HostedZoneId,
-          ChangeBatch: {
-            Changes: [{ Action: "DELETE", ResourceRecordSet: CNAME }],
-          },
-        })
-        .promise()
-        .then((r) => waitForChangeToSync({ Id: r.ChangeInfo.Id }));
-    }
-  }
-};
-
-export const clearRecords = async (StackName: string) => {
-  const summaries = await getStackSummaries(StackName);
-  const HostedZoneId = (summaries || []).find(
-    (s) => s.LogicalResourceId === "HostedZone"
-  )?.PhysicalResourceId;
-  await clearRecordsById(HostedZoneId);
-};
-
 export const getStackParameter = (key: string, StackName: string) =>
   cf
     .describeStacks({ StackName })

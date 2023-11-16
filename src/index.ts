@@ -31,7 +31,7 @@ export default runExtension(async () => {
     width: 8px;
 }`);
 
-  runService({
+  const unload = runService({
     id: ID,
     Dashboard,
   });
@@ -46,12 +46,16 @@ export default runExtension(async () => {
     deploy,
   };
 
-  registerSmartBlocksCommand({
+  const unregisterCommand = registerSmartBlocksCommand({
     text: "DEPLOYSITE",
     handler: () => () =>
       deploy()
         .then(() => "Successfully deployed website!")
         .catch((e) => "Error generating the report: " + e.message),
   });
-  return { elements: [style] };
+  return () => {
+    style.remove();
+    unregisterCommand();
+    unload();
+  };
 });

@@ -83,10 +83,10 @@ export const runService = ({
 }: {
   id: string;
   Dashboard: React.FC;
-}): void => {
+}): (() => void) => {
   const title = `roam/js/${id}` as const;
 
-  createPageTitleObserver({
+  const unmountObserver = createPageTitleObserver({
     title,
     callback: (d: HTMLDivElement) => {
       const parent = document.createElement("div");
@@ -149,6 +149,8 @@ export const runService = ({
       root
     );
   }
+
+  return unmountObserver;
 };
 
 // eslint-disable-next-line @typescript-eslint/ban-types
