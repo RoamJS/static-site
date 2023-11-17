@@ -110,6 +110,12 @@ function samePageApiGet<T extends ArrayBuffer | Record<string, unknown>>(
 ) {
   return samePageApiWrapper<T>(apiGet)(path, data);
 }
+function samePageApiDelete<T extends ArrayBuffer | Record<string, unknown>>(
+  path: string,
+  data?: Record<string, unknown>
+) {
+  return samePageApiWrapper<T>(apiDelete)(path, data);
+}
 
 const defer =
   <R extends unknown, P extends unknown[]>(fcn: (...args: P) => R) =>
@@ -248,7 +254,7 @@ const DNSRecordView = ({
                 value: newRecordValue,
               };
               setLoading(true);
-              apiPut(`website-records`, newBody)
+              samePageApiPut(`website-records`, newBody)
                 .then(() => {
                   onUpdate(newBody);
                   setIsEdit(false);
@@ -283,7 +289,7 @@ const DNSRecordView = ({
             minimal
             onClick={() => {
               setLoading(true);
-              apiDelete(
+              samePageApiGet(
                 `website-records?name=${record.name}&type=${record.type}&value=${record.value}`
               )
                 .then(onDelete)
@@ -531,7 +537,7 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
                   value: newRecordValue,
                 };
                 setLoading(true);
-                apiPost<{ success: boolean }>(`website-records`, body)
+                samePageApiPost<{ success: boolean }>(`website-records`, body)
                   .then((r) => {
                     if (r.success) {
                       setRecords(records.concat(body));
@@ -2132,7 +2138,7 @@ const ThemeBrowser = ({
   const openBrowser = useCallback(() => {
     setIsOpen(true);
     setLoading(true);
-    apiGet<{ themes: Theme[] }>(`themes`)
+    samePageApiGet<{ themes: Theme[] }>(`themes`)
       .then((r) => setThemes(r.themes))
       .finally(() => setLoading(false));
   }, [setIsOpen, setLoading, setThemes]);
@@ -2397,12 +2403,17 @@ const RequestRedirectsContent: StageContent = ({ openPanel }) => {
   const [values, setValues] = useState<Redirect[]>([]);
   const onSubmit = useCallback(() => {
     setLoading(true);
-    apiPost("website-redirects", { method: "SUBMIT", redirects: values })
+    samePageApiPost("website-redirects", {
+      method: "SUBMIT",
+      redirects: values,
+    })
       .then(nextStage)
       .catch(() => setLoading(false));
   }, [values, nextStage]);
   useEffect(() => {
-    apiPost<{ redirects: Redirect[] }>("website-redirects", { method: "GET" })
+    samePageApiPost<{ redirects: Redirect[] }>("website-redirects", {
+      method: "GET",
+    })
       .then((r) => setValues(r.redirects))
       .finally(() => setLoading(false));
   }, []);
@@ -2467,7 +2478,7 @@ const RequestRedirectsContent: StageContent = ({ openPanel }) => {
                   minimal
                   onClick={() => {
                     setLoading(true);
-                    apiPost("website-redirects", {
+                    samePageApiPost("website-redirects", {
                       method: "DELETE",
                       uuid,
                       date,
