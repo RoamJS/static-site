@@ -2591,10 +2591,9 @@ const RequestSharingContent: StageContent = ({ openPanel }) => {
                   minimal
                   onClick={() => {
                     setLoading(true);
-                    samePageApiPost("website-sharing", {
+                    samePageApiDelete("website-sharing", {
                       method: "DELETE",
                       uuid,
-                      date,
                     })
                       .then(() =>
                         setValues(values.filter((v) => v.uuid !== uuid))
