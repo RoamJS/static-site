@@ -1301,15 +1301,6 @@ export const getDeployBody = (pageUid: string) => {
   };
 };
 
-const getNameServers = (statusProps: string): string[] => {
-  try {
-    const { nameServers } = JSON.parse(statusProps);
-    return nameServers || [];
-  } catch {
-    return [];
-  }
-};
-
 type CfVariableDiff = {
   field: string;
   old: string;
@@ -1317,12 +1308,26 @@ type CfVariableDiff = {
   key: string;
 };
 
-const isWebsiteReady = (w: {
-  status?: string;
+const isWebsiteReady = ({
+  websiteStatus,
+  deploys,
+}: {
+  websiteStatus: string;
   deploys: { status: string }[];
 }) =>
-  w.status === "LIVE" &&
-  (!w.deploys.length || ["SUCCESS", "FAILURE"].includes(w.deploys[0].status));
+  websiteStatus === "LIVE" &&
+  (!deploys.length || ["SUCCESS", "FAILURE"].includes(deploys[0].status));
+
+const isWebsiteDeploying = ({
+  websiteStatus,
+  deploys,
+}: {
+  websiteStatus: string;
+  deploys: { status: string }[];
+}) =>
+  websiteStatus === "LIVE"
+    ? !!deploys.length && ["SUCCESS", "FAILURE"].includes(deploys[0]?.status)
+    : !["SETUP", "FAILURE"].includes(websiteStatus);
 
 const getStatusColor = (status: string) =>
   ["LIVE", "SUCCESS"].includes(status)
@@ -1395,9 +1400,9 @@ const LiveContent: StageContent = () => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
-  const [statusProps, setStatusProps] = useState<string>();
+  const [statusProps, setStatusProps] = useState<Record<string, unknown>>();
   const [cfVariableDiffs, setCfVariableDiffs] = useState<CfVariableDiff[]>([]);
-  const [status, setStatus] = useState<string>("");
+  const [websiteStatus, setWebsiteStatus] = useState<string>("SETUP");
   const [deploys, setDeploys] = useState<Deploy[]>([]);
   const [progress, setProgress] = useState(0);
   const [progressType, setProgressType] = useState<WebsiteProgressType>("");
@@ -1405,14 +1410,14 @@ const LiveContent: StageContent = () => {
 
   const getWebsite = useCallback(async () => {
     const r = await samePageApiGet<{
-      statusProps: string;
+      statusProps: Record<string, unknown>;
       websiteStatus: string;
       deploys: Deploy[];
       progress: number;
       progressType: WebsiteProgressType;
     }>(`website-status?graph=${window.roamAlphaAPI.graph.name}`);
     setStatusProps(r.statusProps);
-    setStatus(r.websiteStatus);
+    setWebsiteStatus(r.websiteStatus);
     setDeploys(r.deploys);
     setProgress(r.progress);
     setProgressType(r.progressType);
@@ -1448,11 +1453,13 @@ const LiveContent: StageContent = () => {
       }
 
       setCfVariableDiffs(diffs);
+    } else if (r.websiteStatus === "FAILURE") {
+      setError(r.statusProps["message"] as string);
     } else if (r.websiteStatus !== "SETUP") {
       timeoutRef.current = window.setTimeout(getWebsite, 5000);
     }
   }, [
-    setStatus,
+    setWebsiteStatus,
     setDeploys,
     timeoutRef,
     setStatusProps,
@@ -1467,8 +1474,8 @@ const LiveContent: StageContent = () => {
       try {
         const data = await defer(getData)(pageUid);
         await samePageApiPost(path, data);
-        await getWebsite();
         setLoading(false);
+        await getWebsite();
         return true;
       } catch (e) {
         setError((e as Error).message);
@@ -1503,7 +1510,8 @@ const LiveContent: StageContent = () => {
   );
 
   useEffect(() => () => clearTimeout(timeoutRef.current), [timeoutRef]);
-  const siteDeploying = loading || !isWebsiteReady({ status, deploys });
+  const isSiteDeploying =
+    loading || isWebsiteDeploying({ websiteStatus, deploys });
   useEffect(() => {
     setLoading(true);
     getWebsite()
@@ -1529,48 +1537,52 @@ const LiveContent: StageContent = () => {
   }, [pageUid]);
   return (
     <>
-      {loading && <Spinner />}
       {error && <div style={{ color: "darkred" }}>{error}</div>}
       {!initialLoad &&
-        (status ? (
+        (websiteStatus !== "SETUP" ? (
           <>
             <div style={{ marginBottom: 8 }}>
               <span>Status</span>
-              {status === "AWAITING VALIDATION" &&
+              {websiteStatus === "AWAITING VALIDATION" &&
               statusProps &&
-              statusProps !== "{}" ? (
+              Object.keys(statusProps).length > 0 ? (
                 <div style={{ color: "darkblue" }}>
-                  <span>{status}</span>
+                  <span>{websiteStatus}</span>
                   <br />
-                  {statusProps.includes("nameServers") && (
+                  {statusProps["nameServers"] && (
                     <>
                       To continue, add the following Name Servers to your Domain
                       Management Settings:
                       <ul>
-                        {getNameServers(statusProps).map((n) => (
+                        {(statusProps["nameServers"] as string[]).map((n) => (
                           <li key={n}>{n}</li>
                         ))}
                       </ul>
                     </>
                   )}
-                  {statusProps.includes("cname") && (
+                  {statusProps["cname"] && (
                     <>
                       To continue, add the following CNAME to your Domain
                       Management Settings:
                       <p>
                         <b>Name: </b>
-                        {JSON.parse(statusProps).cname.name}
+                        {(statusProps.cname as Record<string, string>)["name"]}
                       </p>
                       <p>
                         <b>Value: </b>
-                        {JSON.parse(statusProps).cname.value}
+                        {(statusProps.cname as Record<string, string>)["value"]}
                       </p>
                     </>
                   )}
                 </div>
               ) : (
-                <span style={{ marginLeft: 16, color: getStatusColor(status) }}>
-                  {status === "LIVE" ? (
+                <span
+                  style={{
+                    marginLeft: 16,
+                    color: getStatusColor(websiteStatus),
+                  }}
+                >
+                  {websiteStatus === "LIVE" ? (
                     <a
                       href={`https://${domain}`}
                       target="_blank"
@@ -1580,12 +1592,12 @@ const LiveContent: StageContent = () => {
                       LIVE
                     </a>
                   ) : (
-                    status
+                    websiteStatus
                   )}
                 </span>
               )}
             </div>
-            {progressType && (
+            {isSiteDeploying && (
               <div style={{ margin: "8px 0" }}>
                 <ProgressBar
                   value={progress}
@@ -1597,7 +1609,7 @@ const LiveContent: StageContent = () => {
               {!!cfVariableDiffs.length && (
                 <WebsiteButton
                   onConfirm={updateSite}
-                  disabled={siteDeploying}
+                  disabled={isSiteDeploying}
                   buttonText={"Update Site"}
                   intent={Intent.WARNING}
                 >
@@ -1633,14 +1645,14 @@ const LiveContent: StageContent = () => {
               )}
               <Button
                 style={{ marginRight: 32 }}
-                disabled={siteDeploying}
+                disabled={isSiteDeploying}
                 onClick={deploy}
                 intent={Intent.PRIMARY}
               >
                 Deploy
               </Button>
               <WebsiteButton
-                disabled={siteDeploying}
+                disabled={isSiteDeploying}
                 onConfirm={shutdownWebsite}
                 buttonText={"Shutdown"}
                 intent={Intent.DANGER}
@@ -1683,6 +1695,7 @@ const LiveContent: StageContent = () => {
               intent={Intent.PRIMARY}
               className="mb-16"
               style={{ maxWidth: 240 }}
+              loading={loading}
             >
               LAUNCH
             </Button>
