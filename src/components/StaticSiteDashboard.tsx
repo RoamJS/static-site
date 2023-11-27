@@ -1519,10 +1519,14 @@ const LiveContent: StageContent = () => {
       .catch((e) => setError(e.response?.data || e.message))
       .finally(() => setLoading(false));
   }, [setError, setLoading, setInitialLoad, getWebsite]);
+
+  const settingsTree = useMemo(
+    () => getBasicTreeByParentUid(pageUid),
+    [pageUid]
+  );
   const domain = useMemo(() => {
-    const value = getBasicTreeByParentUid(pageUid).find((t) =>
-      toFlexRegex("domain").test(t.text)
-    )?.children?.[0]?.text;
+    const value = settingsTree.find((t) => toFlexRegex("domain").test(t.text))
+      ?.children?.[0]?.text;
     if (!value) {
       const newDomain = `${window.roamAlphaAPI.util.generateUID()}${hostedDomain}`;
       setInputSetting({
@@ -1534,7 +1538,14 @@ const LiveContent: StageContent = () => {
       return newDomain;
     }
     return value;
-  }, [pageUid]);
+  }, [pageUid, settingsTree]);
+  const indexPage = useMemo(() => {
+    return getSettingValueFromTree({
+      tree: settingsTree,
+      key: "index",
+      defaultValue: "Website Index",
+    });
+  }, [settingsTree]);
   return (
     <>
       {error && <div style={{ color: "darkred" }}>{error}</div>}
@@ -1702,7 +1713,10 @@ const LiveContent: StageContent = () => {
             <div>
               <h4>Summary</h4>
               <p>
-                Your website will available at <b>{domain}</b>
+                Your website will available at <b>{domain}</b>.
+              </p>
+              <p>
+                Your home page will be generated from <b>{indexPage}</b>.
               </p>
               <hr />
               <p>
