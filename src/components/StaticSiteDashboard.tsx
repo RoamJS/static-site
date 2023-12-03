@@ -1363,7 +1363,7 @@ const WebsiteButton: React.FunctionComponent<
   return (
     <>
       <Button
-        style={{ marginRight: 32 }}
+        style={{ marginRight: 32, minWidth: 92 }}
         disabled={disabled}
         onClick={open}
         intent={intent}
@@ -1546,200 +1546,210 @@ const LiveContent: StageContent = () => {
       defaultValue: "Website Index",
     });
   }, [settingsTree]);
+
+  if (initialLoad) {
+    return <></>;
+  }
+
+  if (!domain) {
+    return (
+      <>
+        <p>
+          You're missing a domain! Click the settings icon on the top right to
+          get started.
+        </p>
+        <Button
+          disabled
+          intent={Intent.PRIMARY}
+          className="mb-16"
+          style={{ maxWidth: 240 }}
+        >
+          LAUNCH
+        </Button>
+      </>
+    );
+  }
+
+  if (websiteStatus === "SETUP") {
+    return (
+      <>
+        <p>
+          You're ready to launch your new site! Click the button below to start.
+        </p>
+        <div className="flex">
+          <Button
+            disabled={loading}
+            onClick={launchWebsite}
+            intent={Intent.PRIMARY}
+            className="mb-16"
+            style={{ maxWidth: 240 }}
+            loading={loading}
+          >
+            LAUNCH
+          </Button>
+          {error && <div style={{ color: "darkred" }}>{error}</div>}
+        </div>
+        <div>
+          <h4>Summary</h4>
+          <p>
+            Your website will available at <b>{domain}</b>.
+          </p>
+          <p>
+            Your home page will be generated from <b>{indexPage}</b>.
+          </p>
+          <hr />
+          <p>
+            Click the settings icon on the top right to edit these settings.
+          </p>
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
-      {error && <div style={{ color: "darkred" }}>{error}</div>}
-      {!initialLoad &&
-        (websiteStatus !== "SETUP" ? (
-          <>
-            <div style={{ marginBottom: 8 }}>
-              <span>Status</span>
-              {websiteStatus === "AWAITING VALIDATION" &&
-              statusProps &&
-              Object.keys(statusProps).length > 0 ? (
-                <div style={{ color: "darkblue" }}>
-                  <span>{websiteStatus}</span>
-                  <br />
-                  {statusProps["nameServers"] && (
-                    <>
-                      To continue, add the following Name Servers to your Domain
-                      Management Settings:
-                      <ul>
-                        {(statusProps["nameServers"] as string[]).map((n) => (
-                          <li key={n}>{n}</li>
-                        ))}
-                      </ul>
-                    </>
-                  )}
-                  {statusProps["cname"] && (
-                    <>
-                      To continue, add the following CNAME to your Domain
-                      Management Settings:
-                      <p>
-                        <b>Name: </b>
-                        {(statusProps.cname as Record<string, string>)["name"]}
-                      </p>
-                      <p>
-                        <b>Value: </b>
-                        {(statusProps.cname as Record<string, string>)["value"]}
-                      </p>
-                    </>
-                  )}
-                </div>
-              ) : (
-                <span
-                  style={{
-                    marginLeft: 16,
-                    color: getStatusColor(websiteStatus),
-                  }}
-                >
-                  {websiteStatus === "LIVE" ? (
-                    <a
-                      href={`https://${domain}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ color: "inherit" }}
-                    >
-                      LIVE
-                    </a>
-                  ) : (
-                    websiteStatus
-                  )}
-                </span>
-              )}
-            </div>
-            {isSiteDeploying && (
-              <div style={{ margin: "8px 0" }}>
-                <ProgressBar
-                  value={progress}
-                  intent={progressTypeToIntent(progressType)}
-                />
-              </div>
+      <div style={{ marginBottom: 8 }}>
+        <span>Status</span>
+        {websiteStatus === "AWAITING VALIDATION" &&
+        statusProps &&
+        Object.keys(statusProps).length > 0 ? (
+          <div style={{ color: "darkblue" }}>
+            <span>{websiteStatus}</span>
+            <br />
+            {statusProps["nameServers"] && (
+              <>
+                To continue, add the following Name Servers to your Domain
+                Management Settings:
+                <ul>
+                  {(statusProps["nameServers"] as string[]).map((n) => (
+                    <li key={n}>{n}</li>
+                  ))}
+                </ul>
+              </>
             )}
-            <div style={{ marginTop: 8 }}>
-              {!!cfVariableDiffs.length && (
-                <WebsiteButton
-                  onConfirm={updateSite}
-                  disabled={isSiteDeploying}
-                  buttonText={"Update Site"}
-                  intent={Intent.WARNING}
-                >
-                  <p>A site update would make the following changes:</p>
-                  <table>
-                    <tbody>
-                      {cfVariableDiffs.map((diff) => (
-                        <tr key={diff.field}>
-                          <td>
-                            <b>Field: </b>
-                            {diff.field}
-                          </td>
-                          <td>
-                            <b>From: </b>
-                            {diff.old}
-                          </td>
-                          <td>
-                            <Icon icon={"arrow-right"} />
-                          </td>
-                          <td>
-                            <b>To: </b>
-                            {diff.value}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <p style={{ marginTop: 10 }}>
-                    Are you sure you want to make these changes? This operation
-                    could take several minutes.
-                  </p>
-                </WebsiteButton>
-              )}
-              <Button
-                style={{ marginRight: 32 }}
-                disabled={isSiteDeploying}
-                onClick={deploy}
-                intent={Intent.PRIMARY}
-              >
-                Deploy
-              </Button>
-              <WebsiteButton
-                disabled={isSiteDeploying}
-                onConfirm={shutdownWebsite}
-                buttonText={"Shutdown"}
-                intent={Intent.DANGER}
-              >
+            {statusProps["cname"] && (
+              <>
+                To continue, add the following CNAME to your Domain Management
+                Settings:
                 <p>
-                  Are you sure you want to shut down this RoamJS website? This
-                  operation is irreversible.
+                  <b>Name: </b>
+                  {(statusProps.cname as Record<string, string>)["name"]}
                 </p>
-              </WebsiteButton>
-            </div>
-            <hr style={{ margin: "16px 0" }} />
-            <h6>Deploys</h6>
-            <ul>
-              {deploys.map((d) => (
-                <div key={d.uuid}>
-                  <span style={{ display: "inline-block", minWidth: "35%" }}>
-                    At {new Date(d.date).toLocaleString()}
-                  </span>
-                  <span
-                    style={{
-                      marginLeft: 16,
-                      color: getStatusColor(d.status),
-                    }}
-                  >
-                    {d.status}
-                  </span>
-                </div>
-              ))}
-            </ul>
-          </>
-        ) : domain ? (
-          <>
-            <p>
-              You're ready to launch your new site! Click the button below to
-              start.
-            </p>
-            <Button
-              disabled={loading}
-              onClick={launchWebsite}
-              intent={Intent.PRIMARY}
-              className="mb-16"
-              style={{ maxWidth: 240 }}
-              loading={loading}
-            >
-              LAUNCH
-            </Button>
-            <div>
-              <h4>Summary</h4>
-              <p>
-                Your website will available at <b>{domain}</b>.
-              </p>
-              <p>
-                Your home page will be generated from <b>{indexPage}</b>.
-              </p>
-              <hr />
-              <p>
-                Click the settings icon on the top right to edit these settings.
-              </p>
-            </div>
-          </>
+                <p>
+                  <b>Value: </b>
+                  {(statusProps.cname as Record<string, string>)["value"]}
+                </p>
+              </>
+            )}
+          </div>
         ) : (
-          <>
-            <p>
-              You're missing a domain! Click the settings icon on the top right
-              to get started.
+          <span
+            style={{
+              marginLeft: 16,
+              color: getStatusColor(websiteStatus),
+            }}
+          >
+            {websiteStatus === "LIVE" ? (
+              <a
+                href={`https://${domain}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{ color: "inherit" }}
+              >
+                LIVE
+              </a>
+            ) : (
+              websiteStatus
+            )}
+          </span>
+        )}
+      </div>
+      {isSiteDeploying && (
+        <div style={{ margin: "8px 0" }}>
+          <ProgressBar
+            value={progress}
+            intent={progressTypeToIntent(progressType)}
+          />
+        </div>
+      )}
+      <div style={{ marginTop: 8, display: "flex", alignItems: "center" }}>
+        {!!cfVariableDiffs.length && (
+          <WebsiteButton
+            onConfirm={updateSite}
+            disabled={isSiteDeploying}
+            buttonText={"Update Site"}
+            intent={Intent.WARNING}
+          >
+            <p>A site update would make the following changes:</p>
+            <table>
+              <tbody>
+                {cfVariableDiffs.map((diff) => (
+                  <tr key={diff.field}>
+                    <td>
+                      <b>Field: </b>
+                      {diff.field}
+                    </td>
+                    <td>
+                      <b>From: </b>
+                      {diff.old}
+                    </td>
+                    <td>
+                      <Icon icon={"arrow-right"} />
+                    </td>
+                    <td>
+                      <b>To: </b>
+                      {diff.value}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p style={{ marginTop: 10 }}>
+              Are you sure you want to make these changes? This operation could
+              take several minutes.
             </p>
-            <Button
-              disabled
-              intent={Intent.PRIMARY}
-              className="mb-16"
-              style={{ maxWidth: 240 }}
+          </WebsiteButton>
+        )}
+        <Button
+          style={{ marginRight: 32, minWidth: 92 }}
+          disabled={isSiteDeploying}
+          onClick={deploy}
+          intent={Intent.PRIMARY}
+        >
+          Deploy
+        </Button>
+        <WebsiteButton
+          disabled={isSiteDeploying}
+          onConfirm={shutdownWebsite}
+          buttonText={"Shutdown"}
+          intent={Intent.DANGER}
+        >
+          <p>
+            Are you sure you want to shut down this RoamJS website? This
+            operation is irreversible.
+          </p>
+        </WebsiteButton>
+        {error && <div style={{ color: "darkred" }}>{error}</div>}
+      </div>
+      <hr style={{ margin: "16px 0" }} />
+      <h6>Deploys</h6>
+      <ul>
+        {deploys.map((d) => (
+          <div key={d.uuid}>
+            <span style={{ display: "inline-block", minWidth: "35%" }}>
+              At {new Date(d.date).toLocaleString()}
+            </span>
+            <span
+              style={{
+                marginLeft: 16,
+                color: getStatusColor(d.status),
+              }}
             >
-              LAUNCH
-            </Button>
-          </>
+              {d.status}
+            </span>
+          </div>
         ))}
+      </ul>
     </>
   );
 };
