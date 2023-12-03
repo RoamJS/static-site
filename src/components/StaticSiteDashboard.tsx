@@ -73,6 +73,7 @@ import apiPut from "roamjs-components/util/apiPut";
 import AutocompleteInput from "roamjs-components/components/AutocompleteInput";
 import { v4 } from "uuid";
 import { getNodeEnv } from "roamjs-components/util/env";
+import { z } from "zod";
 
 const DEFAULT_TEMPLATE = `<!DOCTYPE html>
 <html>
@@ -1308,27 +1309,6 @@ type CfVariableDiff = {
   key: string;
 };
 
-const isWebsiteReady = ({
-  websiteStatus,
-  deploys,
-}: {
-  websiteStatus: string;
-  deploys: { status: string }[];
-}) =>
-  websiteStatus === "LIVE" &&
-  (!deploys.length || ["SUCCESS", "FAILURE"].includes(deploys[0].status));
-
-const isWebsiteDeploying = ({
-  websiteStatus,
-  deploys,
-}: {
-  websiteStatus: string;
-  deploys: { status: string }[];
-}) =>
-  websiteStatus === "LIVE"
-    ? !!deploys.length && ["SUCCESS", "FAILURE"].includes(deploys[0]?.status)
-    : !["SETUP", "FAILURE"].includes(websiteStatus);
-
 const getStatusColor = (status: string) =>
   ["LIVE", "SUCCESS"].includes(status)
     ? "darkgreen"
@@ -1387,7 +1367,12 @@ const WebsiteButton: React.FunctionComponent<
   );
 };
 
-type Deploy = { status: string; date: string; uuid: string };
+type WebsiteStatus = {
+  status: string;
+  date: string;
+  uuid: string;
+  props: Record<string, unknown>;
+};
 type WebsiteProgressType =
   | "LAUNCHING"
   | "SHUTTING DOWN"
@@ -1395,78 +1380,203 @@ type WebsiteProgressType =
   | "UPDATING"
   | "";
 
+const zWebsiteStautusProps = z.discriminatedUnion("status", [
+  z.object({
+    status: z.literal("FAILURE"),
+    props: z.object({ message: z.string() }),
+  }),
+  z.object({
+    status: z.literal("AWAITING VALIDATION"),
+    props: z
+      .object({
+        nameServers: z.array(z.string()),
+      })
+      .or(
+        z.object({
+          cname: z.object({
+            name: z.string(),
+            value: z.string(),
+          }),
+        })
+      ),
+  }),
+  z.object({
+    status: z.literal("PROGRESS"),
+    props: z.object({
+      value: z.number(),
+      progressType: z.string(),
+    }),
+  }),
+  z.object({
+    status: z.literal("NONE"),
+    props: z.undefined(),
+  }),
+]);
+
+const WebsiteStatusesView = ({
+  websiteStatuses,
+  title,
+}: {
+  websiteStatuses: WebsiteStatus[];
+  title: string;
+}) => {
+  const progressPanelProps = useMemo<
+    z.infer<typeof zWebsiteStautusProps>
+  >(() => {
+    if (websiteStatuses.length === 0) {
+      return {
+        status: "NONE",
+      };
+    }
+    const latest = websiteStatuses[0];
+    const parsedProps = zWebsiteStautusProps.safeParse(latest);
+    if (parsedProps.success) {
+      return parsedProps.data;
+    }
+    if (["SUCCESS", "FAILURE"].includes(latest.status)) {
+      return {
+        status: "NONE",
+      };
+    }
+    return {
+      status: "PROGRESS",
+      props: {
+        value: 0.5,
+        progressType: "DEPLOYING",
+      },
+    };
+  }, [websiteStatuses]);
+  return (
+    <div className="flex-grow">
+      <h6>{title}</h6>
+      <div style={{ height: 40 }}>
+        {progressPanelProps.status === "FAILURE" ? (
+          <div style={{ color: "darkred" }}>
+            {progressPanelProps.props.message}
+          </div>
+        ) : progressPanelProps.status === "AWAITING VALIDATION" ? (
+          <div style={{ color: "darkblue" }}>
+            {"nameServers" in progressPanelProps.props && (
+              <>
+                To continue, add the following Name Servers to your Domain
+                Management Settings:
+                <ul>
+                  {progressPanelProps.props.nameServers.map((n) => (
+                    <li key={n}>{n}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+            {"cname" in progressPanelProps.props && (
+              <>
+                To continue, add the following CNAME to your Domain Management
+                Settings:
+                <p>
+                  <b>Name: </b>
+                  {progressPanelProps.props.cname.name}
+                </p>
+                <p>
+                  <b>Value: </b>
+                  {progressPanelProps.props.cname.value}
+                </p>
+              </>
+            )}
+          </div>
+        ) : progressPanelProps.status === "PROGRESS" ? (
+          <ProgressBar
+            value={progressPanelProps.props.value}
+            intent={progressTypeToIntent(progressPanelProps.props.progressType)}
+          />
+        ) : (
+          <div />
+        )}
+      </div>
+      <ul style={{ paddingLeft: 0 }}>
+        {websiteStatuses.map((d) => (
+          <div key={d.uuid}>
+            <span style={{ display: "inline-block", minWidth: "35%" }}>
+              At {new Date(d.date).toLocaleString()}
+            </span>
+            <span
+              style={{
+                marginLeft: 16,
+                color: getStatusColor(d.status),
+              }}
+            >
+              {d.status}
+            </span>
+          </div>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
 const LiveContent: StageContent = () => {
   const pageUid = usePageUid();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [initialLoad, setInitialLoad] = useState(true);
-  const [statusProps, setStatusProps] = useState<Record<string, unknown>>();
   const [cfVariableDiffs, setCfVariableDiffs] = useState<CfVariableDiff[]>([]);
-  const [websiteStatus, setWebsiteStatus] = useState<string>("SETUP");
-  const [deploys, setDeploys] = useState<Deploy[]>([]);
-  const [progress, setProgress] = useState(0);
-  const [progressType, setProgressType] = useState<WebsiteProgressType>("");
+  const [deploys, setDeploys] = useState<WebsiteStatus[]>([]);
+  const [launches, setLaunches] = useState<WebsiteStatus[]>([]);
+  const [isWebsiteReady, setIsWebsiteReady] = useState(false);
   const timeoutRef = useRef(0);
 
   const getWebsite = useCallback(async () => {
-    const r = await samePageApiGet<{
-      statusProps: Record<string, unknown>;
-      websiteStatus: string;
-      deploys: Deploy[];
-      progress: number;
-      progressType: WebsiteProgressType;
-    }>(`website-status?graph=${window.roamAlphaAPI.graph.name}`);
-    setStatusProps(r.statusProps);
-    setWebsiteStatus(r.websiteStatus);
-    setDeploys(r.deploys);
-    setProgress(r.progress);
-    setProgressType(r.progressType);
-    if (isWebsiteReady(r)) {
-      const { DomainName, CustomDomain } = await samePageApiGet<{
-        DomainName: string;
-        CustomDomain: string;
-      }>(`website-variables?graph=${window.roamAlphaAPI.graph.name}`);
+    try {
+      const r = await samePageApiGet<{
+        deploys: WebsiteStatus[];
+        launches: WebsiteStatus[];
+        isWebsiteReady: boolean;
 
-      const diffs = [];
-      const tree = getBasicTreeByParentUid(pageUid);
+        // DEPRECATED
+        progress: number;
+        progressType: WebsiteProgressType;
+      }>(`website-status?graph=${window.roamAlphaAPI.graph.name}`);
+      setDeploys(r.deploys);
+      setLaunches(r.launches);
+      setIsWebsiteReady(r.isWebsiteReady);
 
-      const newDomain =
-        tree.find((t) => toFlexRegex("domain").test(t.text))?.children?.[0]
-          ?.text || "";
-      if (newDomain !== DomainName) {
-        diffs.push({
-          field: "Domain",
-          old: DomainName,
-          value: newDomain,
-          key: "DomainName",
-        });
+      if (r.isWebsiteReady) {
+        const { DomainName, CustomDomain } = await samePageApiGet<{
+          DomainName: string;
+          CustomDomain: string;
+        }>(`website-variables?graph=${window.roamAlphaAPI.graph.name}`);
+
+        const diffs = [];
+        const tree = getBasicTreeByParentUid(pageUid);
+
+        const newDomain =
+          tree.find((t) => toFlexRegex("domain").test(t.text))?.children?.[0]
+            ?.text || "";
+        if (newDomain !== DomainName) {
+          diffs.push({
+            field: "Domain",
+            old: DomainName,
+            value: newDomain,
+            key: "DomainName",
+          });
+        }
+
+        const newIsCustomDomain = `${!newDomain.endsWith(hostedDomain)}`;
+        if (newIsCustomDomain !== CustomDomain) {
+          diffs.push({
+            field: "Is Custom Domain",
+            old: CustomDomain,
+            value: newIsCustomDomain,
+            key: "CustomDomain",
+          });
+        }
+
+        setCfVariableDiffs(diffs);
+      } else {
+        timeoutRef.current = window.setTimeout(getWebsite, 5000);
       }
-
-      const newIsCustomDomain = `${!newDomain.endsWith(hostedDomain)}`;
-      if (newIsCustomDomain !== CustomDomain) {
-        diffs.push({
-          field: "Is Custom Domain",
-          old: CustomDomain,
-          value: newIsCustomDomain,
-          key: "CustomDomain",
-        });
-      }
-
-      setCfVariableDiffs(diffs);
-    } else if (r.websiteStatus === "FAILURE") {
-      setError(r.statusProps["message"] as string);
-    } else if (r.websiteStatus !== "SETUP") {
-      timeoutRef.current = window.setTimeout(getWebsite, 5000);
+    } catch (e) {
+      setError((e as Error).message);
     }
-  }, [
-    setWebsiteStatus,
-    setDeploys,
-    timeoutRef,
-    setStatusProps,
-    setProgressType,
-    setProgress,
-    pageUid,
-  ]);
+  }, [pageUid]);
   const wrapPost = useCallback(
     async (path: string, getData: (uid: string) => Record<string, unknown>) => {
       setError("");
@@ -1510,8 +1620,6 @@ const LiveContent: StageContent = () => {
   );
 
   useEffect(() => () => clearTimeout(timeoutRef.current), [timeoutRef]);
-  const isSiteDeploying =
-    loading || isWebsiteDeploying({ websiteStatus, deploys });
   useEffect(() => {
     setLoading(true);
     getWebsite()
@@ -1548,7 +1656,11 @@ const LiveContent: StageContent = () => {
   }, [settingsTree]);
 
   if (initialLoad) {
-    return <></>;
+    return (
+      <p style={{ display: "flex", alignItems: "start" }}>
+        <Spinner size={14} /> Loading...
+      </p>
+    );
   }
 
   if (!domain) {
@@ -1570,7 +1682,7 @@ const LiveContent: StageContent = () => {
     );
   }
 
-  if (websiteStatus === "SETUP") {
+  if (!launches.length) {
     return (
       <>
         <p>
@@ -1608,75 +1720,11 @@ const LiveContent: StageContent = () => {
 
   return (
     <>
-      <div style={{ marginBottom: 8 }}>
-        <span>Status</span>
-        {websiteStatus === "AWAITING VALIDATION" &&
-        statusProps &&
-        Object.keys(statusProps).length > 0 ? (
-          <div style={{ color: "darkblue" }}>
-            <span>{websiteStatus}</span>
-            <br />
-            {statusProps["nameServers"] && (
-              <>
-                To continue, add the following Name Servers to your Domain
-                Management Settings:
-                <ul>
-                  {(statusProps["nameServers"] as string[]).map((n) => (
-                    <li key={n}>{n}</li>
-                  ))}
-                </ul>
-              </>
-            )}
-            {statusProps["cname"] && (
-              <>
-                To continue, add the following CNAME to your Domain Management
-                Settings:
-                <p>
-                  <b>Name: </b>
-                  {(statusProps.cname as Record<string, string>)["name"]}
-                </p>
-                <p>
-                  <b>Value: </b>
-                  {(statusProps.cname as Record<string, string>)["value"]}
-                </p>
-              </>
-            )}
-          </div>
-        ) : (
-          <span
-            style={{
-              marginLeft: 16,
-              color: getStatusColor(websiteStatus),
-            }}
-          >
-            {websiteStatus === "LIVE" ? (
-              <a
-                href={`https://${domain}`}
-                target="_blank"
-                rel="noreferrer"
-                style={{ color: "inherit" }}
-              >
-                LIVE
-              </a>
-            ) : (
-              websiteStatus
-            )}
-          </span>
-        )}
-      </div>
-      {isSiteDeploying && (
-        <div style={{ margin: "8px 0" }}>
-          <ProgressBar
-            value={progress}
-            intent={progressTypeToIntent(progressType)}
-          />
-        </div>
-      )}
       <div style={{ marginTop: 8, display: "flex", alignItems: "center" }}>
         {!!cfVariableDiffs.length && (
           <WebsiteButton
             onConfirm={updateSite}
-            disabled={isSiteDeploying}
+            disabled={!isWebsiteReady}
             buttonText={"Update Site"}
             intent={Intent.WARNING}
           >
@@ -1712,14 +1760,14 @@ const LiveContent: StageContent = () => {
         )}
         <Button
           style={{ marginRight: 32, minWidth: 92 }}
-          disabled={isSiteDeploying}
+          disabled={!isWebsiteReady}
           onClick={deploy}
           intent={Intent.PRIMARY}
         >
           Deploy
         </Button>
         <WebsiteButton
-          disabled={isSiteDeploying}
+          disabled={!isWebsiteReady}
           onConfirm={shutdownWebsite}
           buttonText={"Shutdown"}
           intent={Intent.DANGER}
@@ -1729,27 +1777,24 @@ const LiveContent: StageContent = () => {
             operation is irreversible.
           </p>
         </WebsiteButton>
-        {error && <div style={{ color: "darkred" }}>{error}</div>}
+        {error && (
+          <div
+            style={{
+              color: "darkred",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {error}
+          </div>
+        )}
       </div>
       <hr style={{ margin: "16px 0" }} />
-      <h6>Deploys</h6>
-      <ul>
-        {deploys.map((d) => (
-          <div key={d.uuid}>
-            <span style={{ display: "inline-block", minWidth: "35%" }}>
-              At {new Date(d.date).toLocaleString()}
-            </span>
-            <span
-              style={{
-                marginLeft: 16,
-                color: getStatusColor(d.status),
-              }}
-            >
-              {d.status}
-            </span>
-          </div>
-        ))}
-      </ul>
+      <div className="flex gap-8 items-start">
+        <WebsiteStatusesView title="Launches" websiteStatuses={launches} />
+        <WebsiteStatusesView title="Deploys" websiteStatuses={deploys} />
+      </div>
     </>
   );
 };
