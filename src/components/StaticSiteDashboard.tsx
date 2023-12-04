@@ -168,6 +168,22 @@ const DOMAIN_REGEX =
   /^(\*\.)?(((?!-)[A-Za-z0-9-]{0,62}[A-Za-z0-9])\.)+((?!-)[A-Za-z0-9-]{1,62}[A-Za-z0-9])$/;
 const IMAGE_REGEX = /^!\[\]\(([^)]+)\)$/;
 
+const ErrorIndicator = ({ error }: { error: string }) => {
+  return error ? (
+    <div
+      style={{
+        color: "darkred",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+      }}
+      title={error}
+    >
+      {error}
+    </div>
+  ) : null;
+};
+
 const DNS_TYPES = [
   "A",
   "AAAA",
@@ -421,7 +437,7 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
         style={{ marginBottom: 32 }}
       />
       <Label>
-        {domainSwitch ? "Custom Domain" : "RoamJS Subdomain"}
+        {domainSwitch ? "Custom Domain" : "SamePage Subdomain"}
         <InputGroup
           value={domainSwitch ? value : value.replace(hostedDomain, "")}
           onChange={onChange}
@@ -439,7 +455,7 @@ const RequestDomainContent: StageContent = ({ openPanel }) => {
           }
         />
       </Label>
-      <p style={{ color: "darkred" }}>{error}</p>
+      <ErrorIndicator error={error} />
       {!!records.length && (
         <>
           <h4 style={{ marginTop: 8 }}>DNS Records</h4>
@@ -1335,8 +1351,9 @@ const WebsiteButton: React.FunctionComponent<
     disabled?: boolean;
     buttonText: string;
     intent: Intent;
+    loading: boolean;
   }
-> = ({ children, onConfirm, disabled = false, buttonText, intent }) => {
+> = ({ children, onConfirm, disabled = false, buttonText, intent, loading }) => {
   const [isOpen, setIsOpen] = useState(false);
   const open = useCallback(() => setIsOpen(true), [setIsOpen]);
   const close = useCallback(() => setIsOpen(false), [setIsOpen]);
@@ -1347,6 +1364,7 @@ const WebsiteButton: React.FunctionComponent<
         disabled={disabled}
         onClick={open}
         intent={intent}
+        loading={loading}
       >
         {buttonText}
       </Button>
@@ -1447,13 +1465,11 @@ const WebsiteStatusesView = ({
     };
   }, [websiteStatuses]);
   return (
-    <div className="flex-grow">
+    <div style={{ flex: 1 }}>
       <h6>{title}</h6>
       <div style={{ height: 40 }}>
         {progressPanelProps.status === "FAILURE" ? (
-          <div style={{ color: "darkred" }}>
-            {progressPanelProps.props.message}
-          </div>
+          <ErrorIndicator error={progressPanelProps.props.message} />
         ) : progressPanelProps.status === "AWAITING VALIDATION" ? (
           <div style={{ color: "darkblue" }}>
             {"nameServers" in progressPanelProps.props && (
@@ -1539,10 +1555,15 @@ const LiveContent: StageContent = () => {
       setIsWebsiteReady(r.isWebsiteReady);
 
       if (r.isWebsiteReady) {
-        const { DomainName, CustomDomain } = await samePageApiGet<{
+        const response = await samePageApiGet<{
           DomainName: string;
           CustomDomain: string;
         }>(`website-variables?graph=${window.roamAlphaAPI.graph.name}`);
+        if (Object.keys(response).length === 0) {
+          return;
+        }
+
+        const { DomainName, CustomDomain } = response;
 
         const diffs = [];
         const tree = getBasicTreeByParentUid(pageUid);
@@ -1559,7 +1580,7 @@ const LiveContent: StageContent = () => {
           });
         }
 
-        const newIsCustomDomain = `${!newDomain.endsWith(hostedDomain)}`;
+        const newIsCustomDomain = `${newDomain.endsWith(hostedDomain)}`;
         if (newIsCustomDomain !== CustomDomain) {
           diffs.push({
             field: "Is Custom Domain",
@@ -1681,6 +1702,7 @@ const LiveContent: StageContent = () => {
       </>
     );
   }
+  const buttonsDisabled = !isWebsiteReady || loading;
 
   if (!launches.length) {
     return (
@@ -1690,16 +1712,16 @@ const LiveContent: StageContent = () => {
         </p>
         <div className="flex">
           <Button
-            disabled={loading}
+            disabled={buttonsDisabled}
             onClick={launchWebsite}
             intent={Intent.PRIMARY}
             className="mb-16"
             style={{ maxWidth: 240 }}
-            loading={loading}
+            loading={buttonsDisabled}
           >
             LAUNCH
           </Button>
-          {error && <div style={{ color: "darkred" }}>{error}</div>}
+          <ErrorIndicator error={error} />
         </div>
         <div>
           <h4>Summary</h4>
@@ -1722,73 +1744,73 @@ const LiveContent: StageContent = () => {
     <>
       <div style={{ marginTop: 8, display: "flex", alignItems: "center" }}>
         {!!cfVariableDiffs.length && (
-          <WebsiteButton
-            onConfirm={updateSite}
-            disabled={!isWebsiteReady}
-            buttonText={"Update Site"}
-            intent={Intent.WARNING}
+          <Tooltip
+            content={`Changes included: ${cfVariableDiffs
+              .map(
+                (diff) => `${diff.field} (from ${diff.old} to ${diff.value})`
+              )
+              .join(", ")}`}
           >
-            <p>A site update would make the following changes:</p>
-            <table>
-              <tbody>
-                {cfVariableDiffs.map((diff) => (
-                  <tr key={diff.field}>
-                    <td>
-                      <b>Field: </b>
-                      {diff.field}
-                    </td>
-                    <td>
-                      <b>From: </b>
-                      {diff.old}
-                    </td>
-                    <td>
-                      <Icon icon={"arrow-right"} />
-                    </td>
-                    <td>
-                      <b>To: </b>
-                      {diff.value}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <p style={{ marginTop: 10 }}>
-              Are you sure you want to make these changes? This operation could
-              take several minutes.
-            </p>
-          </WebsiteButton>
+            <WebsiteButton
+              onConfirm={updateSite}
+              disabled={buttonsDisabled}
+              buttonText={"Update Site"}
+              intent={Intent.WARNING}
+              loading={loading}
+            >
+              <p>A site update would make the following changes:</p>
+              <table>
+                <tbody>
+                  {cfVariableDiffs.map((diff) => (
+                    <tr key={diff.field}>
+                      <td>
+                        <b>Field: </b>
+                        {diff.field}
+                      </td>
+                      <td>
+                        <b>From: </b>
+                        {diff.old}
+                      </td>
+                      <td>
+                        <Icon icon={"arrow-right"} />
+                      </td>
+                      <td>
+                        <b>To: </b>
+                        {diff.value}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p style={{ marginTop: 10 }}>
+                Are you sure you want to make these changes? This operation
+                could take several minutes.
+              </p>
+            </WebsiteButton>
+          </Tooltip>
         )}
         <Button
           style={{ marginRight: 32, minWidth: 92 }}
-          disabled={!isWebsiteReady}
+          disabled={buttonsDisabled}
           onClick={deploy}
           intent={Intent.PRIMARY}
+          loading={loading}
         >
           Deploy
         </Button>
         <WebsiteButton
-          disabled={!isWebsiteReady}
+          disabled={buttonsDisabled}
           onConfirm={shutdownWebsite}
           buttonText={"Shutdown"}
           intent={Intent.DANGER}
+          loading={loading}
         >
           <p>
             Are you sure you want to shut down this RoamJS website? This
             operation is irreversible.
           </p>
         </WebsiteButton>
-        {error && (
-          <div
-            style={{
-              color: "darkred",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-          >
-            {error}
-          </div>
-        )}
+        <ErrorIndicator error={error} />
       </div>
       <hr style={{ margin: "16px 0" }} />
       <div className="flex gap-8 items-start">
