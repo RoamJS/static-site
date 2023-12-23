@@ -463,3 +463,8 @@ resource "aws_lambda_permission" "sns_lambda" {
   principal     = "sns.amazonaws.com"
   source_arn    = aws_sns_topic.cloudformation_topic.arn
 }
+
+provider "github" {
+    owner = "dvargas92495"
+    token = var.github_token
+}
