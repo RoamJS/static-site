@@ -1353,7 +1353,14 @@ const WebsiteButton: React.FunctionComponent<
     intent: Intent;
     loading: boolean;
   }
-> = ({ children, onConfirm, disabled = false, buttonText, intent, loading }) => {
+> = ({
+  children,
+  onConfirm,
+  disabled = false,
+  buttonText,
+  intent,
+  loading,
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const open = useCallback(() => setIsOpen(true), [setIsOpen]);
   const close = useCallback(() => setIsOpen(false), [setIsOpen]);
@@ -1545,10 +1552,6 @@ const LiveContent: StageContent = () => {
         deploys: WebsiteStatus[];
         launches: WebsiteStatus[];
         isWebsiteReady: boolean;
-
-        // DEPRECATED
-        progress: number;
-        progressType: WebsiteProgressType;
       }>(`website-status?graph=${window.roamAlphaAPI.graph.name}`);
       setDeploys(r.deploys);
       setLaunches(r.launches);
@@ -1710,14 +1713,14 @@ const LiveContent: StageContent = () => {
         <p>
           You're ready to launch your new site! Click the button below to start.
         </p>
-        <div className="flex">
+        <div className="flex gap-4">
           <Button
-            disabled={buttonsDisabled}
+            disabled={loading || !!error}
             onClick={launchWebsite}
             intent={Intent.PRIMARY}
             className="mb-16"
             style={{ maxWidth: 240 }}
-            loading={buttonsDisabled}
+            loading={loading}
           >
             LAUNCH
           </Button>
