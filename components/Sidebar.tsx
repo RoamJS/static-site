@@ -1,9 +1,10 @@
 import React, { useEffect, useRef } from "react";
 import ReactDOM from "react-dom";
 import ReactDOMServer from "react-dom/server";
-import { ensureReact, ensureScript } from "../lambdas/common/components";
-import { RenderFunction } from "../lambdas/common/types";
 import cytoscape from "cytoscape";
+import ensureReact from "../src/utils/ensureReact";
+import ensureScript from "../src/utils/ensureScript";
+import { RenderFunction } from "../src/utils/types";
 
 type Props = {
   widgets: string[];
@@ -122,7 +123,7 @@ export const render: RenderFunction = (dom, props, context) => {
     widgets: props["widgets"] || [],
     references: context.references.map((r) => ({
       title: r.title,
-      uid: r.node.uid,
+      uid: r.node.uid ?? "",
       path: context.convertPageNameToPath(r.title),
     })),
     pageName: context.pageName,

@@ -2,8 +2,9 @@ import React from "react";
 import ReactDOM from "react-dom";
 import ReactDOMServer from "react-dom/server";
 import extractTag from "roamjs-components/util/extractTag";
-import { ensureReact, ensureScript } from "../lambdas/common/components";
-import { RenderFunction } from "../lambdas/common/types";
+import ensureReact from "../src/utils/ensureReact";
+import ensureScript from "../src/utils/ensureScript";
+import { RenderFunction } from "../src/utils/types";
 
 type Props = {
   links: { title: string; href: string }[];

@@ -1,8 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import ReactDOMServer from "react-dom/server";
-import { ensureReact, ensureScript } from "../lambdas/common/components";
-import { RenderFunction } from "../lambdas/common/types";
 import {
   FaTwitter,
   FaGithub,
@@ -17,6 +15,9 @@ import {
   FaEnvelope,
   FaLink,
 } from "react-icons/fa";
+import ensureReact from "../src/utils/ensureReact";
+import ensureScript from "../src/utils/ensureScript";
+import { RenderFunction } from "../src/utils/types";
 
 type Props = {
   links: string[];
@@ -99,7 +100,7 @@ const Footer = ({ links, copyright }: Props): React.ReactElement => {
               <li key={link}>
                 <a href={link} target="_blank" rel="noreferrer">
                   <span className={"roamjs-footer-icon"}>
-                    {icons.find((i) => i.test.test(link)).component}
+                    {icons.find((i) => i.test.test(link))?.component}
                   </span>
                 </a>
               </li>

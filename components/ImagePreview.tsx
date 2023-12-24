@@ -2,12 +2,10 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import ReactDOM from "react-dom";
 import ReactDOMServer from "react-dom/server";
 import { Dialog } from "@blueprintjs/core";
-import {
-  ensureBlueprint,
-  ensureReact,
-  ensureScript,
-} from "../lambdas/common/components";
-import { RenderFunction } from "../lambdas/common/types";
+import ensureBlueprint from "../src/utils/ensureBlueprint";
+import ensureReact from "../src/utils/ensureReact";
+import ensureScript from "../src/utils/ensureScript";
+import { RenderFunction } from "../src/utils/types";
 
 const ImagePreview = (): React.ReactElement => {
   const [src, setSrc] = useState("");
@@ -58,7 +56,7 @@ const ImagePreview = (): React.ReactElement => {
           setWidth(containerWidth);
         }
         const dialog = imageRef.current.closest<HTMLDivElement>(".bp3-dialog");
-        dialog.onclick = onDialogClose;
+        if (dialog) dialog.onclick = onDialogClose;
         imageRef.current.onclick = (e) => e.stopPropagation();
       }
     };
@@ -128,7 +126,7 @@ export const render: RenderFunction = (dom) => {
   if (imgs.length) {
     imgs.forEach((img) => {
       img.classList.add("roamjs-image-preview-img");
-      if (img.parentElement.tagName === "P") {
+      if (img.parentElement?.tagName === "P") {
         const parent = img.parentElement;
         const newParent = document.createElement("div");
         if (parent.parentElement) {
@@ -137,7 +135,7 @@ export const render: RenderFunction = (dom) => {
           parent.remove();
         }
       }
-      img.parentElement.classList.add("roamjs-image-container");
+      img.parentElement?.classList.add("roamjs-image-container");
     });
     const container = document.createElement("div");
     container.id = ID;

@@ -1458,7 +1458,7 @@ const WebsiteStatusesView = ({
     if (parsedProps.success) {
       return parsedProps.data;
     }
-    if (["SUCCESS", "FAILURE"].includes(latest.status)) {
+    if (["SUCCESS", "FAILURE", "LIVE"].includes(latest.status)) {
       return {
         status: "NONE",
       };
