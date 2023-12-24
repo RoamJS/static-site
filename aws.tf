@@ -1,6 +1,6 @@
 terraform {
   backend "remote" {
-    hostname = "app.terraform.io"
+    hostname     = "app.terraform.io"
     organization = "VargasArts"
     workspaces {
       prefix = "generate-roam-site-lambda"
@@ -8,7 +8,7 @@ terraform {
   }
   required_providers {
     github = {
-      source = "integrations/github"
+      source  = "integrations/github"
       version = "4.2.0"
     }
   }
@@ -35,9 +35,9 @@ variable "github_token" {
 }
 
 provider "aws" {
-    region = "us-east-1"
-    access_key = var.aws_access_token
-    secret_key = var.aws_secret_token
+  region     = "us-east-1"
+  access_key = var.aws_access_token
+  secret_key = var.aws_secret_token
 }
 
 data "aws_iam_role" "roamjs_lambda_role" {
@@ -50,7 +50,7 @@ data "aws_iam_policy_document" "assume_lambda_edge_policy" {
     principals {
       type = "Service"
       identifiers = [
-        "lambda.amazonaws.com", 
+        "lambda.amazonaws.com",
         "edgelambda.amazonaws.com"
       ]
     }
@@ -67,20 +67,10 @@ data "aws_iam_policy_document" "lambda_logs_policy_doc" {
       "logs:CreateLogGroup"
     ]
   }
-
-  statement {
-    effect    = "Allow"
-    resources = [
-      "${aws_dynamodb_table.website-statuses.arn}/index/*"
-    ]
-    actions   = [
-      "dynamodb:Query"
-    ]
-  }
 }
 
 data "aws_route53_zone" "roamjs" {
-    name  = "roamjs.com."
+  name = "roamjs.com."
 }
 
 resource "aws_iam_role_policy" "logs_role_policy" {
@@ -103,23 +93,23 @@ data "archive_file" "dummy" {
   output_path = "./dummy.zip"
 
   source {
-    content   = "// TODO IMPLEMENT"
-    filename  = "dummy.js"
+    content  = "// TODO IMPLEMENT"
+    filename = "dummy.js"
   }
 }
 
 resource "aws_lambda_function" "deploy_function" {
-  function_name    = "RoamJS_deploy"
-  role             = data.aws_iam_role.roamjs_lambda_role.arn
-  handler          = "deploy.handler"
-  runtime          = "nodejs16.x"
-  filename         = "dummy.zip"
-  publish          = false
-  tags             = {
+  function_name = "RoamJS_deploy"
+  role          = data.aws_iam_role.roamjs_lambda_role.arn
+  handler       = "deploy.handler"
+  runtime       = "nodejs16.x"
+  filename      = "dummy.zip"
+  publish       = false
+  tags = {
     Application = "Roam JS Extensions"
   }
-  timeout          = 600
-  memory_size      = 1600
+  timeout     = 600
+  memory_size = 1600
 }
 
 resource "aws_lambda_permission" "deploy_permission" {
@@ -131,122 +121,71 @@ resource "aws_lambda_permission" "deploy_permission" {
 }
 
 resource "aws_lambda_function" "launch_function" {
-  function_name    = "RoamJS_launch"
-  role             = data.aws_iam_role.roamjs_lambda_role.arn
-  handler          = "launch.handler"
-  runtime          = "nodejs16.x"
-  filename         = "dummy.zip"
-  publish          = false
-  tags             = {
-    Application = "Roam JS Extensions"
-  }
-  timeout          = 300
-  memory_size      = 1600
-}
-
-resource "aws_lambda_function" "shutdown_function" {
-  function_name    = "RoamJS_shutdown"
-  role             = data.aws_iam_role.roamjs_lambda_role.arn
-  handler          = "shutdown.handler"
-  runtime          = "nodejs16.x"
-  filename         = "dummy.zip"
-  publish          = false
-  tags             = {
-    Application = "Roam JS Extensions"
-  }
-  timeout          = 300
-  memory_size      = 1600
-}
-
-resource "aws_lambda_function" "update_function" {
-  function_name    = "RoamJS_update"
-  role             = data.aws_iam_role.roamjs_lambda_role.arn
-  handler          = "update.handler"
-  runtime          = "nodejs16.x"
-  filename         = "dummy.zip"
-  publish          = false
-  tags             = {
-    Application = "Roam JS Extensions"
-  }
-  timeout          = 300
-  memory_size      = 1600
-}
-
-resource "aws_lambda_function" "describe_function" {
-  function_name    = "RoamJS_describe"
-  role             = data.aws_iam_role.roamjs_lambda_role.arn
-  handler          = "describe.handler"
-  runtime          = "nodejs16.x"
-  filename         = "dummy.zip"
-  publish          = false
-  tags             = {
-    Application = "Roam JS Extensions"
-  }
-  timeout          = 300
-  memory_size      = 1600
-}
-
-resource "aws_lambda_function" "origin_request" {
-  function_name    = "RoamJS_origin-request"
-  role             = aws_iam_role.cloudfront_lambda.arn
-  handler          = "origin-request.handler"
-  runtime          = "nodejs16.x"
-  publish          = true
-  tags             = {
-    Application = "Roam JS Extensions"
-  }
-  filename         = "dummy.zip"
-}
-
-resource "aws_dynamodb_table" "website-statuses" {
-  name           = "RoamJSWebsiteStatuses"
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "uuid"
-  range_key      = "date"
-
-  attribute {
-    name = "uuid"
-    type = "S"
-  }
-
-  attribute {
-    name = "action_graph"
-    type = "S"
-  }
-
-  attribute {
-    name = "date"
-    type = "S"
-  }
-
-  attribute {
-    name = "status"
-    type = "S"
-  }
-
-  global_secondary_index {
-    hash_key           = "action_graph"
-    name               = "primary-index"
-    non_key_attributes = []
-    range_key          = "date"
-    projection_type    = "ALL"
-    read_capacity      = 0
-    write_capacity     = 0
-  }
-
-  global_secondary_index {
-    hash_key           = "action_graph"
-    name               = "status-index"
-    non_key_attributes = []
-    range_key          = "status"
-    projection_type    = "ALL"
-    read_capacity      = 0
-    write_capacity     = 0
-  }
-
+  function_name = "RoamJS_launch"
+  role          = data.aws_iam_role.roamjs_lambda_role.arn
+  handler       = "launch.handler"
+  runtime       = "nodejs16.x"
+  filename      = "dummy.zip"
+  publish       = false
   tags = {
     Application = "Roam JS Extensions"
   }
+  timeout     = 300
+  memory_size = 1600
+}
+
+resource "aws_lambda_function" "shutdown_function" {
+  function_name = "RoamJS_shutdown"
+  role          = data.aws_iam_role.roamjs_lambda_role.arn
+  handler       = "shutdown.handler"
+  runtime       = "nodejs16.x"
+  filename      = "dummy.zip"
+  publish       = false
+  tags = {
+    Application = "Roam JS Extensions"
+  }
+  timeout     = 300
+  memory_size = 1600
+}
+
+resource "aws_lambda_function" "update_function" {
+  function_name = "RoamJS_update"
+  role          = data.aws_iam_role.roamjs_lambda_role.arn
+  handler       = "update.handler"
+  runtime       = "nodejs16.x"
+  filename      = "dummy.zip"
+  publish       = false
+  tags = {
+    Application = "Roam JS Extensions"
+  }
+  timeout     = 300
+  memory_size = 1600
+}
+
+resource "aws_lambda_function" "describe_function" {
+  function_name = "RoamJS_describe"
+  role          = data.aws_iam_role.roamjs_lambda_role.arn
+  handler       = "describe.handler"
+  runtime       = "nodejs16.x"
+  filename      = "dummy.zip"
+  publish       = false
+  tags = {
+    Application = "Roam JS Extensions"
+  }
+  timeout     = 300
+  memory_size = 1600
+}
+
+resource "aws_lambda_function" "origin_request" {
+  function_name = "RoamJS_origin-request"
+  role          = aws_iam_role.cloudfront_lambda.arn
+  handler       = "origin-request.handler"
+  runtime       = "nodejs16.x"
+  publish       = true
+  tags = {
+    Application = "Roam JS Extensions"
+  }
+  filename = "dummy.zip"
 }
 
 data "aws_iam_policy_document" "bucket_policy" {
@@ -281,7 +220,7 @@ resource "aws_s3_bucket" "main" {
     index_document = "index.html"
     error_document = "404.html"
   }
-  force_destroy = true 
+  force_destroy = true
 
   tags = {
     Application = "Roam JS Extensions"
@@ -428,22 +367,22 @@ data "aws_iam_policy_document" "cloudformation_extra" {
 }
 
 resource "aws_iam_role_policy" "cloudformation_extra" {
-  name = "cloudformation_extra_policy"
-  role = aws_iam_role.cf_role.id
+  name   = "cloudformation_extra_policy"
+  role   = aws_iam_role.cf_role.id
   policy = data.aws_iam_policy_document.cloudformation_extra.json
 }
 
 resource "aws_lambda_function" "complete_function" {
-  function_name    = "RoamJS_complete"
-  role             = data.aws_iam_role.roamjs_lambda_role.arn
-  handler          = "complete.handler"
-  runtime          = "nodejs16.x"
-  filename         = "dummy.zip"
-  publish          = false
-  tags             = {
+  function_name = "RoamJS_complete"
+  role          = data.aws_iam_role.roamjs_lambda_role.arn
+  handler       = "complete.handler"
+  runtime       = "nodejs16.x"
+  filename      = "dummy.zip"
+  publish       = false
+  tags = {
     Application = "Roam JS Extensions"
   }
-  timeout          = 30
+  timeout = 30
 }
 
 resource "aws_sns_topic" "cloudformation_topic" {
@@ -465,6 +404,6 @@ resource "aws_lambda_permission" "sns_lambda" {
 }
 
 provider "github" {
-    owner = "dvargas92495"
-    token = var.github_token
+  owner = "dvargas92495"
+  token = var.github_token
 }

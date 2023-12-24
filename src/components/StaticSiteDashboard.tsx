@@ -1398,12 +1398,6 @@ type WebsiteStatus = {
   uuid: string;
   props: Record<string, unknown>;
 };
-type WebsiteProgressType =
-  | "LAUNCHING"
-  | "SHUTTING DOWN"
-  | "DEPLOYING"
-  | "UPDATING"
-  | "";
 
 const zWebsiteStautusProps = z.discriminatedUnion("status", [
   z.object({
