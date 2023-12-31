@@ -196,14 +196,6 @@ data "aws_iam_policy_document" "invoke_cloudwatch_policy" {
       "batch:SubmitJob"
     ]
   }
-
-  statement {
-    effect    = "Allow"
-    resources = [aws_lambda_function.deploy_function.arn]
-    actions = [
-      "lambda:InvokeFunction"
-    ]
-  }
 }
 
 resource "aws_iam_role" "cloudwatch" {
@@ -240,29 +232,6 @@ data "aws_iam_policy_document" "cloudformation_extra" {
 
     resources = [
       aws_iam_role.cloudwatch.arn,
-    ]
-  }
-
-  statement {
-    sid = "LambdaGet"
-    actions = [
-      "lambda:GetFunction",
-    ]
-
-    resources = [
-      "${aws_lambda_function.origin_request.arn}:*",
-    ]
-  }
-
-  statement {
-    sid = "LambdaEnable"
-    actions = [
-      "lambda:EnableReplication*",
-    ]
-
-    resources = [
-      aws_lambda_function.origin_request.arn,
-      "${aws_lambda_function.origin_request.arn}:*",
     ]
   }
 }
