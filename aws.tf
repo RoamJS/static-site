@@ -234,10 +234,45 @@ data "aws_iam_policy_document" "cloudformation_extra" {
       aws_iam_role.cloudwatch.arn,
     ]
   }
+
+  statement {
+    sid = "LambdaGet"
+    actions = [
+      "lambda:GetFunction",
+    ]
+
+    resources = [
+      "${aws_lambda_function.origin_request.arn}:*",
+    ]
+  }
+
+  statement {
+    sid = "LambdaEnable"
+    actions = [
+      "lambda:EnableReplication*",
+    ]
+
+    resources = [
+      aws_lambda_function.origin_request.arn,
+      "${aws_lambda_function.origin_request.arn}:*",
+    ]
+  }
 }
 
 resource "aws_iam_role_policy" "cloudformation_extra" {
   name   = "cloudformation_extra_policy"
   role   = aws_iam_role.cf_role.id
   policy = data.aws_iam_policy_document.cloudformation_extra.json
+}
+
+resource "aws_lambda_function" "origin_request" {
+  function_name = "RoamJS_origin-request"
+  role          = aws_iam_role.cloudfront_lambda.arn
+  handler       = "origin-request.handler"
+  runtime       = "nodejs16.x"
+  publish       = true
+  tags = {
+    Application = "Roam JS Extensions"
+  }
+  filename = "dummy.zip"
 }
