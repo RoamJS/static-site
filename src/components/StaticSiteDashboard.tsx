@@ -1577,7 +1577,7 @@ const LiveContent: StageContent = () => {
           });
         }
 
-        const newIsCustomDomain = `${newDomain.endsWith(hostedDomain)}`;
+        const newIsCustomDomain = `${!newDomain.endsWith(hostedDomain)}`;
         if (newIsCustomDomain !== CustomDomain) {
           diffs.push({
             field: "Is Custom Domain",
