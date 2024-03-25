@@ -2771,44 +2771,90 @@ const RequestSharingContent: StageContent = ({ openPanel }) => {
 
 const StaticSiteDashboard = (): React.ReactElement => {
   return (
-    <ServiceDashboard
-      service={"static-site"}
-      stages={[
-        WrapServiceMainStage(LiveContent),
-        {
-          component: RequestDomainContent,
-          setting: "Domain",
-        },
-        {
-          component: RequestIndexContent,
-          setting: "Index",
-        },
-        {
-          component: RequestFiltersContent,
-          setting: "Filter",
-        },
-        {
-          component: RequestThemeContent,
-          setting: "Theme",
-        },
-        {
-          component: RequestPluginsContent,
-          setting: "Plugins",
-        },
-        {
-          component: RequestTemplateContent,
-          setting: "Template",
-        },
-        {
-          component: RequestReferenceTemplateContent,
-          setting: "Reference Template",
-        },
-        { component: RequestFilesContent, setting: "Files" },
-        { component: RequestRedirectsContent, setting: "Redirects" },
-        { component: RequestSharingContent, setting: "Sharing" },
-      ]}
-    />
+    <ErrorBoundary>
+      <ServiceDashboard
+        service={"static-site"}
+        stages={[
+          WrapServiceMainStage(LiveContent),
+          {
+            component: RequestDomainContent,
+            setting: "Domain",
+          },
+          {
+            component: RequestIndexContent,
+            setting: "Index",
+          },
+          {
+            component: RequestFiltersContent,
+            setting: "Filter",
+          },
+          {
+            component: RequestThemeContent,
+            setting: "Theme",
+          },
+          {
+            component: RequestPluginsContent,
+            setting: "Plugins",
+          },
+          {
+            component: RequestTemplateContent,
+            setting: "Template",
+          },
+          {
+            component: RequestReferenceTemplateContent,
+            setting: "Reference Template",
+          },
+          { component: RequestFilesContent, setting: "Files" },
+          { component: RequestRedirectsContent, setting: "Redirects" },
+          { component: RequestSharingContent, setting: "Sharing" },
+        ]}
+      />
+    </ErrorBoundary>
   );
 };
+
+class ErrorBoundary extends React.Component {
+  state = { hasError: false };
+
+  static getDerivedStateFromError(_: Error) {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    apiPost({
+      domain: "https://api.samepage.network",
+      path: "errors",
+      data: {
+        method: "extension-error",
+        type: "Publishing Dashboard Failed to Load",
+        data: {
+          errorInfo,
+        },
+        message: error.message,
+        stack: error.stack,
+        version: process.env.VERSION,
+        notebookUuid: JSON.stringify({
+          owner: "RoamJS",
+          app: "static-site",
+          workspace: window.roamAlphaAPI.graph.name,
+        }),
+      },
+    }).catch(() => {});
+  }
+
+  render() {
+    if (this.state.hasError) {
+      // You can render any custom fallback UI
+      return (
+        <div>
+          <h1>Something went wrong.</h1>
+          <p>An error report email has been sent to the SamePage team.</p>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
 
 export default StaticSiteDashboard;
