@@ -74,6 +74,7 @@ import AutocompleteInput from "roamjs-components/components/AutocompleteInput";
 import { v4 } from "uuid";
 import { getNodeEnv } from "roamjs-components/util/env";
 import { z } from "zod";
+import { render as renderToast } from "roamjs-components/components/Toast";
 
 const DEFAULT_TEMPLATE = `<!DOCTYPE html>
 <html>
@@ -1432,12 +1433,77 @@ const zWebsiteStautusProps = z.discriminatedUnion("status", [
   }),
 ]);
 
+const WebsiteStatusView = ({
+  websiteStatus,
+  onRestore: parentOnRestore,
+}: {
+  websiteStatus: WebsiteStatus;
+  onRestore?: () => void;
+}) => {
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  const onRestore = useCallback(async () => {
+    setIsRestoring(true);
+    const { success } = await samePageApiPost<{ success: boolean }>(`restore`, {
+      graph: window.roamAlphaAPI.graph.name,
+      operationUuid: websiteStatus.uuid,
+    }).catch(() => ({ success: false }));
+    setIsRestoring(false);
+    if (success) {
+      renderToast({
+        content: "Website Restored!",
+        id: "website-restore-success",
+        intent: "success",
+      });
+      parentOnRestore?.();
+    } else {
+      renderToast({
+        content: "Website Failed to Restore",
+        id: "website-restore-failed",
+        intent: "danger",
+      });
+    }
+  }, [parentOnRestore]);
+  return (
+    <div>
+      <span style={{ display: "inline-block", minWidth: "35%" }}>
+        At {new Date(websiteStatus.date).toLocaleString()}
+      </span>
+      <span
+        style={{
+          marginLeft: 16,
+          marginRight: 16,
+          color: getStatusColor(websiteStatus.status),
+          opacity: isRestoring ? 0.5 : 1,
+        }}
+      >
+        {websiteStatus.status}
+      </span>
+      {parentOnRestore && websiteStatus.status === "SUCCESS" && (
+        <span>
+          <Tooltip content={"Restore this version"}>
+            <Button
+              icon={"undo"}
+              minimal
+              onClick={onRestore}
+              loading={isRestoring}
+              small
+            />
+          </Tooltip>
+        </span>
+      )}
+    </div>
+  );
+};
+
 const WebsiteStatusesView = ({
   websiteStatuses,
   title,
+  onRestore,
 }: {
   websiteStatuses: WebsiteStatus[];
   title: string;
+  onRestore?: () => Promise<void>;
 }) => {
   const progressPanelProps = useMemo<
     z.infer<typeof zWebsiteStautusProps>
@@ -1509,20 +1575,12 @@ const WebsiteStatusesView = ({
         )}
       </div>
       <ul style={{ paddingLeft: 0 }}>
-        {websiteStatuses.map((d) => (
-          <div key={d.uuid}>
-            <span style={{ display: "inline-block", minWidth: "35%" }}>
-              At {new Date(d.date).toLocaleString()}
-            </span>
-            <span
-              style={{
-                marginLeft: 16,
-                color: getStatusColor(d.status),
-              }}
-            >
-              {d.status}
-            </span>
-          </div>
+        {websiteStatuses.map((d, index) => (
+          <WebsiteStatusView
+            key={d.uuid}
+            websiteStatus={d}
+            onRestore={index > 0 ? onRestore : undefined}
+          />
         ))}
       </ul>
     </div>
@@ -1812,7 +1870,11 @@ const LiveContent: StageContent = () => {
       <hr style={{ margin: "16px 0" }} />
       <div className="flex gap-8 items-start">
         <WebsiteStatusesView title="Launches" websiteStatuses={launches} />
-        <WebsiteStatusesView title="Deploys" websiteStatuses={deploys} />
+        <WebsiteStatusesView
+          title="Deploys"
+          websiteStatuses={deploys}
+          onRestore={getWebsite}
+        />
       </div>
     </>
   );
