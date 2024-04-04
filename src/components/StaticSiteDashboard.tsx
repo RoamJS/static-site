@@ -2016,18 +2016,18 @@ const pluginIds: Plugin[] = [
       "Provides different options for specifying the names of all of your URL paths",
     tabs: [{ id: "type", options: ["uid", "lowercase"] }, { id: "delimiter" }],
   },
-  {
-    id: "sidebar",
-    description:
-      "Add a static sidebar to the right of the page that host different widgets of information",
-    tabs: [
-      {
-        id: "widgets",
-        options: ["graph"],
-        multi: true,
-      },
-    ],
-  },
+  // {
+  //   id: "sidebar",
+  //   description:
+  //     "Add a static sidebar to the right of the page that host different widgets of information",
+  //   tabs: [
+  //     {
+  //       id: "widgets",
+  //       options: ["graph"],
+  //       multi: true,
+  //     },
+  //   ],
+  // },
 ];
 
 const RequestPluginsContent: StageContent = ({ openPanel }) => {
