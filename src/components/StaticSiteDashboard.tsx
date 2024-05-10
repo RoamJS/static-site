@@ -75,6 +75,8 @@ import { v4 } from "uuid";
 import { getNodeEnv } from "roamjs-components/util/env";
 import { z } from "zod";
 import { render as renderToast } from "roamjs-components/components/Toast";
+import getToken from "roamjs-components/util/getToken";
+import localStorageSet from "roamjs-components/util/localStorageSet";
 
 const DEFAULT_TEMPLATE = `<!DOCTYPE html>
 <html>
@@ -2706,6 +2708,47 @@ const RequestRedirectsContent: StageContent = ({ openPanel }) => {
 
 type Sharing = { uuid: string; user: string; permission: string; date: string };
 
+const LegacyRoamJSToken = () => {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const roamjsToken = getToken();
+    if (inputRef.current && roamjsToken) {
+      inputRef.current.value = roamjsToken;
+    }
+  }, []);
+  return (
+    <div className="flex justify-between items-center">
+      <InputGroup defaultValue="" inputRef={inputRef} type="password" />
+      <Button
+        text={"Save RoamJS Token"}
+        onClick={() => {
+          try {
+            const token = inputRef.current?.value;
+            if (token) {
+              const normalizedToken =
+                token.length <= 20 ? token : window.atob(token).split(":")[1];
+              localStorageSet("token", normalizedToken);
+              renderToast({
+                content: "Saved token",
+                intent: "success",
+                id: "roamjs-token-success",
+              });
+            } else {
+              throw new Error("No token to save");
+            }
+          } catch (e) {
+            renderToast({
+              content: `Error saving token: ${(e as Error).message}`,
+              intent: "danger",
+              id: "roamjs-token-error",
+            });
+          }
+        }}
+      />
+    </div>
+  );
+};
+
 const RequestSharingContent: StageContent = ({ openPanel }) => {
   const nextStage = useServiceNextStage(openPanel);
   const [loading, setLoading] = useState(true);
@@ -2826,6 +2869,7 @@ const RequestSharingContent: StageContent = ({ openPanel }) => {
           </>
         )}
       </div>
+      <LegacyRoamJSToken />
       <ServiceNextButton onClick={onSubmit} />
     </div>
   );
