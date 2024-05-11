@@ -3,5 +3,6 @@ out
 build
 .env
 extension.js
+extension.css
 error.png
 dist
