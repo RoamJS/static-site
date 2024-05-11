@@ -20,10 +20,12 @@ import {
   TextArea,
   Tooltip,
 } from "@blueprintjs/core";
-import { Controlled as CodeMirror } from "@dvargas92495/react-codemirror2";
-import "@dvargas92495/codemirror/mode/xml/xml";
-import "@dvargas92495/codemirror/mode/css/css";
-import "@dvargas92495/codemirror/mode/javascript/javascript";
+import { Controlled as CodeMirror } from "react-codemirror2";
+import "codemirror/mode/xml/xml";
+import "codemirror/mode/css/css";
+import "codemirror/mode/javascript/javascript";
+import 'codemirror/lib/codemirror.css';
+import 'codemirror/theme/material.css';
 import React, {
   useCallback,
   useEffect,
