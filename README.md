@@ -6,6 +6,8 @@ Instead of deploying this extension to Roam Depot, we plan to merge this extensi
 
 Deploying your Roam graph as a public website!
 
+[![#roam-js on Slack](https://roamjs.com/badges/slack.svg)](https://roamresearch.slack.com/archives/C016N2B66JU)
+
 ## Introduction
 Roam is a powerful CMS (content management system), not just for personal knowledge management but for public information as well. There are a couple of problems though with using Roam itself as the public-facing display of that information:
 - Initial load time is slow
